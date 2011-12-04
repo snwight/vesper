@@ -3,12 +3,11 @@
 __all__ = ['SqliteStore', 'TransactionSqliteStore']
 
 import os, os.path
-import logging
-
 import sqlite3
-
 from vesper.backports import *
 from vesper.data.base import * # XXX
+import logging 
+log = logging.getLogger("sqlite")
 
 class SqliteStore(Model):
     '''
@@ -28,10 +27,11 @@ class SqliteStore(Model):
      
     def __init__(self, source = None, defaultStatements = None, **kw):
         if source is None or source == ":memory:":
-            print "in-memory database being opened"
+            
+            log.debug("in-memory database being opened")
         else:
             source = os.path.abspath(source)
-            print "on-disk database being opened at ", source
+            log.debug("on-disk database being opened at ", source)
         self.conn = sqlite3.connect(source)
         curs = self.conn.cursor()
         curs.execute("create table if not exists vesper_stmts ( \
@@ -71,7 +71,7 @@ subject, predicate )")
         limit = hints.get('limit')
         offset = hints.get('offset')
 
-        print "s p o ot c quad lim offset: ", fs, fp, fo, fot, fc, asQuad, limit, offset
+        log.debug("s p o ot c quad lim offset: ", fs, fp, fo, fot, fc, asQuad, limit, offset)
 
         if fo:
             if isinstance(object, ResourceUri):
@@ -119,7 +119,7 @@ subject, predicate )")
             sqlstmt += ' offset ' + str(offset)
 
         # our query is contructed, let's get some rows
-        print "query stmt: ", sqlstmt 
+        log.debug("query stmt: ", sqlstmt)
         self.conn.row_factory = sqlite3.Row
         self.conn.text_factory = sqlite3.OptimizedUnicode
         curs = self.conn.cursor()
@@ -132,18 +132,18 @@ subject, predicate )")
             # find distinct s p o ot sets, ignore contexts
             stmts = removeDupStatementsFromSortedList(stmts, asQuad)
 
-        print "stmts returned: ", stmts 
+        log.debug("stmts returned: ", stmts)
         return stmts
 
     def addStatement(self, stmt):
         '''add the specified statement to the model'''
-        print "addStatement called with ", stmt 
+        log.debug("addStatement called with ", stmt)
         s, p, o, t, c = stmt
         self.conn.execute("insert into vesper_stmts values (?, ?, ?, ?, ?)",  (s, p, o, t, c))
         return True
         
     def addStatements(self, stmts):
-        print "addStatements called with ", stmts 
+        log.debug("addStatements called with ", stmts)
         for elem in stmts:
             self.addStatement(elem)
         return True
@@ -160,7 +160,7 @@ subject = ? AND predicate = ? AND object = ? AND objecttype = ? AND context = ? 
 
     def commit(self):
         # are we committed?
-        print "committing!"
+        log.debug("committing!")
         self.conn.commit()
 
     def close(self):
