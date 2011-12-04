@@ -134,8 +134,9 @@ subject, predicate )")
 
     def addStatements(self, stmts):
         log.debug("addStatements called with ", stmts)
-        for elem in stmts:
-            self.addStatement(elem)
+#        for elem in stmts:
+#            self.addStatement(elem)
+        self.conn.executemany("insert into vesper_stmts values (?, ?, ?, ?, ?)",  stmt_generator(stmts))
         return True
 
     def removeStatement(self, stmt):
@@ -166,3 +167,6 @@ class TransactionSqliteStore(TransactionModel, SqliteStore):
     Provides in-memory transactions to BdbStore
 
     '''
+    def rollback(self):
+        log.debug("rolling back!")
+        self.conn.rollback()
