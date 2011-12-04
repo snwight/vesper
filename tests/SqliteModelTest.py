@@ -13,10 +13,14 @@ from vesper.data.store.sqlite import SqliteStore, TransactionSqliteStore
 class SqliteModelTestCase(modelTest.BasicModelTestCase):
     
     def getModel(self):
-        model = SqliteStore(None)
+        sys.stdout.flush()
+        # None ==> :memory:
+        model = SqliteStore(self.tmpfilename)
         return self._getModel(model)
 
     def getTransactionModel(self):
+        sys.stdout.flush()
+        # None ==> :memory:
         model = TransactionSqliteStore(self.tmpfilename)
         return self._getModel(model)
 
@@ -25,7 +29,6 @@ class SqliteModelTestCase(modelTest.BasicModelTestCase):
         self.tmpfilename = os.path.join(self.tmpdir, 'test.sqlite') 
         
     def tearDown(self):
-        #print 'tear down removing', self.tmpdir
         shutil.rmtree(self.tmpdir)
 
 if __name__ == '__main__':
