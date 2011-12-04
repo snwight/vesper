@@ -17,6 +17,13 @@ else:
     __all__.append('BdbModelTest')
 
 try:
+    import vesper.data.store.sqlite
+except ImportError:
+    print "skipping Sqlite tests"
+else:
+    __all__.append('SqliteModelTest')
+
+try:
     import multiprocessing
     import stomp    
     try:

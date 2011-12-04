@@ -235,7 +235,7 @@ class BasicModelTestCase(unittest.TestCase):
         self.assertEqual(set(r1), set([Statement("%02d" % x, "obj", "pred") for x in range(1,6)]))
         
         # test offset (should contain 11 to 20)
-        r2 = model.getStatements(hints={'offset':10})
+        r2 = model.getStatements(hints={'limit':10, 'offset':10})
         self.assertEqual(set(r2), set([Statement("%02d" % x, "obj", "pred") for x in range(11,21)]))
         
         # test limit and offset (should contain 13 & 14)
