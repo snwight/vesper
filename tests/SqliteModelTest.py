@@ -28,9 +28,8 @@ class SqliteModelTestCase(modelTest.BasicModelTestCase):
         self.tmpdir = tempfile.mkdtemp(prefix="rhizometest")
         self.tmpfilename = os.path.join(self.tmpdir, 'test.sqlite') 
         
-#    def tearDown(self):
-        #print 'tear down removing', self.tmpdir
-#        shutil.rmtree(self.tmpdir)
+    def tearDown(self):
+        shutil.rmtree(self.tmpdir)
 
 if __name__ == '__main__':
     modelTest.main(SqliteModelTestCase)
