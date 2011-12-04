@@ -14,20 +14,24 @@ class SqliteModelTestCase(modelTest.BasicModelTestCase):
     
     def getModel(self):
         sys.stdout.flush()
+        self.persistentStore = False
         # None ==> :memory:
-        model = SqliteStore(self.tmpfilename)
+#        model = SqliteStore(self.tmpfilename)
+        model = SqliteStore(None)
         return self._getModel(model)
 
     def getTransactionModel(self):
         sys.stdout.flush()
+        self.persistentStore = False
         # None ==> :memory:
-        model = TransactionSqliteStore(self.tmpfilename)
+#        model = TransactionSqliteStore(self.tmpfilename)
+        model = TransactionSqliteStore(None)
         return self._getModel(model)
 
     def setUp(self):
         self.tmpdir = tempfile.mkdtemp(prefix="rhizometest")
         self.tmpfilename = os.path.join(self.tmpdir, 'test.sqlite') 
-        
+       
     def tearDown(self):
         shutil.rmtree(self.tmpdir)
 
