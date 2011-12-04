@@ -27,11 +27,12 @@ class SqliteStore(Model):
      
     def __init__(self, source = None, defaultStatements = None, **kw):
         if source is None:
-            source = os.path.abspath(':memory:')
+            source = ':memory:'
             log.debug("in-memory database being opened")
         else:
             source = os.path.abspath(source)
             log.debug("on-disk database being opened at ", source)
+
         self.conn = sqlite3.connect(source)
         curs = self.conn.cursor()
         curs.execute("create table if not exists vesper_stmts ( \
@@ -140,6 +141,7 @@ subject, predicate )")
         # s => p o t c
         # I assume here that statement is fully specified! -snwight
         s, p, o, t, c = stmt
+        log.debug("removeStatement called with: ", stmt)
         self.conn.execute("delete from vesper_stmts where (\
 subject = ? AND predicate = ? AND object = ? AND objecttype = ? AND context = ? )",  (s, p, o, t, c))
         return True
@@ -151,6 +153,7 @@ subject = ? AND predicate = ? AND object = ? AND objecttype = ? AND context = ? 
 
     def close(self):
         # are we committed?
+        log.debug("closing!")
         self.conn.close()
 
 class TransactionSqliteStore(TransactionModel, SqliteStore):
