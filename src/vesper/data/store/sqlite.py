@@ -26,8 +26,8 @@ class SqliteStore(Model):
     '''
      
     def __init__(self, source = None, defaultStatements = None, **kw):
-        if source is None or source == ":memory:":
-            
+        if source is None:
+            source = os.path.abspath(':memory:')
             log.debug("in-memory database being opened")
         else:
             source = os.path.abspath(source)
@@ -39,7 +39,6 @@ subject text, predicate text, object text, objecttype text, context text )")
         curs.execute("create index if not exists vesper_stmts_idx on vesper_stmts ( \
 subject, predicate )")
 
-
     def getStatements(self, subject=None, predicate=None, object=None,
                       objecttype=None, context=None, asQuad=True, hints=None):
         ''' 
@@ -49,18 +48,6 @@ subject, predicate )")
         nb:
         p o t => c s
         s => p o t c 
-        
-        If subject is specified, use subject index, 
-        get_both if predicate is specified 
-        
-        if predicate, use property index
-        
-        if only object or scope is specified, get all and search manually
-        
-        XXX else: get all: use subject index, regenerate json_seq stmts
-        
-        ? do a manual scan if subject list bnode
-
         '''
         fs = subject is not None
         fp = predicate is not None
@@ -102,8 +89,7 @@ subject, predicate )")
             if arity: 
                 sqlstmt += ' AND'
             sqlstmt += ' objecttype = \'' + objecttype + '\''
-            arity = True
-            
+            arity = True            
         if fc:
             if arity: 
                 sqlstmt += ' AND'
@@ -141,7 +127,7 @@ subject, predicate )")
         s, p, o, t, c = stmt
         self.conn.execute("insert into vesper_stmts values (?, ?, ?, ?, ?)",  (s, p, o, t, c))
         return True
-        
+
     def addStatements(self, stmts):
         log.debug("addStatements called with ", stmts)
         for elem in stmts:
