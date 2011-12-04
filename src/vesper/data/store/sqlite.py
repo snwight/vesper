@@ -136,14 +136,12 @@ subject, predicate )")
         log.debug("addStatements called with ", stmts)
         for elem in stmts:
             self.addStatement(elem)
-#        self.conn.executemany("insert into vesper_stmts values (?, ?, ?, ?, ?)", stmt_generator(stmts))
         return True
 
     def removeStatement(self, stmt):
         '''removes the statement'''
         # p o t => c s
         # s => p o t c
-        # I assume here that statement is fully specified! -snwight
         s, p, o, t, c = stmt
         log.debug("removeStatement called with: ", stmt)
         self.conn.execute("delete from vesper_stmts where (\
