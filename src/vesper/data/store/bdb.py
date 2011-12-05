@@ -256,6 +256,7 @@ class BdbStore(Model):
 
     def addStatements(self, stmts):
         lists = {}
+        rowsAdded = 0
         for stmt in stmts:
             if stmt[0].startswith('bnode:jlist:') or stmt[0].startswith('_:l'):
                 if stmt[1].startswith('rdf:_'):
@@ -266,12 +267,13 @@ class BdbStore(Model):
             #elif stmt[1] == JSON_LIST_PROP:
             #    continue #exclude
             else:
-                self.addStatement(stmt)
+                rowsAdded += self.addStatement(stmt)
         #positions are indexed for each value
         for key, listinfo in lists.items():
             listinfo.positions.sort(key=int)
             ls = Statement(subject, '!list', '%s,%s' % (key, listinfo))
             #only add to subject index
+        return rowsAdded
                 
     def addStatement(self, stmt):
         '''add the specified statement to the model'''
