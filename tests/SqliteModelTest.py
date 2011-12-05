@@ -16,16 +16,16 @@ class SqliteModelTestCase(modelTest.BasicModelTestCase):
         sys.stdout.flush()
         self.persistentStore = False
         # None ==> :memory:
-#        model = SqliteStore(self.tmpfilename)
-        model = SqliteStore(None)
+        model = SqliteStore(self.tmpfilename)
+#        model = SqliteStore(None)
         return self._getModel(model)
 
     def getTransactionModel(self):
         sys.stdout.flush()
         self.persistentStore = False
         # None ==> :memory:
-#        model = TransactionSqliteStore(self.tmpfilename)
-        model = TransactionSqliteStore(None)
+        model = TransactionSqliteStore(self.tmpfilename)
+#        model = TransactionSqliteStore(None)
         return self._getModel(model)
 
     def setUp(self):

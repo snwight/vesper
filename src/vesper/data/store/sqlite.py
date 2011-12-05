@@ -39,10 +39,9 @@ class SqliteStore(Model):
 
         self.conn = sqlite3.connect(source)
         curs = self.conn.cursor()
-        curs.execute("create table if not exists vesper_stmts ( \
-subject text, predicate text, object text, objecttype text, context text )")
-        curs.execute("create index if not exists vesper_stmts_idx on vesper_stmts ( \
-subject, predicate )")
+        curs.execute("create table if not exists vesper_stmts (\
+subject, predicate, object, objecttype, context, \
+unique (subject, predicate, object, objecttype, context) )" )
 
     def getStatements(self, subject=None, predicate=None, object=None,
                       objecttype=None, context=None, asQuad=True, hints=None):
@@ -50,9 +49,6 @@ subject, predicate )")
         Return all the statements in the model that match the given arguments.
         Any combination of subject and predicate can be None, and any None slot is
         treated as a wildcard that matches any value in the model.
-        nb:
-        p o t => c s
-        s => p o t c 
         '''
         fs = subject is not None
         fp = predicate is not None
@@ -64,6 +60,7 @@ subject, predicate )")
         offset = hints.get('offset')
 
         log.debug("s p o ot c quad lim offset: ", fs, fp, fo, fot, fc, asQuad, limit, offset)
+        print "s p o ot c quad lim offset: ", fs, fp, fo, fot, fc, asQuad, limit, offset
 
         if fo:
             if isinstance(object, ResourceUri):
@@ -73,55 +70,76 @@ subject, predicate )")
             elif not fot:
                 objecttype = OBJECT_TYPE_LITERAL
 
-        sqlstmt = 'select distinct * from vesper_stmts'
+        sqlstmt = []
+        sqlstmt = 'select * from vesper_stmts'
+
         if fs | fp | fo | fot | fc:
             sqlstmt += ' where'
+        
+        sqlparams = []
         arity = False                              # terribly ugly but so
         if fs: 
-            sqlstmt += ' subject = \'' + subject + '\''
+            sqlstmt += ' subject = ?'
+            sqlparams.append(subject)
             arity = True
         if fp:
             if arity: 
                 sqlstmt += ' AND'
-            sqlstmt += ' predicate = \'' + predicate + '\''
+            sqlstmt += ' predicate = ?'
+            sqlparams.append(predicate)
             arity = True
         if fo:
             if arity: 
                 sqlstmt += ' AND'
-            sqlstmt += ' object = \'' + object + '\''
+            sqlstmt += ' object = ?'
+            sqlparams.append(object)
             arity = True
         if fot: 
             if arity: 
                 sqlstmt += ' AND'
-            sqlstmt += ' objecttype = \'' + objecttype + '\''
+            sqlstmt += ' objecttype = ?'
+            sqlparams.append(objecttype)
             arity = True            
-        if fc:
+        if not asQuad:
             if arity: 
                 sqlstmt += ' AND'
-            sqlstmt += ' context = \'' + context + '\''
+            else:
+                sqlstmt += ' where'        # I know! I know!!!
+            sqlstmt += ' context = (select min(context) from vesper_stmts)'
+            limit = 1
+            offset = 0
+        elif fc:
+            if arity: 
+                sqlstmt += ' AND'
+            sqlstmt += ' context = ?'  
+            sqlparams.append(context)
 
-        # and we always sort results
-        sqlstmt += ' order by subject'
+        sqlstmt += ' group by subject, predicate, object, objecttype, context '
 
-        # paginate results as requested
-        if limit:
-            sqlstmt += ' limit ' + str(limit)
-        if offset:
-            sqlstmt += ' offset ' + str(offset)
+        if limit is not None:
+            sqlstmt += ' limit ?'
+            sqlparams.append(str(limit))
+        if offset is not None:
+            sqlstmt += ' offset ?'
+            sqlparams.append(str(limit))
 
         # our query is contructed, let's get some rows
-        log.debug("query stmt: ", sqlstmt)
+        print "sqlstmt: ", sqlstmt
+        print "sqlparams: ", sqlparams
+
         self.conn.row_factory = sqlite3.Row
         self.conn.text_factory = sqlite3.OptimizedUnicode
         curs = self.conn.cursor()
-        curs.execute(sqlstmt) 
+        curs.execute(sqlstmt, sqlparams)
         stmts = []
         for r in curs:
-            stmts.append( Statement(r['subject'], r['predicate'], r['object'], r['objecttype'], r['context']) )            
+            print r
+            stmts.append( Statement(r['subject'], r['predicate'], r['object'], r['objecttype'], r['context']) )
 
-        if not asQuad:
-            # find distinct s p o ot sets, ignore contexts
-            stmts = removeDupStatementsFromSortedList(stmts, asQuad)
+#        stmts.sort()
+#        if not asQuad:
+#            # find distinct s p o ot sets, ignore contexts
+#            stmts = removeDupStatementsFromSortedList(stmts, asQuad)
 
         log.debug("stmts returned: ", stmts)
         return stmts
@@ -129,20 +147,20 @@ subject, predicate )")
     def addStatement(self, stmt):
         '''add the specified statement to the model'''
         log.debug("addStatement called with ", stmt)
-        self.conn.execute("insert into vesper_stmts values (?, ?, ?, ?, ?)",  stmt)
+        print "addStatement called with ", stmt
+        self.conn.execute("insert or ignore into vesper_stmts values (?, ?, ?, ?, ?)",  stmt)
         return True
 
     def addStatements(self, stmts):
-        log.debug("addStatements called with ", stmts)
+        log.debug("addStatement called with ", stmts)
+        print "addStatements called with ", stmts
 #        for elem in stmts:
 #            self.addStatement(elem)
-        self.conn.executemany("insert into vesper_stmts values (?, ?, ?, ?, ?)",  stmt_generator(stmts))
+        self.conn.executemany("insert or ignore into vesper_stmts values (?, ?, ?, ?, ?)",  stmt_generator(stmts))
         return True
 
     def removeStatement(self, stmt):
         '''removes the statement'''
-        # p o t => c s
-        # s => p o t c
         s, p, o, t, c = stmt
         log.debug("removeStatement called with: ", stmt)
         self.conn.execute("delete from vesper_stmts where (\
@@ -167,6 +185,3 @@ class TransactionSqliteStore(TransactionModel, SqliteStore):
     Provides in-memory transactions to BdbStore
 
     '''
-    def rollback(self):
-        log.debug("rolling back!")
-        self.conn.rollback()
