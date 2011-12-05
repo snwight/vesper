@@ -9,6 +9,10 @@ from vesper.data.base import * # XXX
 import logging 
 log = logging.getLogger("sqlite")
 
+def stmt_generator(stmts):
+    for elem in stmts:
+        yield elem
+
 class SqliteStore(Model):
     '''
     datastore using SQLite DB using Python's sqlite3 module
@@ -125,21 +129,20 @@ subject, predicate )")
     def addStatement(self, stmt):
         '''add the specified statement to the model'''
         log.debug("addStatement called with ", stmt)
-        s, p, o, t, c = stmt
-        self.conn.execute("insert into vesper_stmts values (?, ?, ?, ?, ?)",  (s, p, o, t, c))
+        self.conn.execute("insert into vesper_stmts values (?, ?, ?, ?, ?)",  stmt)
         return True
 
     def addStatements(self, stmts):
         log.debug("addStatements called with ", stmts)
-        for elem in stmts:
-            self.addStatement(elem)
+#        for elem in stmts:
+#            self.addStatement(elem)
+        self.conn.executemany("insert into vesper_stmts values (?, ?, ?, ?, ?)",  stmt_generator(stmts))
         return True
 
     def removeStatement(self, stmt):
         '''removes the statement'''
         # p o t => c s
         # s => p o t c
-        # I assume here that statement is fully specified! -snwight
         s, p, o, t, c = stmt
         log.debug("removeStatement called with: ", stmt)
         self.conn.execute("delete from vesper_stmts where (\
@@ -147,9 +150,12 @@ subject = ? AND predicate = ? AND object = ? AND objecttype = ? AND context = ? 
         return True
 
     def commit(self):
-        # are we committed?
         log.debug("committing!")
         self.conn.commit()
+
+    def rollback(self):
+        log.debug("rolling back!")
+        self.conn.rollback()
 
     def close(self):
         # are we committed?
@@ -161,3 +167,6 @@ class TransactionSqliteStore(TransactionModel, SqliteStore):
     Provides in-memory transactions to BdbStore
 
     '''
+    def rollback(self):
+        log.debug("rolling back!")
+        self.conn.rollback()
