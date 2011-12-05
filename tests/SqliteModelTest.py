@@ -10,22 +10,27 @@ import string, random, shutil, time
 import modelTest 
 from vesper.data.store.sqlite import SqliteStore, TransactionSqliteStore
 
-class SqliteModelTestCase(modelTest.BasicModelTestCase):
-    
+import os.path
+class SqliteInMemoryModelTestCase(modelTest.BasicModelTestCase):
     def getModel(self):
-        sys.stdout.flush()
         self.persistentStore = False
         # None ==> :memory:
-#        model = SqliteStore(self.tmpfilename)
         model = SqliteStore(None)
         return self._getModel(model)
 
     def getTransactionModel(self):
-        sys.stdout.flush()
-        self.persistentStore = False
-        # None ==> :memory:
-#        model = TransactionSqliteStore(self.tmpfilename)
+        self.persistentStore = False        
         model = TransactionSqliteStore(None)
+        return self._getModel(model)
+
+class SqliteModelTestCase(modelTest.BasicModelTestCase):
+    
+    def getModel(self):
+        model = SqliteStore(self.tmpfilename)
+        return self._getModel(model)
+
+    def getTransactionModel(self):
+        model = TransactionSqliteStore(self.tmpfilename)
         return self._getModel(model)
 
     def setUp(self):

@@ -217,11 +217,12 @@ class BasicModelTestCase(unittest.TestCase):
         r1 = model.getStatements(asQuad=True)
         self.assertEqual(set(r1), set(statements))
 
-        # asQuad=False (the default) should only return the oldest
+        # asQuad=False (the default) should only return one
         expected = set()
         expected.add(statements[0])
         r2 = model.getStatements(asQuad=False)
-        self.assertEqual(set(r2), expected)
+        self.assertEqual(len(r2), 1)
+        self.failUnless(r2[0] in statements)
     
     def testHints(self):
         "test limit and offset hints"
@@ -241,6 +242,21 @@ class BasicModelTestCase(unittest.TestCase):
         # test limit and offset (should contain 13 & 14)
         r3 = model.getStatements(hints={'limit':2, 'offset':12})
         self.assertEqual(set(r3), set([Statement("%02d" % x, "obj", "pred") for x in range(13,15)]))
+        
+        #add statements that vary by predicate and context
+        statements = [Statement('r4', p, 'v', 'L', c) for p in 'abc' for c in '123']
+        model.addStatements(statements)
+        r4 = model.getStatements(subject='r4', hints={'limit':2, 'offset':1}, asQuad=False)
+        r4.sort()
+        expected = [('r4', 'b', 'v', 'L'), ('r4', 'c', 'v', 'L')]
+        self.assertEqual(len(r4), len(expected))
+        for a, b in zip(r4, expected):
+          self.assertEqual(a[:4], b) #ignore context
+
+        r5 = model.getStatements(subject='r4', hints={'limit':2, 'offset':1}, asQuad=True)
+        self.assertEquals(len(r5), 2)
+        r5.sort()
+        self.assertEquals(r5, statements[1:3])
 
     def testTransactionCommitAndRollback(self):
         "test simple commit and rollback on a single model instance"
