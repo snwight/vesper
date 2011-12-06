@@ -18,7 +18,7 @@ graphManagerClass = graph.MergeableGraphManager
 def random_name(length):
     return ''.join(random.sample(string.ascii_letters, length))
 
-class BasicModelTestCase(unittest.TestCase):
+class SimpleModelTestCase(unittest.TestCase):
     "Tests basic features of a store"
     persistentStore = True
 
@@ -27,11 +27,6 @@ class BasicModelTestCase(unittest.TestCase):
 
     def getModel(self):
         model = MemStore()
-        self.persistentStore = False
-        return self._getModel(model)
-
-    def getTransactionModel(self):
-        model = TransactionMemStore()
         self.persistentStore = False
         return self._getModel(model)
     
@@ -142,32 +137,89 @@ class BasicModelTestCase(unittest.TestCase):
         self.assertEqual(set(r), set( (more[0], more[-1]) ) )
 
     def testRemove(self):
-        "basic removal test"
+        """
+        basic removal test
+
+        current seq    expected
+        ------- ---    --------
+        exists  r,a    no-op 
+        doesnt  r,a    adds  
+        exists  a,r    remove
+        doesnt  a,r    no-op
+        """
         model = self.getModel()
+        checkr = model.updateAdvisory
 
         # set up the model with one randomly named statement
         subj = random_name(12)
         s1 = Statement(subj, random_name(24), random_name(12))
-        model.addStatement(s1)
+        s2 = Statement(subj+'2', random_name(24), random_name(12))
+        s3 = Statement(subj+'3', random_name(24), random_name(12))
+        ret = model.addStatements([s1, s2, s3])
+        if checkr:
+            self.assertEqual(ret, 3, 'added count is wrong')
 
         # confirm a search for the subject finds it
         r1 = model.getStatements(subject=subj)
         self.assertEqual(set(r1), set([s1])) # object exists
 
         # remove the statement and confirm that it's gone
-        model.removeStatement(s1)
+        ret = model.removeStatement(s1)
+        if checkr:
+          assert ret, "statement should have been removed"
 
         r2 = model.getStatements(subject=subj)
-        self.assertEqual(set(r2), set()) # object is gone
+        self.assertEqual(r2, []) # object is gone
+
+        # remove the statement again
+        ret = model.removeStatement(s1)
+        if checkr:
+          assert not ret, "statement shouldn't have been removed"
+
+        ret = model.addStatement(s1)
+        if checkr:
+          assert ret, "statement should have been added"
+
+        r2 = model.getStatements(subject=subj)
+        self.assertEqual(r2, [s1])
+
+        #add statement that already exists
+        ret = model.addStatement(s2)
+        if checkr:
+          assert not ret, "statement shouldn't have been added"
+
+        #remove it (and another one for good measure)
+        ret = model.removeStatements([s2, s3])
+        if checkr:
+            self.assertEqual(ret, 2, 'remove count is wrong')
         
+        #confirm that it's been removed
+        r3 = model.getStatements(subject=s2.subject)
+        self.assertEqual(r3, [])
+
         if self.persistentStore:
             model.commit()
             model = self.getModel()
-            self.assertEqual(set(r2), set()) # object is gone
+            r2 = model.getStatements(subject=subj)
+            self.assertEqual(r2, [s1])
+
+            # remove the statement and confirm that it's gone
+            ret = model.removeStatement(s1)
+            if checkr:
+              assert ret, "statement should have been removed"
+
+            r2 = model.getStatements(subject=subj)
+            self.assertEqual(r2, []) # object is gone
+
+            # remove the statement again
+            ret = model.removeStatement(s1)
+            if checkr:
+              assert not ret, "statement shouldn't have been removed"
 
     def testSetBehavior(self):
         "confirm model behaves as a set"
         model = self.getModel()
+        checkr = model.updateAdvisory
 
         s1 = Statement("sky", "is", "blue")
         s2 = Statement("sky", "has", "clouds")
@@ -178,7 +230,9 @@ class BasicModelTestCase(unittest.TestCase):
         self.assertEqual(set(r1), set())
 
         # add a single statement and confirm it is returned
-        model.addStatement(s1)
+        ret = model.addStatement(s1)
+        if checkr:
+          assert ret, "statement should have been added"
 
         model.debug = 1
         r2 = model.getStatements()
@@ -186,10 +240,15 @@ class BasicModelTestCase(unittest.TestCase):
         self.assertEqual(set(r2), set([s1]))
 
         # add the same statement again & the set should be unchanged
-        model.addStatement(s1)
+        ret = model.addStatement(s1)
+        if checkr:
+          assert not ret, "statement shouldn't have been added"
         
         r3 = model.getStatements()
-        self.assertEqual(set(r3), set([s1]))
+        self.assertEqual(r3, [s1])
+
+        r3 = model.getStatements(asQuad=True)
+        self.assertEqual(r3, [s1])
         
         # add a second statement with the same subject as s1
         model.addStatement(s2)
@@ -257,6 +316,13 @@ class BasicModelTestCase(unittest.TestCase):
         self.assertEquals(len(r5), 2)
         r5.sort()
         self.assertEquals(r5, statements[1:3])
+
+class BasicModelTestCase(SimpleModelTestCase):
+
+    def getTransactionModel(self):
+        model = TransactionMemStore()
+        self.persistentStore = False
+        return self._getModel(model)
 
     def testTransactionCommitAndRollback(self):
         "test simple commit and rollback on a single model instance"
@@ -388,6 +454,13 @@ class BasicModelTestCase(unittest.TestCase):
                 self.assertEqual(len(model.getStatements(s[0])), 7)
         print 'did %s subject lookups in %s seconds' % (BIG, time.time() - start)
 
+class TransactionModelTestCase(SimpleModelTestCase):
+    persistentStore = False
+
+    def getModel(self):
+        model = TransactionMemStore()
+        return self._getModel(model)
+
 class GraphModelTestCase(BasicModelTestCase):
 
     def _getModel(self, model):
@@ -395,7 +468,7 @@ class GraphModelTestCase(BasicModelTestCase):
         return graphManagerClass(model, None, modelUri)
 
 class SplitGraphModelTestCase(BasicModelTestCase):
-    
+
     def _getModel(self, model):
         modelUri = base.generateBnode()
         revmodel = TransactionMemStore()

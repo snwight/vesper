@@ -296,7 +296,7 @@ class IncrementalNTriplesFileStoreBase(FileStore):
             changelist.append( (Removed, statement) )
         return removed
 
-    def commit(self, **kw): 
+    def commit(self, **kw):
         if os.path.exists(self.path):
             originalsize = os.path.getsize(self.path)
             outputfile = file(self.path, "a+")
@@ -324,7 +324,7 @@ class IncrementalNTriplesFileStoreBase(FileStore):
             else:
                 outputfile.close()
         else: #first time
-            super(IncrementalNTriplesFileStoreBase, self).commit()
+            super(IncrementalNTriplesFileStoreBase, self).commit(**kw)
         self.changelist = []
 
     def rollback(self):        
@@ -332,9 +332,7 @@ class IncrementalNTriplesFileStoreBase(FileStore):
         super(IncrementalNTriplesFileStoreBase, self).rollback()
 
 class IncrementalNTriplesFileStore(TransactionModel, IncrementalNTriplesFileStoreBase):
-    
-    def _getChangeList(self):
-        return self.queue
+    pass
 
 def guessFileType(path):
   extmap = { '.nt' : 'ntriples',
