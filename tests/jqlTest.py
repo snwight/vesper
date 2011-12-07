@@ -162,6 +162,14 @@ t('''
  {'foo': 'bar', 'id': '2', 'parent': {'id': '1'}}]
  )
 
+t.group = 'or'
+
+#XXX or operator isn't implemented yet
+skip('''{
+a, b where a or b
+}
+''')
+
 t.group = 'orderby'
 
 t('''{ * order by child }''',

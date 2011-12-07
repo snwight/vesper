@@ -19,7 +19,7 @@ YAHOO.tool.TestCase.prototype.offthread = function(func, done) {
         this.resumeOffthread();
     }        
   } catch (e) {
-    if (window.console) console.log('offset thread error', e);
+    if (window.console) console.log('offset thread error '+ e);
     this.offthreadError = e;
     this.resumeOffthread();
   }
