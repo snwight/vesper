@@ -126,6 +126,7 @@ unique (subject, predicate, object, objecttype, context) )" )
             print r
             stmts.append( Statement(r['subject'], r['predicate'], r['object'], r['objecttype'], r['context']) ) 
 
+        # sqlite returns -1 on successful select()... 
         log.debug("stmts returned: ", stmts)
         return stmts
 
@@ -135,7 +136,7 @@ unique (subject, predicate, object, objecttype, context) )" )
         self.txnState = TxnState.DIRTY
         curs = self.conn.cursor()
         curs.execute("insert or ignore into vesper_stmts values (?, ?, ?, ?, ?)",  stmt)
-        return curs.rowcount
+        return curs.rowcount == 1
 
     def addStatements(self, stmts):
         '''adds multiple statements to the model'''
@@ -143,7 +144,7 @@ unique (subject, predicate, object, objecttype, context) )" )
         self.txnState = TxnState.DIRTY
         curs = self.conn.cursor()
         curs.executemany("insert or ignore into vesper_stmts values (?, ?, ?, ?, ?)",  stmts)
-        return curs.rowcount
+        return curs.rowcount > 0
 
     def removeStatement(self, stmt):
         '''removes the statement from the model'''
@@ -152,7 +153,7 @@ unique (subject, predicate, object, objecttype, context) )" )
         curs = self.conn.cursor()
         curs.execute("delete from vesper_stmts where (\
 subject = ? AND predicate = ? AND object = ? AND objecttype = ? AND context = ? )",  stmt)
-        return curs.rowcount
+        return curs.rowcount == 1
 
     def commit(self):
         log.debug("commit called with: " , self.txnState)
