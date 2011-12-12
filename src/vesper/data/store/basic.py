@@ -195,15 +195,36 @@ class FileStore(MemStore):
         return super(FileStore, self).getStatements(subject, predicate, object, 
                                         objecttype,context, asQuad, hints)
 
+    def _maybeCommit(self, retVal):
+        if self.autocommit:
+            assert super(FileStore, self).updateAdvisory
+            if retVal:
+                self.commit()
+        return retVal
+
     def addStatement(self, stmt):
         self._checkTxnState()
         self.txnState = TxnState.DIRTY
-        return super(FileStore, self).addStatement(stmt)
+        retVal = super(FileStore, self).addStatement(stmt)
+        return self._maybeCommit(retVal)
 
     def removeStatement(self, stmt):
         self._checkTxnState()
         self.txnState = TxnState.DIRTY
-        return super(FileStore, self).removeStatement(stmt)
+        retVal = super(FileStore, self).removeStatement(stmt)
+        return self._maybeCommit(retVal)
+
+    def addStatements(self, stmts):
+        self._checkTxnState()
+        self.txnState = TxnState.DIRTY
+        retVal = super(FileStore, self).addStatements(stmts)
+        return self._maybeCommit(retVal)
+
+    def removeStatements(self, stmts):
+        self._checkTxnState()
+        self.txnState = TxnState.DIRTY
+        retVal = super(FileStore, self).removeStatements(stmts)
+        return self._maybeCommit(retVal)
         
     def wasModifiedSinceLastWrite(self):
         try:
