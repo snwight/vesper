@@ -418,6 +418,9 @@ class TransactionModel(object):
         self.autocommit = False
 
     def commit(self, **kw):
+        if self.autocommit:
+            assert not self.queue
+            super(TransactionModel, self).commit(**kw)
         if not self.queue:
             self.txnState = TxnState.BEGIN
             return

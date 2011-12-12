@@ -27,19 +27,24 @@ class SqliteStore(Model):
         if source is None:
             source = ':memory:'
             log.debug("in-memory database being opened")
-            print("in-memory database being opened")
         else:
             source = os.path.abspath(source)
             log.debug("on-disk database being opened at ", source)
-            print "on-disk database being opened at ", source
 
 #        self.conn = sqlite3.connect(source, isolation_level=None)     # 'DEFERRED') 
         self.conn = sqlite3.connect(source)
         curs = self.conn.cursor()
-        self.txnState = TxnState.BEGIN
         curs.execute("create table if not exists vesper_stmts (\
 subject, predicate, object, objecttype, context not null, \
 unique (subject, predicate, object, objecttype, context) )" )
+
+    def _set_autocommit(self, set):
+        if set:
+            self.conn.isolation_level = None
+        else:
+            self.conn.isolation_level = 'DEFERRED'
+
+    autocommit = property(lambda self: not self.conn.isolation_level, _set_autocommit)
 
     def getStatements(self, subject=None, predicate=None, object=None,
                       objecttype=None, context=None, asQuad=True, hints=None):
@@ -123,7 +128,6 @@ unique (subject, predicate, object, objecttype, context) )" )
         curs.execute(sqlstmt, sqlparams)
         stmts = []
         for r in curs:
-            print r
             stmts.append( Statement(r['subject'], r['predicate'], r['object'], r['objecttype'], r['context']) ) 
 
         # sqlite returns -1 on successful select()... 
@@ -133,7 +137,6 @@ unique (subject, predicate, object, objecttype, context) )" )
     def addStatement(self, stmt):
         '''add the specified statement to the model'''
         log.debug("addStatement called with ", stmt)
-        self.txnState = TxnState.DIRTY
         curs = self.conn.cursor()
         curs.execute("insert or ignore into vesper_stmts values (?, ?, ?, ?, ?)",  stmt)
         return curs.rowcount == 1
@@ -141,7 +144,6 @@ unique (subject, predicate, object, objecttype, context) )" )
     def addStatements(self, stmts):
         '''adds multiple statements to the model'''
         log.debug("addStatement called with ", stmts)
-        self.txnState = TxnState.DIRTY
         curs = self.conn.cursor()
         curs.executemany("insert or ignore into vesper_stmts values (?, ?, ?, ?, ?)",  stmts)
         return curs.rowcount > 0
@@ -149,23 +151,16 @@ unique (subject, predicate, object, objecttype, context) )" )
     def removeStatement(self, stmt):
         '''removes the statement from the model'''
         log.debug("removeStatement called with: ", stmt)
-        self.txnState = TxnState.DIRTY
         curs = self.conn.cursor()
         curs.execute("delete from vesper_stmts where (\
 subject = ? AND predicate = ? AND object = ? AND objecttype = ? AND context = ? )",  stmt)
         return curs.rowcount == 1
 
     def commit(self):
-        log.debug("commit called with: " , self.txnState)
-        if self.txnState == TxnState.DIRTY: 
-            self.conn.commit()
-        self.txnState = TxnState.BEGIN
+        self.conn.commit()
 
     def rollback(self):
-        log.debug("rollback called with: ", self.txnState)
-        if self.txnState == TxnState.DIRTY:
-            self.conn.rollback()
-        self.txnState = TxnState.BEGIN
+        self.conn.rollback()
 
     def close(self):
         log.debug("closing!")

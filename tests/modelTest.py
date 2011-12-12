@@ -324,6 +324,39 @@ class BasicModelTestCase(SimpleModelTestCase):
         self.persistentStore = False
         return self._getModel(model)
 
+    def testAutocommit(self):
+        statements = [Statement("one", "equals", " one "),
+                      Statement("two", "equals", " two "),
+                      Statement("three", "equals", " three ")]
+        
+        model = self.getTransactionModel()
+        model.autocommit = True
+        model.addStatements(statements)
+        #rollback should have no effect
+        model.rollback() 
+        r1 = model.getStatements()
+        self.assertEqual(set(r1), set(statements))
+        if self.persistentStore:
+            modelA = self.getTransactionModel()
+            modelA.autocommit = True
+            modelB = self.getTransactionModel()
+            # add statements and confirm the both A and B see them 
+            #even though we didn't explicitly commit
+            modelA.addStatements(statements)
+            r2a = modelA.getStatements()
+            self.assertEqual(set(r2a), set(statements))
+            r2b = modelB.getStatements()
+            self.assertEqual(set(r2b), set(statements))
+            #turn off autocommit
+            modelA.autocommit = False
+            # add more statements and confirm A sees them and B doesn't
+            s2 = [Statement("sky", "is", "blue")]
+            modelA.addStatements(s2)
+            r3a = modelA.getStatements()
+            self.assertEqual(set(r3a), set(statements+s2))
+            r3b = modelB.getStatements()
+            self.assertEqual(set(r3b), set(statements))
+        
     def testTransactionCommitAndRollback(self):
         "test simple commit and rollback on a single model instance"
         model = self.getTransactionModel()
@@ -343,6 +376,8 @@ class BasicModelTestCase(SimpleModelTestCase):
 
         # add second statement and rollback, confirm it's not there
         model.addStatement(s2)
+        r3 = model.getStatements()
+        self.assertEqual(set(r3), set([s1, s2]))
         model.rollback()
         r3 = model.getStatements()
         self.assertEqual(set(r3), set([s1]))
