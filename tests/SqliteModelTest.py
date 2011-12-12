@@ -15,14 +15,6 @@ class SqliteInMemoryModelTestCase(modelTest.BasicModelTestCase):
     def getModel(self):
         self.persistentStore = False
         # None ==> :memory:
-        model = SqliteStore(self.tmpfilename)
-        return self._getModel(model)
-
-    def getTransactionModel(self):
-        sys.stdout.flush()
-        self.persistentStore = False
-        # None ==> :memory:
-        model = TransactionSqliteStore(self.tmpfilename)
         model = SqliteStore(None)
         return self._getModel(model)
 
