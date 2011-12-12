@@ -165,17 +165,8 @@ subject = ? AND predicate = ? AND object = ? AND objecttype = ? AND context = ? 
         log.debug("rollback called with: ", self.txnState)
         if self.txnState == TxnState.DIRTY:
             self.conn.rollback()
-            XXXXXXXXXXXXXXXXXXXX
         self.txnState = TxnState.BEGIN
 
     def close(self):
         log.debug("closing!")
         self.conn.close()
-
-
-class TransactionSqliteStore(TransactionModel, SqliteStore):
-    '''
-    Provides in-memory transactions to BdbStore
-
-    '''
-

@@ -8,19 +8,20 @@ import subprocess, tempfile, os, signal, sys
 import string, random, shutil, time
 
 import modelTest 
-from vesper.data.store.sqlite import SqliteStore, TransactionSqliteStore
+from vesper.data.store.sqlite import SqliteStore
 
 import os.path
 class SqliteInMemoryModelTestCase(modelTest.BasicModelTestCase):
+    # None ==> :memory:
+
     def getModel(self):
         self.persistentStore = False
-        # None ==> :memory:
         model = SqliteStore(None)
         return self._getModel(model)
 
     def getTransactionModel(self):
         self.persistentStore = False        
-        model = TransactionSqliteStore(None)
+        model = SqliteStore(None)
         return self._getModel(model)
 
 class SqliteModelTestCase(modelTest.BasicModelTestCase):
@@ -30,7 +31,7 @@ class SqliteModelTestCase(modelTest.BasicModelTestCase):
         return self._getModel(model)
 
     def getTransactionModel(self):
-        model = TransactionSqliteStore(self.tmpfilename)
+        model = SqliteStore(self.tmpfilename)
         return self._getModel(model)
 
     def setUp(self):
