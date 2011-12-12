@@ -109,7 +109,6 @@ class SimpleModelTestCase(unittest.TestCase):
                 self.assertEqual(len(r2), matches)             
                 self.assertEqual(set(r2), set(stmts[:matches]))
                 
-            
             #repeat tests but start matching at next position
             popped = pairs.pop(0)
             beginMatches -= len(popped)
@@ -306,6 +305,7 @@ class SimpleModelTestCase(unittest.TestCase):
         statements = [Statement('r4', p, 'v', 'L', c) for p in 'abc' for c in '123']
         model.addStatements(statements)
         r4 = model.getStatements(subject='r4', hints={'limit':2, 'offset':1}, asQuad=False)
+
         r4.sort()
         expected = [('r4', 'b', 'v', 'L'), ('r4', 'c', 'v', 'L')]
         self.assertEqual(len(r4), len(expected))
