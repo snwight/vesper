@@ -68,7 +68,7 @@ class SimpleModelTestCase(unittest.TestCase):
         r1 = model.getStatements(subject=subj)
         self.assertEqual(set(r1), set([s1, s3]))
 
-    def testGetStatements(self):
+    def _testGetStatements(self, asQuad=True):
         model = self.getModel()
                         
         stmts = [Statement('s', 'p', 'o', 'en', 'c'),
@@ -105,9 +105,18 @@ class SimpleModelTestCase(unittest.TestCase):
                 self.assertEqual(set(r1), set(stmts[:matches]))
                 #add to group
                 kw.update(q) #kw[k] = v
+                kw['asQuad'] = asQuad
                 r2 = model.getStatements(**kw)
-                self.assertEqual(len(r2), matches)             
-                self.assertEqual(set(r2), set(stmts[:matches]))
+                expected = stmts[:matches]
+                count = matches
+                if not asQuad and len(expected) > 1:
+                    del expected[1] #delete ('s', 'p', 'o', 'en', 'c1')
+                    count -= 1
+                #print 'query', kw
+                #print r2
+                #print 'expected', expected
+                self.assertEqual(len(r2), count)
+                self.assertEqual(set(r2), set(expected))
                 
             #repeat tests but start matching at next position
             popped = pairs.pop(0)
@@ -135,6 +144,10 @@ class SimpleModelTestCase(unittest.TestCase):
         r = model.getStatements(predicate='p1', object='o2', objecttype='en-1')
         self.assertEqual(set(r), set( (more[0], more[-1]) ) )
 
+    def testGetStatements(self):
+        self._testGetStatements(asQuad=True)
+        self._testGetStatements(asQuad=False)
+        
     def testRemove(self):
         """
         basic removal test
