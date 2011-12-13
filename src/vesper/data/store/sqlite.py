@@ -74,9 +74,9 @@ unique (subject, predicate, object, objecttype, context) )" )
 
         arity = False                              # True ==> concatenated condition
         sqlparams = []                             # argument list for prepare/execute
-        sqlstmt = 'select * from vesper_stmts' 
+        sqlstmt = 'select subject, predicate, object, objecttype, context as c from vesper_stmts' 
         if not asQuad and not fc:
-            sqlstmt = 'select subject, predicate, object, objecttype, min(context) from vesper_stmts'
+            sqlstmt = 'select subject, predicate, object, objecttype, min(context) as c from vesper_stmts'
 
         if fs | fp | fo | fot | fc:
             sqlstmt += ' where'                   # at least one column constraint
@@ -128,8 +128,7 @@ unique (subject, predicate, object, objecttype, context) )" )
         curs.execute(sqlstmt, sqlparams)
         stmts = []
         for r in curs:
-#            stmts.append( Statement(r['subject'], r['predicate'], r['object'], r['objecttype'], r['context']) ) 
-            stmts.append( Statement(r[0], r[1], r[2], r[3], r[4]) ) 
+            stmts.append( Statement(r['subject'], r['predicate'], r['object'], r['objecttype'], r['c']) )
             
         # sqlite returns -1 on successful select()... 
         log.debug("stmts returned: ", stmts)
