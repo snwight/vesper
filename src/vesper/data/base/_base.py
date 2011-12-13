@@ -180,7 +180,6 @@ class Model(Tupleset):
 
     def addStatements(self, statements):
         '''add the specified statements to the model'''
-        lists = {}
         rowsAdded = 0
         for s in statements:
             if self.addStatement(s):

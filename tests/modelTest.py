@@ -339,7 +339,7 @@ class BasicModelTestCase(SimpleModelTestCase):
         self.persistentStore = False
         return self._getModel(model)
 
-    def XXXtestAutocommit(self):
+    def testAutocommit(self):
         statements = [Statement("one", "equals", " one "),
                       Statement("two", "equals", " two "),
                       Statement("three", "equals", " three ")]
