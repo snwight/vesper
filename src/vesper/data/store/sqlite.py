@@ -76,7 +76,7 @@ unique (subject, predicate, object, objecttype, context) )" )
         sqlparams = []                             # argument list for prepare/execute
         sqlstmt = 'select * from vesper_stmts' 
         if not asQuad and not fc:
-            sqlstmt = 'select distinct subject, predicate, object, objecttype, min(context) from vesper_stmts'
+            sqlstmt = 'select subject, predicate, object, objecttype, min(context) from vesper_stmts'
 
         if fs | fp | fo | fot | fc:
             sqlstmt += ' where'                   # at least one column constraint
