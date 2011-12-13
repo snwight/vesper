@@ -1,6 +1,6 @@
 #:copyright: Copyright 2009-2011 by the Vesper team, see AUTHORS.
 #:license: Dual licenced under the GPL or Apache2 licences, see LICENSE.
-__all__ = ['SqliteStore', 'TransactionSqliteStore']
+__all__ = ['SqliteStore']
 
 import os, os.path
 import sqlite3
@@ -156,7 +156,7 @@ unique (subject, predicate, object, objecttype, context) )" )
 subject = ? AND predicate = ? AND object = ? AND objecttype = ? AND context = ? )",  stmt)
         return curs.rowcount == 1
 
-    def commit(self):
+    def commit(self, **kw):
         self.conn.commit()
 
     def rollback(self):

@@ -140,6 +140,7 @@ class RDFSchemaTestCase(unittest.TestCase):
     testHistory = ''#split' #'single', 'split' or '' (for no graph manager)
     graphManagerClass = graph.MergeableGraphManager
     graphManagerClass = graph.NamedGraphManager
+    db = None
 
     def setUp(self):        
         if DRIVER == '4Suite':
@@ -231,7 +232,7 @@ class RDFSchemaTestCase(unittest.TestCase):
         return model
 
     def loadBdbModel(self, source, type='nt'):
-        from vesper.data.store.bdb import TransactionBdbStore
+        from vesper.data.store.bdb import BdbStore
         
         if type == 'nt':
             type = 'ntriples'
@@ -243,16 +244,15 @@ class RDFSchemaTestCase(unittest.TestCase):
         else:
             data = parseRDFFromString(source.read(),'test:', type)
 
-        for f in glob.glob('RDFDomTest*.bdb'):
-            if os.path.exists(f):
-                os.unlink(f)
-        
-        model = TransactionBdbStore('RDFDomTest.bdb', data)
+        import shutil
+        shutil.rmtree('RDFDomTest.bdb')        
+        model = BdbStore('RDFDomTest.bdb', data)
         return model
 
     def getModel(self, source, type='nt', useSchema=True):
         model = self.loadModel(source, type)
-
+        self.db = model
+        
         modelUri =generateBnode()
         if self.testHistory:
             if self.testHistory == 'single':
@@ -280,6 +280,8 @@ class RDFSchemaTestCase(unittest.TestCase):
             from basicTyrantTest import stop_tyrant_server
             stop_tyrant_server(self.tyrant)
             self.tyrant = None
+        elif self.db and hasattr(self.db, 'close'):
+            self.db.close()
 
     def testSubtype(self):        
         model = '''_:C <http://www.w3.org/2000/01/rdf-schema#subClassOf> _:D.
