@@ -72,12 +72,13 @@ unique (subject, predicate, object, objecttype, context) )" )
             elif not fot:
                 objecttype = OBJECT_TYPE_LITERAL
 
-        arity = False                              # True ==> concatenated conditions
+        arity = False                              # True ==> concatenated condition
         sqlparams = []                             # argument list for prepare/execute
         sqlstmt = 'select * from vesper_stmts' 
         if not asQuad:
-            sqlstmt += ' where context = ( select min(context) from vesper_stmts'
+            sqlstmt = 'select subject, predicate, object, objecttype, min(context) from vesper_stmts'
             fc = False                            # override any specified context 
+
         if fs | fp | fo | fot | fc:
             sqlstmt += ' where'                   # at least one column constraint
         if fs: 
@@ -110,7 +111,7 @@ unique (subject, predicate, object, objecttype, context) )" )
             sqlstmt += ' context = ?'  
             sqlparams.append(context)
         if not asQuad:
-            sqlstmt += ' )'                      # close up that sub-select clause
+            sqlstmt += ' group by subject, predicate, object, objecttype'
         if limit is not None:
             sqlstmt += ' limit ?'
             sqlparams.append(str(limit))
@@ -119,8 +120,8 @@ unique (subject, predicate, object, objecttype, context) )" )
             sqlparams.append(str(offset))
 
         # our query is contructed, let's get some rows
-        #        print "sqlstmt: ", sqlstmt
-        #        print "sqlparams: ", sqlparams
+        print "sqlstmt: ", sqlstmt
+        print "sqlparams: ", sqlparams
 
         self.conn.row_factory = sqlite3.Row
         self.conn.text_factory = sqlite3.OptimizedUnicode
@@ -128,10 +129,12 @@ unique (subject, predicate, object, objecttype, context) )" )
         curs.execute(sqlstmt, sqlparams)
         stmts = []
         for r in curs:
-            stmts.append( Statement(r['subject'], r['predicate'], r['object'], r['objecttype'], r['context']) ) 
-
+#            stmts.append( Statement(r['subject'], r['predicate'], r['object'], r['objecttype'], r['context']) ) 
+            stmts.append( Statement(r[0], r[1], r[2], r[3], r[4]) ) 
+            
         # sqlite returns -1 on successful select()... 
         log.debug("stmts returned: ", stmts)
+        print stmts
         return stmts
 
     def addStatement(self, stmt):
@@ -155,6 +158,14 @@ unique (subject, predicate, object, objecttype, context) )" )
         curs.execute("delete from vesper_stmts where (\
 subject = ? AND predicate = ? AND object = ? AND objecttype = ? AND context = ? )",  stmt)
         return curs.rowcount == 1
+
+    def removeStatements(self, stmts):
+        '''removes multiple statements from the model'''
+        log.debug("removeStatements called with: ", stmts)
+        curs = self.conn.cursor()
+        curs.executemany("delete from vesper_stmts where (\
+subject = ? AND predicate = ? AND object = ? AND objecttype = ? AND context = ? )",  stmts)
+        return curs.rowcount > 0
 
     def commit(self):
         self.conn.commit()
