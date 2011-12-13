@@ -75,9 +75,8 @@ unique (subject, predicate, object, objecttype, context) )" )
         arity = False                              # True ==> concatenated condition
         sqlparams = []                             # argument list for prepare/execute
         sqlstmt = 'select * from vesper_stmts' 
-        if not asQuad:
-            sqlstmt = 'select subject, predicate, object, objecttype, min(context) from vesper_stmts'
-            fc = False                            # override any specified context 
+        if not asQuad and not fc:
+            sqlstmt = 'select distinct subject, predicate, object, objecttype, min(context) from vesper_stmts'
 
         if fs | fp | fo | fot | fc:
             sqlstmt += ' where'                   # at least one column constraint
@@ -110,7 +109,7 @@ unique (subject, predicate, object, objecttype, context) )" )
                 sqlstmt += ' AND'
             sqlstmt += ' context = ?'  
             sqlparams.append(context)
-        if not asQuad:
+        if not asQuad and not fc:
             sqlstmt += ' group by subject, predicate, object, objecttype'
         if limit is not None:
             sqlstmt += ' limit ?'
@@ -120,8 +119,8 @@ unique (subject, predicate, object, objecttype, context) )" )
             sqlparams.append(str(offset))
 
         # our query is contructed, let's get some rows
-        print "sqlstmt: ", sqlstmt
-        print "sqlparams: ", sqlparams
+        #print "sqlstmt: ", sqlstmt
+        #print "sqlparams: ", sqlparams
 
         self.conn.row_factory = sqlite3.Row
         self.conn.text_factory = sqlite3.OptimizedUnicode
@@ -134,7 +133,6 @@ unique (subject, predicate, object, objecttype, context) )" )
             
         # sqlite returns -1 on successful select()... 
         log.debug("stmts returned: ", stmts)
-        print stmts
         return stmts
 
     def addStatement(self, stmt):
