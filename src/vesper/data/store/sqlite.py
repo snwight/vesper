@@ -77,7 +77,6 @@ unique (subject, predicate, object, objecttype, context) )" )
         sqlstmt = 'select * from vesper_stmts' 
         if not asQuad:
             sqlstmt = 'select subject, predicate, object, objecttype, min(context) from vesper_stmts'
-            fc = False                            # override any specified context 
 
         if fs | fp | fo | fot | fc:
             sqlstmt += ' where'                   # at least one column constraint
