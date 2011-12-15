@@ -145,27 +145,27 @@ class SqlAlchemyStore(Model):
     def addStatement(self, stmt):
         '''add the specified statement to the model'''
         log.debug("addStatement called with ", stmt)
-
+        
 #        curs.execute("insert or ignore into vesper_stmts values (?, ?, ?, ?, ?)",  stmt)
-
+        
         return True    # curs.rowcount == 1
 
     def addStatements(self, stmts):
         '''adds multiple statements to the model'''
         log.debug("addStatement called with ", stmts)
-
+        
 #        curs.executemany("insert or ignore into vesper_stmts values (?, ?, ?, ?, ?)",  stmts)
-
+        
         return True    # curs.rowcount > 0
 
     def removeStatement(self, stmt):
         '''removes the statement from the model'''
         log.debug("removeStatement called with: ", stmt)
-
+        
 #        curs.execute("delete from vesper_stmts where (\
-v#subject = ? AND predicate = ? AND object = ? AND objecttype = ? AND context = ? )",  stmt)
- 
-       return True     # curs.rowcount == 1
+#    v#subject = ? AND predicate = ? AND object = ? AND objecttype = ? AND context = ? )",  stmt)
+
+        return True     # curs.rowcount == 1
 
     def removeStatements(self, stmts):
         '''removes multiple statements from the model'''
@@ -173,7 +173,7 @@ v#subject = ? AND predicate = ? AND object = ? AND objecttype = ? AND context = 
 
 #        curs.executemany("delete from vesper_stmts where (\
 #subject = ? AND predicate = ? AND object = ? AND objecttype = ? AND context = ? )",  stmts)
-
+        
         return True     # curs.rowcount > 0
 
     def begin(self):
