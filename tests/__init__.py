@@ -25,6 +25,13 @@ else:
     __all__.append('SqliteModelTest')
 
 try:
+    import vesper.data.store.sqlalchemy
+except ImportError:
+    print "skipping SqlAlchemy tests"
+else:
+    __all__.append('SqlAlchemyModelTest')
+
+try:
     import multiprocessing
     import stomp    
     try:
