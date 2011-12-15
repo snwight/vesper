@@ -1,18 +1,20 @@
 #:copyright: Copyright 2009-2011 by the Vesper team, see AUTHORS.
 #:license: Dual licenced under the GPL or Apache2 licences, see LICENSE.
-__all__ = ['SqliteStore']
+__all__ = ['AlchemySQLStore']
 
 import os, os.path
 
 import sqlalchemy
-# from sqlalchemy import Table, Column, Integer, String, MetaData
+from sqlalchemy import engine, sql, create_engine
+from sqlalchemy.types import *
+from sqlalchemy.schema import Table, Column, MetaData, UniqueConstraint, Index
 
 from vesper.backports import *
 from vesper.data.base import * # XXX
 import logging 
-log = logging.getLogger("sqlalchemy")
+log = logging.getLogger("alchemysql")
 
-class SqlAlchemyStore(Model):
+class AlchemySqlStore(Model):
     '''
     datastore using SQLAlchemy meta-SQL Python package
    
@@ -35,11 +37,12 @@ class SqlAlchemyStore(Model):
         # dialect+driver://username:password@host:port/database
         # connection is made JIT on first connect()
         log.debug("sqla engine being created with:", source)
-        self.engine = create_engine(source)
-        self.metadata = MetaData()
+        #        print "sqla engine being created with:", source
+        self.engine = create_engine(source, echo=True)
+        self.md = sqlalchemy.schema.MetaData()
         # utterly insufficient datatypes. just for first pass
         # technically the keep_existing bool is redundant as create_all() default is "check first"
-        vesper_stmts = Table('vesper_stmts', self.metadata, 
+        self.vesper_stmts = Table('vesper_stmts', self.md, 
                              Column('subject', String(255), primary_key = True),
                              Column('predicate', String(255), primary_key = True),
                              Column('object', String(255)),
@@ -47,8 +50,10 @@ class SqlAlchemyStore(Model):
                              Column('context', Integer),
                              UniqueConstraint('subject', 'predicate', 'object', 'objecttype', 'context'),
                              keep_existing = True)
-        Index('idx_vs', vesper_stmts.c.subject, vesper_stmts.c.predicate, vesper_stmts.c.object) 
-        metadata.create_all(self.engine)
+        Index('idx_vs', self.vesper_stmts.c.subject, self.vesper_stmts.c.predicate, self.vesper_stmts.c.object) 
+        self.md.create_all(self.engine)
+        self.trans = None
+        self.conn = None
 
     def getStatements(self, subject=None, predicate=None, object=None,
                       objecttype=None, context=None, asQuad=True, hints=None):
@@ -77,55 +82,54 @@ class SqlAlchemyStore(Model):
                 objecttype = OBJECT_TYPE_LITERAL
 
         arity = False                              # True ==> concatenated condition
-        query = vesper_stmts.select()
+        # Build the select clause
         if not asQuad and not fc:
-            query.select(vesper_stmts.c.subject, \
-                             vesper_stmts.c.predicate, \
-                             vesper_stmts.c.object, \
-                             vesper_stmts.c.objecttype \
-                             [func.min(vesper_stmts.c.context).label('cntxt')])
+            query = self.vesper_stmts.select([self.vesper_stmts.c.subject, 
+                                              self.vesper_stmts.c.predicate, 
+                                              self.vesper_stmts.c.object, 
+                                              self.vesper_stmts.c.objecttype, 
+                                              func.min(self.vesper_stmts.c.context)])
         else:        # asQuad is True
-            query.select(vesper_stmts.c.subject, \
-                             vesper_stmts.c.predicate, \
-                             vesper_stmts.c.object, \
-                             vesper_stmts.c.objecttype \
-                             (vesper_stmts.c.context).label('cntxt'))
-            
+            query = self.vesper_stmts.select([self.vesper_stmts.c.subject, 
+                                              self.vesper_stmts.c.predicate, 
+                                              self.vesper_stmts.c.object, 
+                                              self.vesper_stmts.c.objecttype, 
+                                              self.vesper_stmts.c.context])
         if fs:
             if arity: 
-                query = query.append_whereclause(vesper_stmts.c.subject == subject)
+                query = query.append_whereclause(self.vesper_stmts.c.subject == subject)
             else:
-                query = query.where(vesper_stmts.c.subject == subject)
+                query = query.where(self.vesper_stmts.c.subject == subject)
             arity = True
         if fp:
             if arity: 
-                query = query.append_whereclause(vesper_stmts.c.predicate == predicate)
+                query = query.append_whereclause(self.vesper_stmts.c.predicate == predicate)
             else:
-                query = query.where(vesper_stmts.c.predicate == predicate)
+                query = query.where(self.vesper_stmts.c.predicate == predicate)
             arity = True
         if fo:
             if arity: 
-                query = query.append_whereclause(vesper_stmts.c.object == object)
+                query = query.append_whereclause(self.vesper_stmts.c.object == object)
             else:
-                query = query.where(vesper_stmts.c.object == object)
+                query = query.where(self.vesper_stmts.c.object == object)
             arity = True
         if fot: 
             if arity: 
-                query = query.append_whereclause(vesper_stmts.c.objecttype == objecttype)
+                query = query.append_whereclause(self.vesper_stmts.c.objecttype == objecttype)
             else:
-                query = query.where(vesper_stmts.c.objecttype == objecttype)
+                query = query.where(self.vesper_stmts.c.objecttype == objecttype)
             arity = True
         if fc:
             if arity: 
-                query = query.append_whereclause(vesper_stmts.c.context == context)
+                query = query.append_whereclause(self.vesper_stmts.c.context == context)
             else:
-                query = query.where(vesper_stmts.c.context == context)
+                query = query.where(self.vesper_stmts.c.context == context)
 
         if not asQuad and not fc:
-            query.group_by(vesper_stmts.c.subject, \
-                               vesper_stmts.c.predicate, \
-                               vesper_stmts.c.object, \
-                               vesper_stmts.c.objecttype)
+            query.group_by(self.vesper_stmts.c.subject, 
+                           self.vesper_stmts.c.predicate, 
+                           self.vesper_stmts.c.object, 
+                           self.vesper_stmts.c.objecttype)
         if limit is not None:
             query = query.limit(limit)
         if offset is not None:
@@ -138,7 +142,6 @@ class SqlAlchemyStore(Model):
         for r in result:
             stmts.append( Statement(r['subject'], r['predicate'], r['object'], r['objecttype'], r['cntxt']) )
             
-        # sqlite returns -1 on successful select()... 
         log.debug("stmts returned: ", stmts)
         return stmts
 
@@ -178,18 +181,23 @@ class SqlAlchemyStore(Model):
 
     def begin(self):
         if self.trans is None:
-            self.trans = self.conn.begin()
+            if self.conn is not None:
+                self.trans = self.conn.begin()
 
     def commit(self, **kw):
         if self.trans is not None:
-            self.trans = self.conn.commit()
+            if self.conn is not None:
+                self.trans = self.conn.commit()
         self.trans = None
 
     def rollback(self):
         if self.trans is not None:
-            self.conn.rollback()
+            if self.conn is not None:
+                self.conn.rollback()
         self.trans = None
 
     def close(self):
         log.debug("closing!")
-        self.conn.close()
+        if self.conn is not None:
+            self.conn.close()
+
