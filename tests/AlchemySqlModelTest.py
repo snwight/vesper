@@ -1,38 +1,39 @@
 #:copyright: Copyright 2009-2011 by the Vesper team, see AUTHORS.
 #:license: Dual licenced under the GPL or Apache2 licences, see LICENSE.
 """
-    SQLAlchemy model unit tests
+    AlchemySql model unit tests
 """
 import unittest
 import subprocess, tempfile, os, signal, sys
 import string, random, shutil, time
 
-import modelTest 
-from vesper.data.store.sqlalchemy import SqlAlchemyStore
+import modelTest
+from sqlalchemy import engine
+from vesper.data.store.alchemysql import AlchemySqlStore
 
 import os.path
-class SqlAlchemyInMemoryModelTestCase(modelTest.BasicModelTestCase):
+class AlchemySqlInMemoryModelTestCase(modelTest.BasicModelTestCase):
     ''' 
     Defaults to SQLite in-memory database 
     '''
     def getModel(self):
         self.persistentStore = False
-        model = SqlAlchemyStore(None)
+        model = AlchemySqlStore(None)
         return self._getModel(model)
 
     def getTransactionModel(self):
         self.persistentStore = False        
-        model = SqlAlchemyStore(None)
+        model = AlchemySqlStore(None)
         return self._getModel(model)
 
-class SqlAlchemyModelTestCase(modelTest.BasicModelTestCase):
+class AlchemySqlModelTestCase(modelTest.BasicModelTestCase):
     
     def getModel(self):
-        model = SqlAlchemyStore(self.configurl)
+        model = AlchemySqlStore(self.tmpfilename)
         return self._getModel(model)
 
     def getTransactionModel(self):
-        model = SqlAlchemyStore(self.configurl)
+        model = AlchemySqlStore(self.tmpfilename)
         return self._getModel(model)
 
     def setUp(self):
@@ -49,14 +50,11 @@ class SqlAlchemyModelTestCase(modelTest.BasicModelTestCase):
             query=None)
         ''' 
         self.tmpdir = tempfile.mkdtemp(prefix="rhizometest")
-        self.tmpfilename = os.path.join(self.tmpdir, 'test.sqlite') 
-        self.tmpfilename = os.path.abspath(self.tmpfilename)
-
-        import sqlalchemy
-        self.configurl = sqlalchemy.engine.url.URL('sqlite3', self.tmpfilename)
+        fname = os.path.abspath(os.path.join(self.tmpdir, 'test.sqlite'))
+        self.tmpfilename = "sqlite:///{0}".format(fname)
        
     def tearDown(self):
         shutil.rmtree(self.tmpdir)
 
 if __name__ == '__main__':
-    modelTest.main(SqlAlchemyModelTestCase)
+    modelTest.main(AlchemySqlModelTestCase)
