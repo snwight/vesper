@@ -4,8 +4,10 @@ __all__ = ['AlchemySQLStore']
 
 import os, os.path
 
+# MADNESS!
 import sqlalchemy
 from sqlalchemy import engine, sql, create_engine
+from sqlalchemy.sql import select
 from sqlalchemy.types import *
 from sqlalchemy.schema import Table, Column, MetaData, UniqueConstraint, Index
 
@@ -38,7 +40,7 @@ class AlchemySqlStore(Model):
         # connection is made JIT on first connect()
         log.debug("sqla engine being created with:", source)
         #        print "sqla engine being created with:", source
-        self.engine = create_engine(source, echo=True)
+        self.engine = create_engine(source, echo=False)
         self.md = sqlalchemy.schema.MetaData()
         # utterly insufficient datatypes. just for first pass
         # technically the keep_existing bool is redundant as create_all() default is "check first"
@@ -85,45 +87,26 @@ class AlchemySqlStore(Model):
         # Build the select clause
         if not asQuad and not fc:
             query = self.vesper_stmts.select([self.vesper_stmts.c.subject, 
-                                              self.vesper_stmts.c.predicate, 
-                                              self.vesper_stmts.c.object, 
-                                              self.vesper_stmts.c.objecttype, 
-                                              func.min(self.vesper_stmts.c.context)])
+                            self.vesper_stmts.c.predicate, 
+                            self.vesper_stmts.c.object, 
+                            self.vesper_stmts.c.objecttype, 
+                            func.min(self.vesper_stmts.c.context)])
         else:        # asQuad is True
-            query = self.vesper_stmts.select([self.vesper_stmts.c.subject, 
-                                              self.vesper_stmts.c.predicate, 
-                                              self.vesper_stmts.c.object, 
-                                              self.vesper_stmts.c.objecttype, 
-                                              self.vesper_stmts.c.context])
+            query = self.vesper_stmts.select()
         if fs:
-            if arity: 
-                query = query.append_whereclause(self.vesper_stmts.c.subject == subject)
-            else:
-                query = query.where(self.vesper_stmts.c.subject == subject)
+            query = query.where(self.vesper_stmts.c.subject == subject)
             arity = True
         if fp:
-            if arity: 
-                query = query.append_whereclause(self.vesper_stmts.c.predicate == predicate)
-            else:
-                query = query.where(self.vesper_stmts.c.predicate == predicate)
+            query = query.where(self.vesper_stmts.c.predicate == predicate)
             arity = True
         if fo:
-            if arity: 
-                query = query.append_whereclause(self.vesper_stmts.c.object == object)
-            else:
-                query = query.where(self.vesper_stmts.c.object == object)
+            query = query.where(self.vesper_stmts.c.object == object)
             arity = True
         if fot: 
-            if arity: 
-                query = query.append_whereclause(self.vesper_stmts.c.objecttype == objecttype)
-            else:
-                query = query.where(self.vesper_stmts.c.objecttype == objecttype)
+            query = query.where(self.vesper_stmts.c.objecttype == objecttype)
             arity = True
         if fc:
-            if arity: 
-                query = query.append_whereclause(self.vesper_stmts.c.context == context)
-            else:
-                query = query.where(self.vesper_stmts.c.context == context)
+            query = query.where(self.vesper_stmts.c.context == context)
 
         if not asQuad and not fc:
             query.group_by(self.vesper_stmts.c.subject, 
@@ -136,11 +119,12 @@ class AlchemySqlStore(Model):
             query = query.offset(offset)
 
         # our query is contructed, let's get some rows
+        print "query: ", query
         stmts = []
         self.conn = self.engine.connect()
         result = self.conn.execute(query)
         for r in result:
-            stmts.append( Statement(r['subject'], r['predicate'], r['object'], r['objecttype'], r['cntxt']) )
+            stmts.append( Statement(r['subject'], r['predicate'], r['object'], r['objecttype'], r['context']) )
             
         log.debug("stmts returned: ", stmts)
         return stmts
@@ -149,35 +133,64 @@ class AlchemySqlStore(Model):
         '''add the specified statement to the model'''
         log.debug("addStatement called with ", stmt)
         
-#        curs.execute("insert or ignore into vesper_stmts values (?, ?, ?, ?, ?)",  stmt)
-        
-        return True    # curs.rowcount == 1
+        # XXX - elegantize this unpacking/packing
+        ins = self.vesper_stmts.insert(values={'subject': stmt[0],
+                                               'predicate': stmt[1],
+                                               'object': stmt[2],
+                                               'objecttype': stmt[3],
+                                               'context': stmt[4]
+                                               }, prefixes=['OR IGNORE'])
+        if self.conn is None:
+            self.conn = self.engine.connect()
+        result = self.conn.execute(ins)
+        return result.rowcount
 
     def addStatements(self, stmts):
         '''adds multiple statements to the model'''
         log.debug("addStatement called with ", stmts)
         
-#        curs.executemany("insert or ignore into vesper_stmts values (?, ?, ?, ?, ?)",  stmts)
-        
-        return True    # curs.rowcount > 0
+        for stmt in stmts:
+            ins = self.vesper_stmts.insert(values={'subject': stmt[0],
+                                           'predicate': stmt[1],
+                                           'object': stmt[2],
+                                           'objecttype': stmt[3],
+                                           'context': stmt[4]
+                                           }, prefixes=['OR IGNORE'])
+        if self.conn is None:
+            self.conn = self.engine.connect()
+        result = self.conn.execute(ins)
+        return result.rowcount
 
     def removeStatement(self, stmt):
         '''removes the statement from the model'''
         log.debug("removeStatement called with: ", stmt)
         
-#        curs.execute("delete from vesper_stmts where (\
-#    v#subject = ? AND predicate = ? AND object = ? AND objecttype = ? AND context = ? )",  stmt)
-
-        return True     # curs.rowcount == 1
+        rmv = self.vesper_stmts.delete()
+        rmv = rmv.where(_and(self.vesper_stmts.c.subject == stmt[0], 
+                             self.vesper_stmts.c.predicate == stmt[1],
+                             self.vesper_stmts.c.object == stmt[2],
+                             self.vesper_stmts.c.objecttype == stmt[3],
+                             self.vesper_stmts.c.context == stmt[4]))
+        print "rmv: ", rmv
+        if self.conn is None:
+            self.conn = self.engine.connect()
+        result = self.conn.execute(rmv)
+        return result.rowcount
 
     def removeStatements(self, stmts):
         '''removes multiple statements from the model'''
         log.debug("removeStatements called with: ", stmts)
 
-#        curs.executemany("delete from vesper_stmts where (\
-#subject = ? AND predicate = ? AND object = ? AND objecttype = ? AND context = ? )",  stmts)
-        
-        return True     # curs.rowcount > 0
+        for stmt in stmts:
+            rmv = self.vesper_stmts.delete().where([self.vesper_stmts.c.subject == stmt[0],
+                                                    self.vesper_stmts.c.predicate == stmt[1],
+                                                    self.vesper_stmts.c.object == stmt[2],
+                                                    self.vesper_stmts.c.objecttype == stmt[3],
+                                                    self.vesper_stmts.c.context == stmt[4]])
+        if self.conn is None:
+            self.conn = self.engine.connect()
+        result = self.conn.execute(rmv)
+        return result.rowcount
 
     def begin(self):
         if self.trans is None:
