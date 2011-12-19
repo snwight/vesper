@@ -8,6 +8,7 @@ import os, os.path
 import sqlalchemy
 from sqlalchemy import engine, sql, create_engine
 from sqlalchemy.sql import select
+from sqlalchemy.sql.expression import func, or_, and_
 from sqlalchemy.types import *
 from sqlalchemy.schema import Table, Column, MetaData, UniqueConstraint, Index
 
@@ -39,17 +40,17 @@ class AlchemySqlStore(Model):
         # dialect+driver://username:password@host:port/database
         # connection is made JIT on first connect()
         log.debug("sqla engine being created with:", source)
-        #        print "sqla engine being created with:", source
-        self.engine = create_engine(source, echo=False)
+
+        self.engine = create_engine(source, echo=True)
         self.md = sqlalchemy.schema.MetaData()
         # utterly insufficient datatypes. just for first pass
         # technically the keep_existing bool is redundant as create_all() default is "check first"
         self.vesper_stmts = Table('vesper_stmts', self.md, 
-                             Column('subject', String(255), primary_key = True),
-                             Column('predicate', String(255), primary_key = True),
-                             Column('object', String(255)),
+                             Column('subject', String(255)),    # primary_key = True),
+                             Column('predicate', String(255)),  # primary_key = True),
+                             Column('object', String(255)),     # primary_key = True),
                              Column('objecttype', String(8)),
-                             Column('context', Integer),
+                             Column('context', String(8)),
                              UniqueConstraint('subject', 'predicate', 'object', 'objecttype', 'context'),
                              keep_existing = True)
         Index('idx_vs', self.vesper_stmts.c.subject, self.vesper_stmts.c.predicate, self.vesper_stmts.c.object) 
@@ -86,11 +87,11 @@ class AlchemySqlStore(Model):
         arity = False                              # True ==> concatenated condition
         # Build the select clause
         if not asQuad and not fc:
-            query = self.vesper_stmts.select([self.vesper_stmts.c.subject, 
-                            self.vesper_stmts.c.predicate, 
+            query = select([self.vesper_stmts.c.subject, 
+                            self.vesper_stmts.c.predicate,
                             self.vesper_stmts.c.object, 
-                            self.vesper_stmts.c.objecttype, 
-                            func.min(self.vesper_stmts.c.context)])
+                            self.vesper_stmts.c.objecttype,
+                            func.min(self.vesper_stmts.c.context).label('context')])
         else:        # asQuad is True
             query = self.vesper_stmts.select()
         if fs:
@@ -107,89 +108,78 @@ class AlchemySqlStore(Model):
             arity = True
         if fc:
             query = query.where(self.vesper_stmts.c.context == context)
-
         if not asQuad and not fc:
-            query.group_by(self.vesper_stmts.c.subject, 
-                           self.vesper_stmts.c.predicate, 
-                           self.vesper_stmts.c.object, 
-                           self.vesper_stmts.c.objecttype)
+            query = query.group_by(self.vesper_stmts.c.subject,
+                                   self.vesper_stmts.c.predicate,
+                                   self.vesper_stmts.c.object,
+                                   self.vesper_stmts.c.objecttype)
         if limit is not None:
             query = query.limit(limit)
         if offset is not None:
             query = query.offset(offset)
 
         # our query is contructed, let's get some rows
-        print "query: ", query
         stmts = []
         self.conn = self.engine.connect()
         result = self.conn.execute(query)
         for r in result:
             stmts.append( Statement(r['subject'], r['predicate'], r['object'], r['objecttype'], r['context']) )
-            
-        log.debug("stmts returned: ", stmts)
+           
+        log.debug("stmts returned: ", len(stmts), stmts)
         return stmts
 
     def addStatement(self, stmt):
         '''add the specified statement to the model'''
         log.debug("addStatement called with ", stmt)
         
-        # XXX - elegantize this unpacking/packing
-        ins = self.vesper_stmts.insert(values={'subject': stmt[0],
-                                               'predicate': stmt[1],
-                                               'object': stmt[2],
-                                               'objecttype': stmt[3],
-                                               'context': stmt[4]
-                                               }, prefixes=['OR IGNORE'])
-        if self.conn is None:
-            self.conn = self.engine.connect()
-        result = self.conn.execute(ins)
+        result = self.engine.execute(
+            self.vesper_stmts.insert(prefixes=['OR IGNORE']),
+            {'subject' : stmt[0],
+             'predicate' : stmt[1],
+             'object' : stmt[2],
+             'objecttype' : stmt[3],
+             'context' : stmt[4]})
         return result.rowcount
 
     def addStatements(self, stmts):
         '''adds multiple statements to the model'''
         log.debug("addStatement called with ", stmts)
         
-        for stmt in stmts:
-            ins = self.vesper_stmts.insert(values={'subject': stmt[0],
-                                           'predicate': stmt[1],
-                                           'object': stmt[2],
-                                           'objecttype': stmt[3],
-                                           'context': stmt[4]
-                                           }, prefixes=['OR IGNORE'])
-        if self.conn is None:
-            self.conn = self.engine.connect()
-        result = self.conn.execute(ins)
+        result = self.engine.execute(
+            self.vesper_stmts.insert(prefixes=['OR IGNORE']),
+            [{'subject' : stmt[0],
+              'predicate' : stmt[1],
+              'object' : stmt[2],
+              'objecttype' : stmt[3], 
+              'context' : stmt[4]} for stmt in stmts])
         return result.rowcount
 
     def removeStatement(self, stmt):
         '''removes the statement from the model'''
         log.debug("removeStatement called with: ", stmt)
         
-        rmv = self.vesper_stmts.delete()
-        rmv = rmv.where(_and(self.vesper_stmts.c.subject == stmt[0], 
-                             self.vesper_stmts.c.predicate == stmt[1],
-                             self.vesper_stmts.c.object == stmt[2],
-                             self.vesper_stmts.c.objecttype == stmt[3],
-                             self.vesper_stmts.c.context == stmt[4]))
-        print "rmv: ", rmv
-        if self.conn is None:
-            self.conn = self.engine.connect()
-        result = self.conn.execute(rmv)
+        rmv = self.vesper_stmts.delete().where(
+                (self.vesper_stmts.c.subject == stmt[0]) &
+                (self.vesper_stmts.c.predicate == stmt[1]) &
+                (self.vesper_stmts.c.object == stmt[2]) &
+                (self.vesper_stmts.c.objecttype == stmt[3]) &
+                (self.vesper_stmts.c.context == stmt[4]))
+        result = self.engine.execute(rmv)
         return result.rowcount
 
     def removeStatements(self, stmts):
         '''removes multiple statements from the model'''
         log.debug("removeStatements called with: ", stmts)
 
+        wc = []
         for stmt in stmts:
-            rmv = self.vesper_stmts.delete().where([self.vesper_stmts.c.subject == stmt[0],
-                                                    self.vesper_stmts.c.predicate == stmt[1],
-                                                    self.vesper_stmts.c.object == stmt[2],
-                                                    self.vesper_stmts.c.objecttype == stmt[3],
-                                                    self.vesper_stmts.c.context == stmt[4]])
-        if self.conn is None:
-            self.conn = self.engine.connect()
-        result = self.conn.execute(rmv)
+            wc.append((self.vesper_stmts.c.subject == stmt[0]) & 
+                      (self.vesper_stmts.c.predicate == stmt[1]) & 
+                      (self.vesper_stmts.c.object == stmt[2]) & 
+                      (self.vesper_stmts.c.objecttype == stmt[3]) & 
+                      (self.vesper_stmts.c.context == stmt[4]))
+        rmv = self.vesper_stmts.delete().where(or_(*wc))
+        result = self.engine.execute(rmv)
         return result.rowcount
 
     def begin(self):
