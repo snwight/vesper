@@ -302,19 +302,19 @@ class SimpleModelTestCase(unittest.TestCase):
         model = self.getModel()
         
         # add 20 statements, subject strings '01' to '20'
-        model.addStatements([Statement("%02d" % x, "obj", "pred") for x in range(1,21)])
+        model.addStatements([Statement("%02d" % x, "pred", "obj") for x in range(1,21)])
         
         # test limit (should contain 1 to 5)
         r1 = model.getStatements(hints={'limit':5})
-        self.assertEqual(set(r1), set([Statement("%02d" % x, "obj", "pred") for x in range(1,6)]))
+        self.assertEqual(set(r1), set([Statement("%02d" % x, "pred", "obj") for x in range(1,6)]))
         
         # test offset (should contain 11 to 20)
         r2 = model.getStatements(hints={'limit':10, 'offset':10})
-        self.assertEqual(set(r2), set([Statement("%02d" % x, "obj", "pred") for x in range(11,21)]))
+        self.assertEqual(set(r2), set([Statement("%02d" % x, "pred", "obj") for x in range(11,21)]))
         
         # test limit and offset (should contain 13 & 14)
         r3 = model.getStatements(hints={'limit':2, 'offset':12})
-        self.assertEqual(set(r3), set([Statement("%02d" % x, "obj", "pred") for x in range(13,15)]))
+        self.assertEqual(set(r3), set([Statement("%02d" % x, "pred", "obj") for x in range(13,15)]))
         
         #add statements that vary by predicate and context
         statements = [Statement('r4', p, 'v', 'L', c) for p in 'abc' for c in '123']
