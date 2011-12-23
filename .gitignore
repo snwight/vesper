@@ -5,3 +5,5 @@
 .DS_Store
 */mako_modules/*
 */.idea/*
+src/vesper.egg-info
+build
