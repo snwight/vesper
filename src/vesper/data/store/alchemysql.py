@@ -56,7 +56,22 @@ class AlchemySqlStore(Model):
         Index('idx_vs', self.vesper_stmts.c.subject, self.vesper_stmts.c.predicate, self.vesper_stmts.c.object) 
         self.md.create_all(self.engine)
         self.trans = None
+        self.acflag = False
         self.conn = None
+
+    def _set_autocommit(self, set):
+        if set:
+            self.acflag=True
+        else:
+            self.acflag=False
+
+    autocommit = property(lambda self: not self.acflag, _set_autocommit)
+
+    def _checkConnection(self):
+        if self.conn is None:
+            self.conn = self.engine.connect()
+        self.conn.execution_options(autocommit=self.acflag)
+        print "acflag, in_xaction ", self.acflag, self.conn.in_transaction()
 
     def getStatements(self, subject=None, predicate=None, object=None,
                       objecttype=None, context=None, asQuad=True, hints=None):
@@ -84,8 +99,6 @@ class AlchemySqlStore(Model):
             elif not fot:
                 objecttype = OBJECT_TYPE_LITERAL
 
-        arity = False                              # True ==> concatenated condition
-        # Build the select clause
         if not asQuad and not fc:
             query = select([self.vesper_stmts.c.subject, 
                             self.vesper_stmts.c.predicate,
@@ -96,16 +109,12 @@ class AlchemySqlStore(Model):
             query = self.vesper_stmts.select()
         if fs:
             query = query.where(self.vesper_stmts.c.subject == subject)
-            arity = True
         if fp:
             query = query.where(self.vesper_stmts.c.predicate == predicate)
-            arity = True
         if fo:
             query = query.where(self.vesper_stmts.c.object == object)
-            arity = True
         if fot: 
             query = query.where(self.vesper_stmts.c.objecttype == objecttype)
-            arity = True
         if fc:
             query = query.where(self.vesper_stmts.c.context == context)
         if not asQuad and not fc:
@@ -118,10 +127,8 @@ class AlchemySqlStore(Model):
         if offset is not None:
             query = query.offset(offset)
 
-        # our query is contructed, let's get some rows
         stmts = []
-        self.conn = self.engine.connect()
-        result = self.conn.execute(query)
+        result = self.engine.execute(query)
         for r in result:
             stmts.append( Statement(r['subject'], r['predicate'], r['object'], r['objecttype'], r['context']) )
            
@@ -132,7 +139,8 @@ class AlchemySqlStore(Model):
         '''add the specified statement to the model'''
         log.debug("addStatement called with ", stmt)
         
-        result = self.engine.execute(
+        self._checkConnection()
+        result = self.conn.execute(
             self.vesper_stmts.insert(prefixes=['OR IGNORE']),
             {'subject' : stmt[0],
              'predicate' : stmt[1],
@@ -145,7 +153,8 @@ class AlchemySqlStore(Model):
         '''adds multiple statements to the model'''
         log.debug("addStatement called with ", stmts)
         
-        result = self.engine.execute(
+        self._checkConnection()
+        result = self.conn.execute(
             self.vesper_stmts.insert(prefixes=['OR IGNORE']),
             [{'subject' : stmt[0],
               'predicate' : stmt[1],
@@ -164,7 +173,8 @@ class AlchemySqlStore(Model):
                 (self.vesper_stmts.c.object == stmt[2]) &
                 (self.vesper_stmts.c.objecttype == stmt[3]) &
                 (self.vesper_stmts.c.context == stmt[4]))
-        result = self.engine.execute(rmv)
+        self._checkConnection()
+        result = self.conn.execute(rmv)
         return result.rowcount
 
     def removeStatements(self, stmts):
@@ -172,35 +182,38 @@ class AlchemySqlStore(Model):
         log.debug("removeStatements called with: ", stmts)
 
         wc = []
-        for stmt in stmts:
-            wc.append((self.vesper_stmts.c.subject == stmt[0]) & 
-                      (self.vesper_stmts.c.predicate == stmt[1]) & 
-                      (self.vesper_stmts.c.object == stmt[2]) & 
-                      (self.vesper_stmts.c.objecttype == stmt[3]) & 
-                      (self.vesper_stmts.c.context == stmt[4]))
+        [wc.append((self.vesper_stmts.c.subject == stmt[0]) & 
+                   (self.vesper_stmts.c.predicate == stmt[1]) & 
+                   (self.vesper_stmts.c.object == stmt[2]) & 
+                   (self.vesper_stmts.c.objecttype == stmt[3]) & 
+                   (self.vesper_stmts.c.context == stmt[4])) for stmt in stmts]
+        # no protection for singleton stmt here!
         rmv = self.vesper_stmts.delete().where(or_(*wc))
-        result = self.engine.execute(rmv)
+        self._checkConnection()
+        result = self.conn.execute(rmv)
         return result.rowcount
 
     def begin(self):
-        if self.trans is None:
-            if self.conn is not None:
-                self.trans = self.conn.begin()
+        if self.conn is not None:
+            # if not self.conn.in_transaction():
+            # BEGUINE
+            self.trans = self.conn.begin()
 
     def commit(self, **kw):
-        if self.trans is not None:
-            if self.conn is not None:
-                self.trans = self.conn.commit()
-        self.trans = None
+        if self.conn is not None:
+            if self.conn.in_transaction():
+                # COMINE
+                self.trans.commit()
+                
 
     def rollback(self):
-        if self.trans is not None:
-            if self.conn is not None:
-                self.conn.rollback()
-        self.trans = None
+        if self.conn is not None:
+            if self.conn.in_transaction():
+                # ROLBACKUS
+                self.trans.rollback()
 
     def close(self):
         log.debug("closing!")
         if self.conn is not None:
             self.conn.close()
-
+            self.conn = None
