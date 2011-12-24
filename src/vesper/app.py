@@ -228,7 +228,7 @@ class RequestProcessor(TransactionProcessor):
             self.template_loader = TemplateLookup(**templateArgs)
         self.requestDispatcher = Requestor(self)
         self.loadModel()
-        self.handleCommandLine(self.argsForConfig)
+        self.handleCommandLine(appVars.cmd_args)
 
     def handleCommandLine(self, argv):
         '''  the command line is translated into the `_params`
@@ -300,7 +300,6 @@ class RequestProcessor(TransactionProcessor):
         self.validate_external_request = appVars.get('validate_external_request',
                                         lambda *args: True)
         self.get_principal_func = appVars.get('get_principal_func', lambda kw: '')        
-        self.argsForConfig = appVars.get('argsForConfig', [])
         
         if appVars.get('configHook'):
             appVars['configHook'](appVars)
@@ -585,8 +584,6 @@ class AppConfig(utils.attrdict):
         appLeftOver = handler(self, appargs)
         if appLeftOver:
             #if cmd_args not set, set it to appLeftOver
-            if 'cmd_args' not in self:
-                self.cmd_args = appLeftOver
             #also treat appLeftOver as config settings
             try: 
                 moreConfig = argsToKw(appLeftOver)
@@ -595,6 +592,8 @@ class AppConfig(utils.attrdict):
                 print "Error:", e.msg
                 self.parser.print_help()
                 sys.exit()
+        if 'cmd_args' not in self:
+            self.cmd_args = appLeftOver
         
     def load(self, cmdline=False):
         '''
@@ -612,6 +611,8 @@ class AppConfig(utils.attrdict):
         
         if cmdline:
             self._parseCmdLine(cmdline)
+        elif 'cmd_args' not in self:
+            self.cmd_args = ''
         
         if self.get('logconfig'):
             initLogConfig(self['logconfig'])
