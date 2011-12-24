@@ -78,3 +78,13 @@ p,fieldset,table,pre {
 /* setting a consistent width, 160px; (changed to something else)
    control of type=file still not possible */
 input[type=text],input[type=password],textarea{width:9.25em;*width:.9em;}
+
+/** normalize pre tag across browsers **/
+pre {
+ white-space: pre-wrap;       /* css-3 */
+ white-space: -moz-pre-wrap;  /* Mozilla, since 1999 */
+ white-space: -pre-wrap;      /* Opera 4-6 */
+ white-space: -o-pre-wrap;    /* Opera 7 */
+ word-wrap: break-word;       /* Internet Explorer 5.5+ */
+}
+
