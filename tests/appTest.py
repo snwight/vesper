@@ -827,7 +827,7 @@ class AppTestCase(unittest.TestCase):
             return retVal
 
         app = vesper.app.createApp(actions = {
-            'run-cmds' : [testCmdFoo, testCmdBar],
+            'run-cmds' : [testCmdFoo, testCmdBar, lambda x,y: y],
         })
         root = app.run(cmdline=cmdline)
         self.assertEquals(app.foo, 'bar')
