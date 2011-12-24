@@ -392,7 +392,7 @@ class BasicModelTestCase(SimpleModelTestCase):
 
         # add second statement and rollback, confirm it's not there
         model.begin()
-        model.addStatement(s2)
+        model.addStatement(s2) 
         r3 = model.getStatements()
         self.assertEqual(set(r3), set([s1, s2]))
         model.rollback()
@@ -474,10 +474,10 @@ class BasicModelTestCase(SimpleModelTestCase):
             for j in xrange(7):
                 model.addStatement(Statement(subj, 'pred'+str(j), 'obj'+str(j)) )
         print 'added %s statements in %s seconds' % (BIG * 7, time.time() - start)
-        
+        model.commit()
+
         try:
             if self.persistentStore:
-                model.commit()
                 if hasattr(model, 'close'):
                     print 'closing'
                     sys.stdout.flush()

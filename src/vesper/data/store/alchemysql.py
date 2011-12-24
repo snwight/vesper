@@ -55,9 +55,12 @@ class AlchemySqlStore(Model):
                              keep_existing = True)
         Index('idx_vs', self.vesper_stmts.c.subject, self.vesper_stmts.c.predicate, self.vesper_stmts.c.object) 
         self.md.create_all(self.engine)
+
+        # Set up our state machine and grab a connection from the sqlalchemy pool
+        self.conn = self.engine.connect()
+        print "__init__: new conn ", self.conn
         self.trans = None
         self.acflag = False
-        self.conn = None
 
     def _set_autocommit(self, set):
         if set:
@@ -193,21 +196,24 @@ class AlchemySqlStore(Model):
         return result.rowcount
 
     def begin(self):
+        print "model.BEGIN() "
         if self.conn is not None:
-            print "model.BEGIN() "
+            print "model.BEGIN(): conn ", self.conn
             if not self.conn.in_transaction():
                 self.trans = self.conn.begin()
 
     def commit(self, **kw):
+        print "model.COMMIT() "
         if self.conn is not None:
-            print "model.COMMIT() "
+            print "model.COMMIT(): conn ", self.conn
             if self.conn.in_transaction():
                 self.trans.commit()
 
     def rollback(self):
+        print "model.ROLLBACK() "
         if self.conn is not None:
+            print "model.ROLLBACK(): conn ", self.conn
             if self.conn.in_transaction():
-                print "model.ROLLBACK() "
                 self.trans.rollback()
 
     def close(self):
