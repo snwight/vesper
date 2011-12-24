@@ -384,12 +384,14 @@ class BasicModelTestCase(SimpleModelTestCase):
         self.assertEqual(set(r1), set())
 
         # add first statement and commit, confirm it's there
+        model.begin()
         model.addStatement(s1)
         model.commit()
         r2 = model.getStatements()
         self.assertEqual(set(r2), set([s1]))
 
         # add second statement and rollback, confirm it's not there
+        model.begin()
         model.addStatement(s2)
         r3 = model.getStatements()
         self.assertEqual(set(r3), set([s1, s2]))
@@ -448,6 +450,7 @@ class BasicModelTestCase(SimpleModelTestCase):
         self.assertEqual(set(), set(r1a), set(r1b))
 
         # add statements and confirm A sees them and B doesn't
+        modelA.begin()
         modelA.addStatements(statements)
         r2a = modelA.getStatements()
         self.assertEqual(set(r2a), set(statements))
@@ -464,7 +467,8 @@ class BasicModelTestCase(SimpleModelTestCase):
         model = self.getModel()
         print 'start insert with %s objects (-b to change)' % BIG 
         start = time.time()
-        
+
+        model.begin()
         for i in xrange(BIG):
             subj = random_name(12)
             for j in xrange(7):

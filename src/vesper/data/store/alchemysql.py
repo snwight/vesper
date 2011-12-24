@@ -71,7 +71,6 @@ class AlchemySqlStore(Model):
         if self.conn is None:
             self.conn = self.engine.connect()
         self.conn.execution_options(autocommit=self.acflag)
-        print "acflag, in_xaction ", self.acflag, self.conn.in_transaction()
 
     def getStatements(self, subject=None, predicate=None, object=None,
                       objecttype=None, context=None, asQuad=True, hints=None):
@@ -195,21 +194,20 @@ class AlchemySqlStore(Model):
 
     def begin(self):
         if self.conn is not None:
-            # if not self.conn.in_transaction():
-            # BEGUINE
-            self.trans = self.conn.begin()
+            print "model.BEGIN() "
+            if not self.conn.in_transaction():
+                self.trans = self.conn.begin()
 
     def commit(self, **kw):
         if self.conn is not None:
+            print "model.COMMIT() "
             if self.conn.in_transaction():
-                # COMINE
                 self.trans.commit()
-                
 
     def rollback(self):
         if self.conn is not None:
             if self.conn.in_transaction():
-                # ROLBACKUS
+                print "model.ROLLBACK() "
                 self.trans.rollback()
 
     def close(self):
