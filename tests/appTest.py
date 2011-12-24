@@ -814,12 +814,23 @@ class AppTestCase(unittest.TestCase):
         self.failUnless(root)
         
         cmdline = ['-x', '--foo=bar', '--transaction_log=test.log', '-fname', '-c', 'test.config']
-        app = vesper.app.createApp()
+        called = False
+        @vesper.app.Action
+        def testCmd(kw, retVal):            
+            self.assertEquals(kw._params.foo, 'bar')
+            self.assertEquals(kw._params.f, 'name')
+            kw.__server__.testCmdCalled = True
+            return retVal
+        
+        app = vesper.app.createApp(actions = {
+            'run-cmds' : [testCmd],
+        })
         root = app.run(cmdline=cmdline)
         self.assertEquals(app.foo, 'bar')
         self.assertEquals(app.baz, 1)
         self.assertEquals(app.f, 'name')
         self.assertEquals(root.defaultStore.transaction_log, 'test.log')
+        self.failUnless(root.testCmdCalled ) 
         
         #test trying to loading a store with the wrong kind of file
         cmdline = ['-s', 'test.config']
