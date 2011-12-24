@@ -786,17 +786,24 @@ def createApp(derivedapp=None, baseapp=None, static_path=(), template_path=(), a
         _importApp(baseapp)
     else:
         _current_config = AppConfig()        
-    
+
     #config variables that shouldn't be simply overwritten should be specified 
     #as an explicit function argument so they're not overwritten by this line:
     _current_config.update(config)
-    
+
+    if actions:
+        actions = dict( (k, (not isinstance(v, (list, tuple)) and v
+          or [isinstance(a, Action) and a or Action(a) for a in v])
+          )
+          for k,v in actions.items()
+        )
+
     if 'actions' in _current_config:
         if actions:
             _current_config.actions.update(actions)
     else:
         _current_config.actions = actions or {}
-    
+
     basedir = _current_configpath[-1] or derived_path
     if basedir is not None:
         if not os.path.isdir(basedir):
