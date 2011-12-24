@@ -815,15 +815,19 @@ class AppTestCase(unittest.TestCase):
         
         cmdline = ['-x', '--foo=bar', '--transaction_log=test.log', '-fname', '-c', 'test.config']
         called = False
-        @vesper.app.Action
-        def testCmd(kw, retVal):            
+        @vesper.app.Command("foo")
+        def testCmdFoo(kw, retVal):
             self.assertEquals(kw._params.foo, 'bar')
             self.assertEquals(kw._params.f, 'name')
             kw.__server__.testCmdCalled = True
+
+        @vesper.app.Command("bar")
+        def testCmdBar(kw, retVal):
+            self.fail("shouldn't have been called")
             return retVal
-        
+
         app = vesper.app.createApp(actions = {
-            'run-cmds' : [testCmd],
+            'run-cmds' : [testCmdFoo, testCmdBar],
         })
         root = app.run(cmdline=cmdline)
         self.assertEquals(app.foo, 'bar')
