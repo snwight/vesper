@@ -155,10 +155,13 @@ retVal was the return value of the last action invoked in the in action sequence
     def __call__(self, kw, retVal):
         return self.action(kw, retVal)
 
-def Command(cmd):
+def Command(*args):
     def _cmd(func):
         def _action(kw, retVal):
-            if cmd not in kw._params:
+            for cmd in args:
+                if cmd in kw._params:
+                    break
+            else:
                 return retVal
             return func(kw, retVal)
         return Action(_action)
