@@ -356,14 +356,15 @@ class BasicModelTestCase(SimpleModelTestCase):
             modelA.autocommit = True
             modelB = self.getTransactionModel()
             # add statements and confirm the both A and B see them 
-            #even though we didn't explicitly commit
+            # even though we didn't explicitly commit
             modelA.addStatements(statements)
             r2a = modelA.getStatements()
             self.assertEqual(set(r2a), set(statements))
             r2b = modelB.getStatements()
             self.assertEqual(set(r2b), set(statements))
-            #turn off autocommit
+            # turn off autocommit
             modelA.autocommit = False
+            modelA.begin()
             # add more statements and confirm A sees them and B doesn't
             s2 = [Statement("sky", "is", "blue")]
             modelA.addStatements(s2)
@@ -371,7 +372,8 @@ class BasicModelTestCase(SimpleModelTestCase):
             self.assertEqual(set(r3a), set(statements+s2))
             r3b = modelB.getStatements()
             self.assertEqual(set(r3b), set(statements))
-        
+
+            
     def testTransactionCommitAndRollback(self):
         "test simple commit and rollback on a single model instance"
         model = self.getTransactionModel()
@@ -415,6 +417,7 @@ class BasicModelTestCase(SimpleModelTestCase):
         self.assertEqual(set(), set(r1a), set(r1b))
 
         # add statements and confirm A sees them and B doesn't
+        modelA.begin()
         modelA.addStatements(statements)
         r2a = modelA.getStatements()
         self.assertEqual(set(r2a), set(statements))

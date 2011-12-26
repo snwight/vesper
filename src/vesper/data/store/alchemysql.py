@@ -67,6 +67,7 @@ class AlchemySqlStore(Model):
             self.acflag=True
         else:
             self.acflag=False
+        print "autocommit = ", self.acflag
 
     autocommit = property(lambda self: not self.acflag, _set_autocommit)
 
@@ -130,7 +131,8 @@ class AlchemySqlStore(Model):
             query = query.offset(offset)
 
         stmts = []
-        result = self.engine.execute(query)
+        self._checkConnection()
+        result = self.conn.execute(query)
         for r in result:
             stmts.append( Statement(r['subject'], r['predicate'], r['object'], r['objecttype'], r['context']) )
            
@@ -196,21 +198,18 @@ class AlchemySqlStore(Model):
         return result.rowcount
 
     def begin(self):
-        print "model.BEGIN() "
         if self.conn is not None:
             print "model.BEGIN(): conn ", self.conn
             if not self.conn.in_transaction():
                 self.trans = self.conn.begin()
 
     def commit(self, **kw):
-        print "model.COMMIT() "
         if self.conn is not None:
             print "model.COMMIT(): conn ", self.conn
             if self.conn.in_transaction():
                 self.trans.commit()
 
     def rollback(self):
-        print "model.ROLLBACK() "
         if self.conn is not None:
             print "model.ROLLBACK(): conn ", self.conn
             if self.conn.in_transaction():
