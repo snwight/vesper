@@ -23,7 +23,7 @@ class SqliteStore(Model):
 
     '''
     
-    def __init__(self, source = None, defaultStatements = None, **kw):
+    def __init__(self, source = None, defaultStatements = None, autocommit = False, **kw):
         if source is None:
             source = ':memory:'
             log.debug("in-memory database being opened")
@@ -31,8 +31,7 @@ class SqliteStore(Model):
             source = os.path.abspath(source)
             log.debug("on-disk database being opened at ", source)
 
-#        self.conn = sqlite3.connect(source, isolation_level=None)     # 'DEFERRED') 
-        self.conn = sqlite3.connect(source)
+        self.conn = sqlite3.connect(source, isolation_level=not autocommit and 'DEFERRED' or None)
         curs = self.conn.cursor()
         curs.execute("create table if not exists vesper_stmts (\
 subject, predicate, object, objecttype, context not null, \
@@ -62,7 +61,7 @@ unique (subject, predicate, object, objecttype, context) )" )
         limit = hints.get('limit')
         offset = hints.get('offset')
 
-        log.debug("s p o ot c quad lim offset: ", fs, fp, fo, fot, fc, asQuad, limit, offset)
+        #log.debug("s p o ot c quad lim offset: ", fs, fp, fo, fot, fc, asQuad, limit, offset)
 
         if fo:
             if isinstance(object, ResourceUri):

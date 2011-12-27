@@ -16,22 +16,22 @@ class SqliteInMemoryModelTestCase(modelTest.BasicModelTestCase):
 
     def getModel(self):
         self.persistentStore = False
-        model = SqliteStore(None)
+        model = SqliteStore(None, autocommit=True)
         return self._getModel(model)
 
     def getTransactionModel(self):
         self.persistentStore = False        
-        model = SqliteStore(None)
+        model = SqliteStore(None, autocommit=False)
         return self._getModel(model)
 
 class SqliteModelTestCase(modelTest.BasicModelTestCase):
     
     def getModel(self):
-        model = SqliteStore(self.tmpfilename)
+        model = SqliteStore(self.tmpfilename, autocommit=True)
         return self._getModel(model)
 
     def getTransactionModel(self):
-        model = SqliteStore(self.tmpfilename)
+        model = SqliteStore(self.tmpfilename, autocommit=False)
         return self._getModel(model)
 
     def setUp(self):
