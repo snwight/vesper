@@ -361,15 +361,16 @@ derived from http://code.google.com/p/js-binding/source/browse/trunk/test/binder
 
     YAHOO.tool.TestRunner.add( suite );    
     function testRunComplete(data) {
-      if (window.console) console.log('test run complete', data);
       var results = JSON.stringify(data.results);
+      var complete = function() { if (window.console) console.log('test run complete: ' + results); }
       $.ajax({
         type: 'POST',
         url: '/testresult',
         data: results,
         processData: false, 
         contentType: 'application/json',
-        dataType: "json"
+        dataType: "json",
+        complete: complete
       }); 
     }
     YAHOO.tool.TestRunner.subscribe(YAHOO.tool.TestRunner.COMPLETE_EVENT, testRunComplete); 

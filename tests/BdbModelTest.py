@@ -8,18 +8,17 @@ import subprocess, tempfile, os, signal, sys
 import string, random, shutil, time
 
 import modelTest 
-from vesper.data.store.bdb import BdbStore, TransactionBdbStore
+from vesper.data.store.bdb import BdbStore
 
 class BdbModelTestCase(modelTest.BasicModelTestCase):
-    
+    persistentStore = True
+
     def getModel(self):
-        #print 'opening', self.tmpfilename
-        sys.stdout.flush()
-        model = BdbStore(self.tmpfilename)
+        model = BdbStore(self.tmpfilename, autcommit=True)
         return self._getModel(model)
 
     def getTransactionModel(self):
-        model = TransactionBdbStore(self.tmpfilename)
+        model = BdbStore(self.tmpfilename, autocommit=False)
         return self._getModel(model)
 
     def setUp(self):

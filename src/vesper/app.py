@@ -155,6 +155,18 @@ retVal was the return value of the last action invoked in the in action sequence
     def __call__(self, kw, retVal):
         return self.action(kw, retVal)
 
+def Command(*args):
+    def _cmd(func):
+        def _action(kw, retVal):
+            for cmd in args:
+                if cmd in kw._params:
+                    break
+            else:
+                return retVal
+            return func(kw, retVal)
+        return Action(_action)
+    return _cmd
+
 class Result(object):
     def __init__(self, retVal):
         self.value = retVal
@@ -228,7 +240,7 @@ class RequestProcessor(TransactionProcessor):
             self.template_loader = TemplateLookup(**templateArgs)
         self.requestDispatcher = Requestor(self)
         self.loadModel()
-        self.handleCommandLine(self.argsForConfig)
+        self.handleCommandLine(appVars.cmd_args)
 
     def handleCommandLine(self, argv):
         '''  the command line is translated into the `_params`
@@ -300,7 +312,6 @@ class RequestProcessor(TransactionProcessor):
         self.validate_external_request = appVars.get('validate_external_request',
                                         lambda *args: True)
         self.get_principal_func = appVars.get('get_principal_func', lambda kw: '')        
-        self.argsForConfig = appVars.get('argsForConfig', [])
         
         if appVars.get('configHook'):
             appVars['configHook'](appVars)
@@ -585,8 +596,6 @@ class AppConfig(utils.attrdict):
         appLeftOver = handler(self, appargs)
         if appLeftOver:
             #if cmd_args not set, set it to appLeftOver
-            if 'cmd_args' not in self:
-                self.cmd_args = appLeftOver
             #also treat appLeftOver as config settings
             try: 
                 moreConfig = argsToKw(appLeftOver)
@@ -595,6 +604,8 @@ class AppConfig(utils.attrdict):
                 print "Error:", e.msg
                 self.parser.print_help()
                 sys.exit()
+        if 'cmd_args' not in self:
+            self.cmd_args = appLeftOver
         
     def load(self, cmdline=False):
         '''
@@ -612,6 +623,8 @@ class AppConfig(utils.attrdict):
         
         if cmdline:
             self._parseCmdLine(cmdline)
+        elif 'cmd_args' not in self:
+            self.cmd_args = ''
         
         if self.get('logconfig'):
             initLogConfig(self['logconfig'])
@@ -776,17 +789,24 @@ def createApp(derivedapp=None, baseapp=None, static_path=(), template_path=(), a
         _importApp(baseapp)
     else:
         _current_config = AppConfig()        
-    
+
     #config variables that shouldn't be simply overwritten should be specified 
     #as an explicit function argument so they're not overwritten by this line:
     _current_config.update(config)
-    
+
+    if actions:
+        actions = dict( (k, (not isinstance(v, (list, tuple)) and v
+          or [isinstance(a, Action) and a or Action(a) for a in v])
+          )
+          for k,v in actions.items()
+        )
+
     if 'actions' in _current_config:
         if actions:
             _current_config.actions.update(actions)
     else:
         _current_config.actions = actions or {}
-    
+
     basedir = _current_configpath[-1] or derived_path
     if basedir is not None:
         if not os.path.isdir(basedir):

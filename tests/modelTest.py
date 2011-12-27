@@ -18,7 +18,7 @@ graphManagerClass = graph.MergeableGraphManager
 def random_name(length):
     return ''.join(random.sample(string.ascii_letters, length))
 
-class BasicModelTestCase(unittest.TestCase):
+class SimpleModelTestCase(unittest.TestCase):
     "Tests basic features of a store"
     persistentStore = True
 
@@ -27,11 +27,6 @@ class BasicModelTestCase(unittest.TestCase):
 
     def getModel(self):
         model = MemStore()
-        self.persistentStore = False
-        return self._getModel(model)
-
-    def getTransactionModel(self):
-        model = TransactionMemStore()
         self.persistentStore = False
         return self._getModel(model)
     
@@ -73,7 +68,7 @@ class BasicModelTestCase(unittest.TestCase):
         r1 = model.getStatements(subject=subj)
         self.assertEqual(set(r1), set([s1, s3]))
 
-    def testGetStatements(self):
+    def _testGetStatements(self, asQuad=True):
         model = self.getModel()
                         
         stmts = [Statement('s', 'p', 'o', 'en', 'c'),
@@ -110,11 +105,19 @@ class BasicModelTestCase(unittest.TestCase):
                 self.assertEqual(set(r1), set(stmts[:matches]))
                 #add to group
                 kw.update(q) #kw[k] = v
+                kw['asQuad'] = asQuad
                 r2 = model.getStatements(**kw)
-                self.assertEqual(len(r2), matches)             
-                self.assertEqual(set(r2), set(stmts[:matches]))
+                expected = stmts[:matches]
+                count = matches
+                if not asQuad and len(expected) > 1:
+                    del expected[1] #delete ('s', 'p', 'o', 'en', 'c1')
+                    count -= 1
+                #print 'query', kw
+                #print r2
+                #print 'expected', expected
+                self.assertEqual(len(r2), count)
+                self.assertEqual(set(r2), set(expected))
                 
-            
             #repeat tests but start matching at next position
             popped = pairs.pop(0)
             beginMatches -= len(popped)
@@ -141,33 +144,96 @@ class BasicModelTestCase(unittest.TestCase):
         r = model.getStatements(predicate='p1', object='o2', objecttype='en-1')
         self.assertEqual(set(r), set( (more[0], more[-1]) ) )
 
+    def testGetStatements(self):
+        self._testGetStatements(asQuad=True)
+
+    def testGetStatementsAsTriples(self):
+        self._testGetStatements(asQuad=False)
+        
     def testRemove(self):
-        "basic removal test"
+        """
+        basic removal test
+
+        current seq    expected
+        ------- ---    --------
+        exists  r,a    no-op 
+        doesnt  r,a    adds  
+        exists  a,r    remove
+        doesnt  a,r    no-op
+        """
         model = self.getModel()
+        checkr = model.updateAdvisory
 
         # set up the model with one randomly named statement
         subj = random_name(12)
         s1 = Statement(subj, random_name(24), random_name(12))
-        model.addStatement(s1)
+        s2 = Statement(subj+'2', random_name(24), random_name(12))
+        s3 = Statement(subj+'3', random_name(24), random_name(12))
+        ret = model.addStatements([s1, s2, s3])
+        if checkr:
+            self.assertEqual(ret, 3, 'added count is wrong')
 
         # confirm a search for the subject finds it
         r1 = model.getStatements(subject=subj)
         self.assertEqual(set(r1), set([s1])) # object exists
 
         # remove the statement and confirm that it's gone
-        model.removeStatement(s1)
+        ret = model.removeStatement(s1)
+        if checkr:
+          assert ret, "statement should have been removed"
 
         r2 = model.getStatements(subject=subj)
-        self.assertEqual(set(r2), set()) # object is gone
+        self.assertEqual(r2, []) # object is gone
+
+        # remove the statement again
+        ret = model.removeStatement(s1)
+        if checkr:
+          assert not ret, "statement shouldn't have been removed"
+
+        ret = model.addStatement(s1)
+        if checkr:
+          assert ret, "statement should have been added"
+
+        r2 = model.getStatements(subject=subj)
+        self.assertEqual(r2, [s1])
+
+        #add statement that already exists
+        ret = model.addStatement(s2)
+        if checkr:
+          assert not ret, "statement shouldn't have been added"
+
+        #remove it (and another one for good measure)
+        ret = model.removeStatements([s2, s3])
+        if checkr:
+            self.assertEqual(ret, 2, 'remove count is wrong')
         
+        #confirm that it's been removed
+        r3 = model.getStatements(subject=s2.subject)
+        self.assertEqual(r3, [])
+
         if self.persistentStore:
             model.commit()
             model = self.getModel()
-            self.assertEqual(set(r2), set()) # object is gone
+            r2 = model.getStatements(subject=subj)
+            self.assertEqual(r2, [s1])
+
+            # remove the statement and confirm that it's gone
+            ret = model.removeStatement(s1)
+            if checkr:
+              assert ret, "statement should have been removed"
+
+            r2 = model.getStatements(subject=subj)
+            self.assertEqual(r2, []) # object is gone
+
+            # remove the statement again
+            ret = model.removeStatement(s1)
+            if checkr:
+              assert not ret, "statement shouldn't have been removed"
 
     def testSetBehavior(self):
         "confirm model behaves as a set"
         model = self.getModel()
+        checkr = model.updateAdvisory
 
         s1 = Statement("sky", "is", "blue")
         s2 = Statement("sky", "has", "clouds")
@@ -178,7 +244,9 @@ class BasicModelTestCase(unittest.TestCase):
         self.assertEqual(set(r1), set())
 
         # add a single statement and confirm it is returned
-        model.addStatement(s1)
+        ret = model.addStatement(s1)
+        if checkr:
+          assert ret, "statement should have been added"
 
         model.debug = 1
         r2 = model.getStatements()
@@ -186,10 +254,15 @@ class BasicModelTestCase(unittest.TestCase):
         self.assertEqual(set(r2), set([s1]))
 
         # add the same statement again & the set should be unchanged
-        model.addStatement(s1)
+        ret = model.addStatement(s1)
+        if checkr:
+          assert not ret, "statement shouldn't have been added"
         
         r3 = model.getStatements()
-        self.assertEqual(set(r3), set([s1]))
+        self.assertEqual(r3, [s1])
+
+        r3 = model.getStatements(asQuad=True)
+        self.assertEqual(r3, [s1])
         
         # add a second statement with the same subject as s1
         model.addStatement(s2)
@@ -217,31 +290,89 @@ class BasicModelTestCase(unittest.TestCase):
         r1 = model.getStatements(asQuad=True)
         self.assertEqual(set(r1), set(statements))
 
-        # asQuad=False (the default) should only return the oldest
+        # asQuad=False (the default) should only return one
         expected = set()
         expected.add(statements[0])
         r2 = model.getStatements(asQuad=False)
-        self.assertEqual(set(r2), expected)
+        self.assertEqual(len(r2), 1)
+        self.failUnless(r2[0] in statements)
     
     def testHints(self):
         "test limit and offset hints"
         model = self.getModel()
         
         # add 20 statements, subject strings '01' to '20'
-        model.addStatements([Statement("%02d" % x, "obj", "pred") for x in range(1,21)])
+        model.addStatements([Statement("%02d" % x, "pred", "obj") for x in range(1,21)])
         
         # test limit (should contain 1 to 5)
         r1 = model.getStatements(hints={'limit':5})
-        self.assertEqual(set(r1), set([Statement("%02d" % x, "obj", "pred") for x in range(1,6)]))
+        self.assertEqual(set(r1), set([Statement("%02d" % x, "pred", "obj") for x in range(1,6)]))
         
         # test offset (should contain 11 to 20)
-        r2 = model.getStatements(hints={'offset':10})
-        self.assertEqual(set(r2), set([Statement("%02d" % x, "obj", "pred") for x in range(11,21)]))
+        r2 = model.getStatements(hints={'limit':10, 'offset':10})
+        self.assertEqual(set(r2), set([Statement("%02d" % x, "pred", "obj") for x in range(11,21)]))
         
         # test limit and offset (should contain 13 & 14)
         r3 = model.getStatements(hints={'limit':2, 'offset':12})
-        self.assertEqual(set(r3), set([Statement("%02d" % x, "obj", "pred") for x in range(13,15)]))
+        self.assertEqual(set(r3), set([Statement("%02d" % x, "pred", "obj") for x in range(13,15)]))
+        
+        #add statements that vary by predicate and context
+        statements = [Statement('r4', p, 'v', 'L', c) for p in 'abc' for c in '123']
+        model.addStatements(statements)
+        r4 = model.getStatements(subject='r4', hints={'limit':2, 'offset':1}, asQuad=False)
 
+        r4.sort()
+        expected = [('r4', 'b', 'v', 'L'), ('r4', 'c', 'v', 'L')]
+        self.assertEqual(len(r4), len(expected))
+        for a, b in zip(r4, expected):
+          self.assertEqual(a[:4], b) #ignore context
+
+        r5 = model.getStatements(subject='r4', hints={'limit':2, 'offset':1}, asQuad=True)
+        self.assertEquals(len(r5), 2)
+        r5.sort()
+        self.assertEquals(r5, statements[1:3])
+
+class BasicModelTestCase(SimpleModelTestCase):
+
+    def getTransactionModel(self):
+        model = TransactionMemStore()
+        self.persistentStore = False
+        return self._getModel(model)
+
+    def testAutocommit(self):
+        statements = [Statement("one", "equals", " one "),
+                      Statement("two", "equals", " two "),
+                      Statement("three", "equals", " three ")]
+        
+        model = self.getTransactionModel()
+        model.autocommit = True
+        model.addStatements(statements)
+        #rollback should have no effect
+        model.rollback() 
+        r1 = model.getStatements()
+        self.assertEqual(set(r1), set(statements))
+        if self.persistentStore:
+            modelA = self.getTransactionModel()
+            modelA.autocommit = True
+            modelB = self.getTransactionModel()
+            # add statements and confirm the both A and B see them 
+            # even though we didn't explicitly commit
+            modelA.addStatements(statements)
+            r2a = modelA.getStatements()
+            self.assertEqual(set(r2a), set(statements))
+            r2b = modelB.getStatements()
+            self.assertEqual(set(r2b), set(statements))
+            # turn off autocommit
+            modelA.autocommit = False
+            # add more statements and confirm A sees them and B doesn't
+            s2 = [Statement("sky", "is", "blue")]
+            modelA.addStatements(s2)
+            r3a = modelA.getStatements()
+            self.assertEqual(set(r3a), set(statements+s2))
+            r3b = modelB.getStatements()
+            self.assertEqual(set(r3b), set(statements))
+
+            
     def testTransactionCommitAndRollback(self):
         "test simple commit and rollback on a single model instance"
         model = self.getTransactionModel()
@@ -260,7 +391,9 @@ class BasicModelTestCase(unittest.TestCase):
         self.assertEqual(set(r2), set([s1]))
 
         # add second statement and rollback, confirm it's not there
-        model.addStatement(s2)
+        model.addStatement(s2) 
+        r3 = model.getStatements()
+        self.assertEqual(set(r3), set([s1, s2]))
         model.rollback()
         r3 = model.getStatements()
         self.assertEqual(set(r3), set([s1]))
@@ -332,16 +465,16 @@ class BasicModelTestCase(unittest.TestCase):
         model = self.getModel()
         print 'start insert with %s objects (-b to change)' % BIG 
         start = time.time()
-        
+
         for i in xrange(BIG):
             subj = random_name(12)
             for j in xrange(7):
                 model.addStatement(Statement(subj, 'pred'+str(j), 'obj'+str(j)) )
         print 'added %s statements in %s seconds' % (BIG * 7, time.time() - start)
-        
+        model.commit()
+
         try:
             if self.persistentStore:
-                model.commit()
                 if hasattr(model, 'close'):
                     print 'closing'
                     sys.stdout.flush()
@@ -372,6 +505,13 @@ class BasicModelTestCase(unittest.TestCase):
                 self.assertEqual(len(model.getStatements(s[0])), 7)
         print 'did %s subject lookups in %s seconds' % (BIG, time.time() - start)
 
+class TransactionModelTestCase(SimpleModelTestCase):
+    persistentStore = False
+
+    def getModel(self):
+        model = TransactionMemStore()
+        return self._getModel(model)
+
 class GraphModelTestCase(BasicModelTestCase):
 
     def _getModel(self, model):
@@ -379,7 +519,7 @@ class GraphModelTestCase(BasicModelTestCase):
         return graphManagerClass(model, None, modelUri)
 
 class SplitGraphModelTestCase(BasicModelTestCase):
-    
+
     def _getModel(self, model):
         modelUri = base.generateBnode()
         revmodel = TransactionMemStore()

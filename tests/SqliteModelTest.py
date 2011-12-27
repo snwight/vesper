@@ -8,24 +8,37 @@ import subprocess, tempfile, os, signal, sys
 import string, random, shutil, time
 
 import modelTest 
-from vesper.data.store.sqlite import SqliteStore, TransactionSqliteStore
+from vesper.data.store.sqlite import SqliteStore
+
+import os.path
+class SqliteInMemoryModelTestCase(modelTest.BasicModelTestCase):
+    # None ==> :memory:
+
+    def getModel(self):
+        self.persistentStore = False
+        model = SqliteStore(None, autocommit=True)
+        return self._getModel(model)
+
+    def getTransactionModel(self):
+        self.persistentStore = False        
+        model = SqliteStore(None, autocommit=False)
+        return self._getModel(model)
 
 class SqliteModelTestCase(modelTest.BasicModelTestCase):
     
     def getModel(self):
-        model = SqliteStore(None)
+        model = SqliteStore(self.tmpfilename, autocommit=True)
         return self._getModel(model)
 
     def getTransactionModel(self):
-        model = TransactionSqliteStore(self.tmpfilename)
+        model = SqliteStore(self.tmpfilename, autocommit=False)
         return self._getModel(model)
 
     def setUp(self):
         self.tmpdir = tempfile.mkdtemp(prefix="rhizometest")
         self.tmpfilename = os.path.join(self.tmpdir, 'test.sqlite') 
-        
+       
     def tearDown(self):
-        #print 'tear down removing', self.tmpdir
         shutil.rmtree(self.tmpdir)
 
 if __name__ == '__main__':

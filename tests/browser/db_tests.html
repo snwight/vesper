@@ -14,12 +14,13 @@
   <body>
   
   <script type="text/javascript">
-
+   $(document).ready(function(){
   function verifyQuery(testcase, query, expected, done) {
     var errormsg = 'unexpected result for ' + query;
     $(document).dbQuery(query,
      function(data) {
        testcase.offthread(function() {
+        console.log("results for " + query + " expected " + JSON.stringify(expected));
         Assert.isUndefined(data.error, errormsg);
         Assert.isArray(data.results, errormsg);
         //javascript doesn't provide an easy way to do deep equality on objects, 
@@ -172,20 +173,22 @@
     $.db.url = '/default/datarequest';
     var TestRunner = YAHOO.tool.TestRunner;
     TestRunner.add( suite );
-    function testRunComplete(data) {
-      if (window.console) console.log('test run complete', data);
+    function testRunComplete(data) {      
       var results = JSON.stringify(data.results);
+      var complete = function() { if (window.console) console.log('test run complete: ' + results); }
       $.ajax({
         type: 'POST',
         url: '/testresult',
         data: results,
         processData: false, 
         contentType: 'application/json',
-        dataType: "json"
+        dataType: "json",
+        complete: complete
       }); 
     }
     TestRunner.subscribe(TestRunner.COMPLETE_EVENT, testRunComplete);        
     TestRunner.run();
+  });
   </script> 
 
 <div id='test1'></div>

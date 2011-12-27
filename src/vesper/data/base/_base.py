@@ -180,9 +180,11 @@ class Model(Tupleset):
 
     def addStatements(self, statements):
         '''add the specified statements to the model'''
-        lists = {}
-        for s in statements:                        
-            self.addStatement(s)
+        rowsAdded = 0
+        for s in statements:
+            if self.addStatement(s):
+              rowsAdded += 1
+        return rowsAdded
         
     def removeStatement(self, statement ):
         '''Removes the statement. If 'scope' isn't specified, the statement
@@ -192,8 +194,11 @@ class Model(Tupleset):
 
     def removeStatements(self, statements):
         '''removes the statements'''
+        rowsRemoved = 0
         for s in statements:
-            self.removeStatement(s)
+            if self.removeStatement(s):
+              rowsRemoved += 1
+        return rowsRemoved
 
     reifiedIDs = None
     def findStatementIDs(self, stmt):        
@@ -411,7 +416,10 @@ class TransactionModel(object):
         super(TransactionModel, self).__init__(*args, **kw)
         self.autocommit = False
 
-    def commit(self, **kw):    
+    def commit(self, **kw):
+        if self.autocommit:
+            assert not self.queue
+            super(TransactionModel, self).commit(**kw)
         if not self.queue:
             self.txnState = TxnState.BEGIN
             return
@@ -473,12 +481,10 @@ class TransactionModel(object):
                 if self._match(stmt, subject, predicate, object,
                                                objecttype,context):
                     try:                        
-                        i = 0
                         while 1:
-                            i = statements.index(stmt, i)                            
+                            i = statements.index(stmt)
                             del statements[i]
                             changed = True
-                            i+=1
                     except ValueError:
                         pass
             else:
@@ -494,20 +500,15 @@ class TransactionModel(object):
             return statements
 
     def addStatement(self, statement ):
-        '''add the specified statement to the model'''        
+        '''add the specified statement to the model'''
         if self.autocommit:
             return super(TransactionModel, self).addStatement(statement)
         else:
             self.txnState = TxnState.DIRTY
         
         if self.queue is None: 
-            self.queue = []        
-        try:
-            i = self.queue.index( (Removed, statement))
-            del self.queue[i]            
-        except ValueError:
-            #print 'addingtoqueue'
-            self.queue.append( (statement,) )            
+            self.queue = []
+        self.queue.append( (statement,) )
         
     def removeStatement(self, statement ):
         '''removes the statement'''        
@@ -518,10 +519,6 @@ class TransactionModel(object):
         
         if self.queue is None: 
             self.queue = []
-        try:
-            i = self.queue.index((statement,))
-            del self.queue[i]
-        except ValueError:
-            self.queue.append( (Removed, statement) )
+        self.queue.append( (Removed, statement) )
 
 
