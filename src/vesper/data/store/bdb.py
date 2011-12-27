@@ -1,6 +1,25 @@
 #:copyright: Copyright 2009-2010 by the Vesper team, see AUTHORS.
 #:license: Dual licenced under the GPL or Apache2 licences, see LICENSE.
-__all__ = ['BdbStore', 'TransactionBdbStore']
+'''
+A Berkeley DB adapter
+=====================
+
+DB Maintenance notes
+--------------------
+
+Need to run checkpoint periodically: "Therefore, deciding how frequently to run a checkpoint 
+is one of the most common tuning activity for DB applications."
+http://download.oracle.com/docs/cd/E17076_02/html/gsg_txn/C/filemanagement.html#checkpoints
+
+Need to delete log files periodically:
+"By default DB does not delete log files for you. For this reason, DB's log files 
+will eventually grow to consume an unnecessarily large amount of disk space. 
+To guard against this, you should periodically take administrative action 
+to remove log files that are no longer in use by your application." 
+http://download.oracle.com/docs/cd/E17076_02/html/gsg_txn/C/logfileremoval.html
+'''
+
+__all__ = ['BdbStore']
 
 import os, os.path
 import logging
@@ -8,7 +27,10 @@ import logging
 try:
     import bsddb, bsddb.db
 except ImportError:
-    import bsddb3 as bsddb #Mac default python doesn't have bsddb
+    #OS X default python install doesn't include bsddb
+    #need to Berkeley DB and then easy_install bsddb3
+    #or use the Python version found on python.org
+    import bsddb3 as bsddb 
     import bsddb3.db
     assert bsddb.db
 
@@ -28,21 +50,6 @@ except AttributeError:
 
 log = logging.getLogger("bdb")
 
-class _ListInfo(object):
-    prop = ''
-    
-    def __init__(self):
-        self.positions = {}
-        
-    def setPosition(self, obj, objtype, pos):
-        self.positions.setdefault( (obj, objtype), []).append(pos)
-        
-    def __str__(self):
-        #a list where each item is an index into 
-        items = self.positions.items()
-        items.sort()
-        return self.prop+',' + ','.join(self.positions) 
-
 def _to_safe_str(s):
     "Convert any unicode strings to utf-8 encoded 'str' types"
     if isinstance(s, unicode):
@@ -61,18 +68,23 @@ def _encodeValues(*args):
     '''
     return '\0'.join(map(_to_safe_str, args))
     
-def _btopen(env, file, flag='c', mode=0666,
+def _btopen(env, file, txn=None, mode=0666,
             btflags=0, cachesize=None, maxkeypage=None, minkeypage=None,
             pgsize=None, lorder=None):
 
-    flags = bsddb.db.DB_CREATE # bsddb._checkflag(flag, file)
+    # bsddb._checkflag(flag, file)
+    flags = bsddb.db.DB_CREATE | bsddb.db.DB_MULTIVERSION
+    if not txn: #autocommit:
+        flags |= bsddb.db.DB_AUTO_COMMIT
     d = bsddb.db.DB(env)
     if pgsize is not None: d.set_pagesize(pgsize)
     if lorder is not None: d.set_lorder(lorder)
+    #XXX btflags |= DB_REVSPLITOFF see:
+    #http://download.oracle.com/docs/cd/E17076_02/html/gsg_txn/C/reversesplit.html
     d.set_flags(btflags)
     if minkeypage is not None: d.set_bt_minkey(minkeypage)
     if maxkeypage is not None: d.set_bt_maxkey(maxkeypage)
-    d.open(file, dbtype=bsddb.db.DB_BTREE, flags=flags, mode=mode)
+    d.open(file, dbtype=bsddb.db.DB_BTREE, flags=flags, mode=mode, txn=txn)
     return bsddb._DBWithCursor(d)
 
 class BdbStore(Model):
@@ -100,7 +112,7 @@ class BdbStore(Model):
     debug=0
     updateAdvisory = True
      
-    def __init__(self, source, defaultStatements=None, **kw):
+    def __init__(self, source, defaultStatements=None, autocommit = False, **kw):
         if source is not None:
             source = os.path.abspath(source) # bdb likes absolute paths for everything
             log.debug("opening db at:" + source)
@@ -115,26 +127,44 @@ class BdbStore(Model):
         else:
             newdb = True
             pPath = sPath = None
-            
+
+        self.autocommit = autocommit
+
         log.debug("pPath:" + pPath)
         log.debug("sPath:" + sPath)
         log.debug("is new:" + str(newdb))
 
         db = bsddb.db
-        self.env = bsddb.db.DBEnv()
+        self.env = db.DBEnv()
         self.env.set_lk_detect(db.DB_LOCK_DEFAULT)
-        self.env.open(source, db.DB_CREATE | db.DB_INIT_LOCK | db.DB_INIT_MPOOL | db.DB_INIT_TXN)
+        #for flags see http://docs.oracle.com/cd/E17076_02/html/gsg_txn/C/enabletxn.html
+        self.env.open(source, db.DB_CREATE | db.DB_INIT_LOG | db.DB_INIT_MPOOL | db.DB_INIT_TXN | db.DB_INIT_LOCK)
+        #for performance set: DB_TXN_WRITE_NOSYNC or DB_TXN_NOSYNC 
+        #or even env.log_set_config(db.DB_LOG_IN_MEMORY, True) 
 
-        self.pDb = _btopen(self.env, pPath, btflags=bsddb.db.DB_DUPSORT) # DB_DUPSORT is faster than DB_DUP        
+        self._txn = None
+        self._checkAutoCommit()
+
+        # DB_DUPSORT is faster than DB_DUP
+        self.pDb = _btopen(self.env, pPath, self._txn, btflags=bsddb.db.DB_DUPSORT) 
         self.pDb.db.set_get_returns_none(2)
-        self.sDb = _btopen(self.env, sPath, btflags=bsddb.db.DB_DUPSORT)         
+        self.sDb = _btopen(self.env, sPath, self._txn, btflags=bsddb.db.DB_DUPSORT)         
         self.sDb.db.set_get_returns_none(2)
-        
         if newdb and defaultStatements:            
-            self.addStatements(defaultStatements)
-            
+            self.addStatements(defaultStatements) 
+        self.commit()
+
+    def __del__(self):
+        if self._txn:
+            log.debug("aborting txn in close")
+            self._txn.abort()
+
     def close(self):
         log.debug("closing db")
+        if self._txn:
+            log.debug("aborting txn in close")
+            self._txn.abort()
+        self._txn = None        
         self.pDb.close()
         self.sDb.close()
         self.env.close()
@@ -160,7 +190,13 @@ class BdbStore(Model):
         hints = hints or {}
         limit=hints.get('limit')
         offset=hints.get('offset')
-
+        
+        #to prevent locking when reading we only use a txn if its already been created
+        #and use DB_TXN_SNAPSHOT (db needs to be DB_MULTIVERSION)
+        cursorflags = bsddb.db.DB_TXN_SNAPSHOT
+        txn = self._txn
+        #XXX we want to use bsddb.db.DB_CURSOR_BULK but not in bsdbd.db defines
+        
         if fo:
             if isinstance(object, ResourceUri):
                 object = object.uri
@@ -173,7 +209,7 @@ class BdbStore(Model):
         if fs: 
             subject = _to_safe_str(subject)
             #if subject is specified, use subject index            
-            scursor = self.sDb.db.cursor()
+            scursor = self.sDb.db.cursor(txn, flags=cursorflags)
             if fp:
                 val = _to_safe_str(predicate)
                 if fo:
@@ -213,7 +249,7 @@ class BdbStore(Model):
                 rec = scursor.next_dup()
                 
         elif fp:
-            pcursor = self.pDb.db.cursor()            
+            pcursor = self.pDb.db.cursor(txn, flags=cursorflags)            
             key = _to_safe_str(predicate)
             val = None
             if fo:
@@ -238,7 +274,7 @@ class BdbStore(Model):
                             
         else:            
             #get all            
-            scursor = self.sDb.db.cursor()
+            scursor = self.sDb.db.cursor(txn, flags=cursorflags)
             rec = scursor.first()
             while rec:
                 s, value = rec
@@ -253,35 +289,32 @@ class BdbStore(Model):
         stmts = removeDupStatementsFromSortedList(stmts, asQuad, 
                                             limit=limit, offset=offset)
         return stmts
-
-    def addStatements(self, stmts):
-        lists = {}
-        for stmt in stmts:
-            if stmt[0].startswith('bnode:jlist:') or stmt[0].startswith('_:l'):
-                if stmt[1].startswith('rdf:_'):
-                    pos = stmt.predicate[:1]
-                    lists.setdefault(stmt[0], _ListInfo() ).setPosition(stmt[2], stmt[3], pos)
-                #elif stmt[1] == JSON_SEQ_PROP:
-                #    lists.setdefault(stmt[0], _ListInfo()).prop = stmt[2]
-            #elif stmt[1] == JSON_LIST_PROP:
-            #    continue #exclude
-            else:
-                self.addStatement(stmt)
-        #positions are indexed for each value
-        for key, listinfo in lists.items():
-            listinfo.positions.sort(key=int)
-            ls = Statement(subject, '!list', '%s,%s' % (key, listinfo))
-            #only add to subject index
-                
+    
+    def _checkAutoCommit(self):
+        if self.autocommit:
+            if self._txn:
+                self._txn.commit()
+                self._txn = None
+        else:
+            if not self._txn:
+                #for debugging deadlocks setting bsddb.db.DB_TXN_NOWAIT is useful
+                flags = 0 
+                self._txn = self.env.txn_begin(flags=flags)
+        
     def addStatement(self, stmt):
         '''add the specified statement to the model'''
-        #print 'add', stmt
+        self._checkAutoCommit()
+        
         try:
             #p o t => c s        
-            self.pDb.db.put(_encodeValues(stmt[1], stmt[2], stmt[3]), _encodeValues(stmt[4], stmt[0]), flags=bsddb.db.DB_NODUPDATA)
+            self.pDb.db.put(_encodeValues(stmt[1], stmt[2], stmt[3]), 
+                            _encodeValues(stmt[4], stmt[0]), 
+                            txn=self._txn, flags=bsddb.db.DB_NODUPDATA)
             
             #s => p o t c
-            self.sDb.db.put(_to_safe_str(stmt[0]), _encodeValues(stmt[1], stmt[2], stmt[3], stmt[4]), flags=bsddb.db.DB_NODUPDATA)
+            self.sDb.db.put(_to_safe_str(stmt[0]), 
+                _encodeValues(stmt[1], stmt[2], stmt[3], stmt[4]), 
+                txn=self._txn, flags=bsddb.db.DB_NODUPDATA)
             
             return True
         except bsddb.db.DBKeyExistError:
@@ -289,19 +322,26 @@ class BdbStore(Model):
         
     def removeStatement(self, stmt):
         '''removes the statement'''
+        self._checkAutoCommit()
+        
         #p o t => c s
-        pcursor = self.pDb.db.cursor()
+        pcursor = self.pDb.db.cursor(self._txn)
         if pcursor.set_both(_encodeValues(stmt[1], stmt[2], stmt[3]), _encodeValues(stmt[4], stmt[0])):
             pcursor.delete()
 
         #s => p o t c
-        scursor = self.sDb.db.cursor()
+        scursor = self.sDb.db.cursor(self._txn)
         if scursor.set_both(_to_safe_str(stmt[0]), _encodeValues(stmt[1], stmt[2], stmt[3], stmt[4]) ):
             scursor.delete()
             return True
         return False
-
-class TransactionBdbStore(TransactionModel, BdbStore):
-    '''
-    Provides in-memory transactions to BdbStore
-    '''
+    
+    def commit(self, **kw):
+        if self._txn:
+            self._txn.commit()
+        self._txn = None
+    
+    def rollback(self):
+        if self._txn:
+            self._txn.abort()
+        self._txn = None

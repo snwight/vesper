@@ -279,23 +279,35 @@ class NamedGraphManager(base.Model):
         return True
 
     def _addPrimaryStoreStatement(self, srcstmt):
+        '''
+        return (statement added to primary store, add success).
+        The second value is only valid if the primary store supports updateAdvisory
+        '''
         scope = srcstmt.scope
-        if not self.isContextForPrimaryStore(scope):
+        if self.isContextForPrimaryStore(scope):
+            return srcstmt, self.managedModel.addStatement(srcstmt)
+        else:
             if isTransactionContext(scope):
                 raise RuntimeError("can't directly add scope: "+scope)
             if self.isContextReflectedInPrimaryStore(scope):
+                #we're going to add this to the revision store 
                 stmt = Statement(scope='', *srcstmt[:4])
-                if self.managedModel.getStatements(*stmt):
-                    #already exists, so don't re-add
-                    stmt = None
+                if not self.managedModel.updateAdvisory:
+                    #need to explicitly check because
+                    #if add is no-op because statement already exists
+                    #we don't want to revertAddIfNecessary to remove 
+                    #the existing statement
+                    if self.managedModel.getStatements(*stmt):
+                        #already exists, so don't re-add
+                        return None, True
+                    else:
+                        self.managedModel.addStatement(stmt)
+                        return stmt, True
+                else:
+                    return stmt, self.managedModel.addStatement(stmt)
             else: #dont add to primary store
-                stmt = None
-        else:
-            stmt = srcstmt
-        if stmt:
-            self.managedModel.addStatement(stmt)
-        return stmt
-        
+                return None, True
+
     def addStatement(self, srcstmt):
         '''
         Add the statement to the primary and revision models.
@@ -305,31 +317,35 @@ class NamedGraphManager(base.Model):
         '''
         srcstmt = Statement(*srcstmt) #make sure it's an unmutable statement
         if self.revertRemoveIfNecessary(srcstmt):
-            return #the add just reverts a remove, so we're done
+            return False #the add just reverts a remove, so we're done
         
-        stmt = self._addPrimaryStoreStatement(srcstmt)
+        primaryStoreStmt, added = self._addPrimaryStoreStatement(srcstmt)
+        if not added and self.managedModel.updateAdvisory:
+            return False
         
         currentTxn = self.currentTxn
         txnCtxt = currentTxn.txnContext
         addContext = ADDCTX + txnCtxt + ';;' + srcstmt.scope                    
-        newstmt = Statement(scope=addContext, *srcstmt[:4])
-        self.revisionModel.addStatement(newstmt)
+        revStmt = Statement(scope=addContext, *srcstmt[:4])
+        added = self.revisionModel.addStatement(revStmt)
 
-        currentTxn.adds[srcstmt] = (stmt, newstmt)
+        currentTxn.adds[srcstmt] = (primaryStoreStmt, revStmt)
+        return added
 
     def _removePrimaryStoreStatement(self, srcstmt):
         removeStmt = None
         if self.isContextForPrimaryStore(srcstmt.scope):
-            removeStmt = srcstmt
+            return srcstmt, self.managedModel.removeStatement(srcstmt)
         elif self.isContextReflectedInPrimaryStore(srcstmt.scope):
             if isTransactionContext(srcstmt.scope):
                 raise RuntimeError("can't directly remove with scope: "+srcstmt.scope)
 
             #if the scope isn't intended to stored in the primary store
             #(but is intended to be reflected in the primary store)
-            #we assume there might be multiple statements with different scopes
-            #that map to the triple in the primary store
-            #so search the revisionmodel for live adds, if there's only one,
+            #we cant just remove it because there might be multiple statements 
+            #with different scopes reflected to the triple in the primary store
+            #only remove it if its there's just one.
+            #So search the revisionmodel for live adds, if there's only one,
             #remove the statement from the primary store
             stmts = self.revisionModel.getStatements(*srcstmt[:4])
             stmts.sort(key=self.getTransactionVersion)
@@ -348,13 +364,18 @@ class NamedGraphManager(base.Model):
                     if self.revisionModel is not self.managedModel:
                         #should only encounter this in single model mode 
                         raise RuntimeError('unexpected statement: %s' % s)
-            
+
+            if not adds:
+                return None, False
             if adds == 1: #len(adds) == 1:
                 #last one in the primary model, so delete it
                 removeStmt = Statement(scope='', * srcstmt[:4])
-        if removeStmt:
-            self.managedModel.removeStatement(removeStmt)
-        return removeStmt
+                return removeStmt, self.managedModel.removeStatement(removeStmt)
+            else:
+                return None, True
+        else:
+            #statement isn't for primary store, so dont try to remove it
+            return None, True
                 
     def removeStatement(self, srcstmt):
         '''
@@ -366,17 +387,21 @@ class NamedGraphManager(base.Model):
         managed context).
         '''
         srcstmt = Statement(*srcstmt) #make sure its an unmutable statement
-        if self.revertAddIfNecessary(srcstmt):
-            return
+        reverted, removed = self.revertAddIfNecessary(srcstmt)
+        if reverted:
+            return removed
 
-        removeStmt = self._removePrimaryStoreStatement(srcstmt)
-        
+        primaryStoreStmt, removed = self._removePrimaryStoreStatement(srcstmt)
+        if not removed and self.managedModel.updateAdvisory:
+            return False
+
         #record deletion in history store
         txnContext = self.getTxnContext()
         delContext = DELCTX + txnContext + ';;' + srcstmt.scope
         delStmt = Statement(scope=delContext, *srcstmt[:4])
-        self.revisionModel.addStatement(delStmt)
-        self.currentTxn.removes[srcstmt] = (removeStmt, delStmt)
+        added = self.revisionModel.addStatement(delStmt)
+        self.currentTxn.removes[srcstmt] = (primaryStoreStmt, delStmt)
+        return added
 
     def sendChangeset(self, ctxStmts):        
         if not self.notifyChangeset:
@@ -536,10 +561,10 @@ class NamedGraphManager(base.Model):
             (stmt, newstmt) = add
             if stmt:
                 self.managedModel.removeStatement(stmt)
-            self.revisionModel.removeStatement(newstmt)
-            return True
+            removed = self.revisionModel.removeStatement(newstmt)
+            return True, removed
 
-        return False
+        return False, False
 
     def revertRemoveIfNecessary(self, stmt):
         remove = self.currentTxn.removes.pop(stmt, None)

@@ -1,6 +1,7 @@
 #:copyright: Copyright 2009-2010 by the Vesper team, see AUTHORS.
 #:license: Dual licenced under the GPL or Apache2 licences, see LICENSE.
 import sys, unittest, docTest
+import os, subprocess
 
 __all__ = ['glockTest', 'appTest', 'MRUCacheTest', 
  'transactionsTest', 'utilsTest', 'RDFDomTest', 'htmlfilterTest',
@@ -15,6 +16,20 @@ except ImportError:
     print "skipping Bdb tests"
 else:
     __all__.append('BdbModelTest')
+
+try:
+    import vesper.data.store.sqlite
+except ImportError:
+    print "skipping Sqlite tests"
+else:
+    __all__.append('SqliteModelTest')
+
+try:
+    import vesper.data.store.alchemysql
+except ImportError:
+    print "skipping AlchemySql tests"
+else:
+#    __all__.append('AlchemySqlModelTest')
 
 try:
     import multiprocessing
@@ -42,11 +57,22 @@ except ImportError:
     print "skipping memcache tests"
 else:
     __all__.append("MemCacheModelTest")
-    
+
+def which(f):
+    p = subprocess.Popen('which %s' % f, shell = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+    stdout, stderr = p.communicate()
+    return stdout.strip()
+
 if __name__ == '__main__':
     import sys
     if '--browser' in sys.argv:
         __all__.append('browserTest')
+    else:
+        if 'DISPLAY' in os.environ and which('Xvfb') and which('phantomjs'):
+            os.environ['BROWSER'] = 'phantomjs browser/phantomjs.coffee %s'
+            __all__.append('browserTest')
+        else:
+            print 'headless setup not detected, skipping browserTests'
 
     suites = unittest.TestLoader().loadTestsFromNames(__all__)
     suites.addTests(docTest.suite)

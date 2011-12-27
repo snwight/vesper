@@ -186,7 +186,7 @@ objectArray = [{ "id": "@1",
    <div class='test'>checkbox bound to null with defaultOnValue set: 
       <%df:input type='checkbox' prop='none' defaultOnValue='"@ref"' />  </div>
    <div class='expected'>
-     <input <input type='checkbox' class="type[json]" value='"@ref"' name='none'/>
+     <input type='checkbox' class="type[json]" value='"@ref"' name='none'/>
    </div>
 </div>
 <div>
@@ -257,7 +257,6 @@ objectArray = [{ "id": "@1",
 
 <%slots:scripts>
   <script type="text/javascript">
-   
     var logger = new YAHOO.tool.TestLogger(); // Log results to browser window
     var suite = new YAHOO.tool.TestSuite("data template Test Suite");
 
@@ -270,12 +269,14 @@ objectArray = [{ "id": "@1",
           
           $form.children('div:has(.test)').each( function() {
             var $test = $(this).find('.test');
+            Assert.areEqual(1, $test.length);
             var $expected = $(this).find('.expected');
             Assert.areEqual(1, $expected.length);
             
             var $expectedInputs = $expected.find('input');
             var $testInputs = $test.find('input');
-            Assert.areEqual($expectedInputs.length, $testInputs.length);            
+            console.log('expected ' + $expectedInputs.length + ' ' + ' test ' + $testInputs.length + ': '+ $test.text());
+            Assert.areEqual($expectedInputs.length, $testInputs.length, "sanity checking inputs");
             if ($expectedInputs.length) {
               $expectedInputs.each(function(index) {
                  Assert.areEqual(this.value, $testInputs.get(index).value, $test.text());
@@ -299,16 +300,17 @@ objectArray = [{ "id": "@1",
 
     var TestRunner = YAHOO.tool.TestRunner;
     TestRunner.add( suite );
-    function testRunComplete(data) {
-      if (window.console) console.log('test run complete', data);
+    function testRunComplete(data) {      
       var results = JSON.stringify(data.results);
+      var complete = function() { if (window.console) console.log('test run complete: ' + results); }
       $.ajax({
         type: 'POST',
         url: '/testresult',
         data: results,
         processData: false, 
         contentType: 'application/json',
-        dataType: "json"
+        dataType: "json",
+        complete: complete
       }); 
     }
     TestRunner.subscribe(TestRunner.COMPLETE_EVENT, testRunComplete);        
