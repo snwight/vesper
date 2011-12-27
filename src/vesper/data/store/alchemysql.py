@@ -30,7 +30,7 @@ class AlchemySqlStore(Model):
     )
     '''
 
-    def __init__(self, source = None, defaultStatements = None, **kw):
+    def __init__(self, source = None, defaultStatements = None, autocommit=False, **kw):
         if source is None:
             # this seems like a reasonable default thing to do 
             source = 'sqlite://'
@@ -41,7 +41,7 @@ class AlchemySqlStore(Model):
         # connection is made JIT on first connect()
         log.debug("sqla engine being created with:", source)
 
-        self.engine = create_engine(source, echo=True)
+        self.engine = create_engine(source)
         self.md = sqlalchemy.schema.MetaData()
         # utterly insufficient datatypes. just for first pass
         # technically the keep_existing bool is redundant as create_all() default is "check first"
@@ -58,26 +58,16 @@ class AlchemySqlStore(Model):
 
         # Set up our state machine and grab a connection from the sqlalchemy pool
         self.conn = self.engine.connect()
-        print "__init__: new conn ", self.conn
         self.trans = None
-        self.acflag = False
-
-    def _set_autocommit(self, set):
-        if set:
-            self.acflag=True
-        else:
-            self.acflag=False
-        print "autocommit = ", self.acflag
-
-    autocommit = property(lambda self: not self.acflag, _set_autocommit)
+        self.autocommit = autocommit
 
     def _checkConnection(self):
         if self.conn is None:
             self.conn = self.engine.connect()
-        if self.acflag is False:
+        if self.autocommit is False:
             if not self.conn.in_transaction():
                 self.trans = self.conn.begin()
-        self.conn.execution_options(autocommit=self.acflag)
+        self.conn.execution_options(autocommit=self.autocommit)
 
     def getStatements(self, subject=None, predicate=None, object=None,
                       objecttype=None, context=None, asQuad=True, hints=None):
@@ -202,13 +192,11 @@ class AlchemySqlStore(Model):
 
     def commit(self, **kw):
         if self.conn is not None:
-            print "model.COMMIT(): conn ", self.conn
             if self.conn.in_transaction():
                 self.trans.commit()
 
     def rollback(self):
         if self.conn is not None:
-            print "model.ROLLBACK(): conn ", self.conn
             if self.conn.in_transaction():
                 self.trans.rollback()
 

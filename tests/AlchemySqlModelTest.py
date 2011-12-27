@@ -12,28 +12,15 @@ from sqlalchemy import engine
 from vesper.data.store.alchemysql import AlchemySqlStore
 
 import os.path
-class AlchemySqlInMemoryModelTestCase(modelTest.BasicModelTestCase):
-    ''' 
-    Defaults to SQLite in-memory database 
-    '''
-    def getModel(self):
-        self.persistentStore = False
-        model = AlchemySqlStore(None)
-        return self._getModel(model)
-
-    def getTransactionModel(self):
-        self.persistentStore = False        
-        model = AlchemySqlStore(None)
-        return self._getModel(model)
 
 class AlchemySqlModelTestCase(modelTest.BasicModelTestCase):
     
     def getModel(self):
-        model = AlchemySqlStore(self.tmpfilename)
+        model = AlchemySqlStore(self.tmpfilename, autocommit=True)
         return self._getModel(model)
 
     def getTransactionModel(self):
-        model = AlchemySqlStore(self.tmpfilename)
+        model = AlchemySqlStore(self.tmpfilename, autocommit=False)
         return self._getModel(model)
 
     def setUp(self):
