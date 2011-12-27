@@ -74,6 +74,9 @@ class AlchemySqlStore(Model):
     def _checkConnection(self):
         if self.conn is None:
             self.conn = self.engine.connect()
+        if self.acflag is False:
+            if not self.conn.in_transaction():
+                self.trans = self.conn.begin()
         self.conn.execution_options(autocommit=self.acflag)
 
     def getStatements(self, subject=None, predicate=None, object=None,
@@ -196,12 +199,6 @@ class AlchemySqlStore(Model):
         self._checkConnection()
         result = self.conn.execute(rmv)
         return result.rowcount
-
-    def begin(self):
-        if self.conn is not None:
-            print "model.BEGIN(): conn ", self.conn
-            if not self.conn.in_transaction():
-                self.trans = self.conn.begin()
 
     def commit(self, **kw):
         if self.conn is not None:
