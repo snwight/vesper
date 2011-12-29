@@ -217,7 +217,7 @@ txn.commit();
          var action = args.shift();
          args = deduceArgs(args);
          var txn = args[1].txn, data = args[0], callback = args[1].callback,
-            comment = args[1].comment;
+            comment = args[1].comment, override = args[1].override;
          var commitNow = false;
          if (!txn) {
              txn = this.data('currentTxn');
@@ -248,6 +248,12 @@ txn.commit();
          } else {
             requestIds = this.map(function() {
                 var obj = bindElement(this);
+                if (override) {
+                  if (typeof override == 'function')
+                    obj = override(obj);
+                  else
+                    $.extend(obj[0], override);
+                }
                 konsole.log('about to', action, 'obj', obj);
                 return txn.execute(action, obj, callback, this);
             }).get();
