@@ -8,7 +8,7 @@ import os, os.path
 import sqlalchemy
 from sqlalchemy import engine, sql, create_engine
 from sqlalchemy.sql import select
-from sqlalchemy.sql.expression import func, or_, and_
+from sqlalchemy.sql.expression import func, or_, and_, not_, exists, case
 from sqlalchemy.types import *
 from sqlalchemy.schema import Table, Column, MetaData, UniqueConstraint, Index
 
@@ -40,7 +40,6 @@ class AlchemySqlStore(Model):
         # dialect+driver://username:password@host:port/database
         # connection is made JIT on first connect()
         log.debug("sqla engine being created with:", source)
-
         self.engine = create_engine(source)
         self.md = sqlalchemy.schema.MetaData()
         # utterly insufficient datatypes. just for first pass
@@ -60,6 +59,11 @@ class AlchemySqlStore(Model):
         self.conn = self.engine.connect()
         self.trans = None
         self.autocommit = autocommit
+
+        # XXX testing
+        result = self.conn.execute(select([func.count(self.vesper_stmts.c.subject)]))
+        for r in result: 
+            print "rows at init: ", r
 
     def _checkConnection(self):
         if self.conn is None:
@@ -136,28 +140,51 @@ class AlchemySqlStore(Model):
         '''add the specified statement to the model'''
         log.debug("addStatement called with ", stmt)
         
-        self._checkConnection()
-        result = self.conn.execute(
-            self.vesper_stmts.insert(prefixes=['OR IGNORE']),
+        ins =  self.vesper_stmts.insert(
             {'subject' : stmt[0],
              'predicate' : stmt[1],
              'object' : stmt[2],
              'objecttype' : stmt[3],
              'context' : stmt[4]})
+
+        # switch on 'dialect' i.e. backend DB type
+        if self.engine.name == "sqlite":
+            ins = ins.prefix_with("OR IGNORE")
+        elif self.engine.name == "mysql":
+            ins = ins.prefix_with("IGNORE")
+            
+        self._checkConnection()
+        try:
+            result = self.conn.execute(ins)
+        except sqlalchemy.exc.IntegrityError, exc:
+            return 1    # or one?
         return result.rowcount
 
     def addStatements(self, stmts):
         '''adds multiple statements to the model'''
         log.debug("addStatement called with ", stmts)
-        
+ 
+        argDictList = [{'subject' : stmt[0],
+                        'predicate' : stmt[1],
+                        'object' : stmt[2],
+                        'objecttype' : stmt[3], 
+                        'context' : stmt[4]} for stmt in stmts]
+
+        ins = self.vesper_stmts.insert()
         self._checkConnection()
-        result = self.conn.execute(
-            self.vesper_stmts.insert(prefixes=['OR IGNORE']),
-            [{'subject' : stmt[0],
-              'predicate' : stmt[1],
-              'object' : stmt[2],
-              'objecttype' : stmt[3], 
-              'context' : stmt[4]} for stmt in stmts])
+
+        if self.engine.name == "postgresql":
+            result = self.conn.execute(
+"BEGIN LOOP BEGIN INSERT INTO vesper_stmts VALUES (%s, %s, %s, %s, %s); RETURN; \
+ EXCEPTION WHEN unique_violation THEN END; END LOOP; END", 
+                argDictList)
+            return result.rowcount
+
+        elif self.engine.name == "sqlite":
+            ins = ins.prefix_with("OR IGNORE")
+        elif self.engine.name == "mysql":
+            ins = ins.prefix_with("IGNORE")
+        result = self.conn.execute(ins, argDictList)
         return result.rowcount
 
     def removeStatement(self, stmt):
@@ -202,6 +229,7 @@ class AlchemySqlStore(Model):
 
     def close(self):
         log.debug("closing!")
+        print "closing!"
         if self.conn is not None:
             self.conn.close()
             self.conn = None

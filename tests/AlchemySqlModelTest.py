@@ -24,22 +24,20 @@ class AlchemySqlModelTestCase(modelTest.BasicModelTestCase):
         return self._getModel(model)
 
     def setUp(self):
-        '''
-        Until I figure out a decent way to compartmentalize the particulars for more than
-        one SQL database flavor, I hard-code this configuration right here for testing purposes
-        using SQLA configuration parameter canning device, to wit (sqla 0.7.4): 
-        class sqlalchemy.engine.url.URL(drivername, 
-            username=None, 
-            password=None, 
-            host=None, 
-            port=None, 
-            database=None, 
-            query=None)
-        ''' 
         self.tmpdir = tempfile.mkdtemp(prefix="rhizometest")
+
+        # sqlite via sqlite3/pysql - default
         fname = os.path.abspath(os.path.join(self.tmpdir, 'test.sqlite'))
         self.tmpfilename = "sqlite:///{0}".format(fname)
-       
+                
+        # mysql via mysqldb - default
+        # 'mysql+mysqldb://<user>:<password>@<host>[:<port>]/<dbname>'
+#        self.tmpfilename = "mysql+mysqldb://vesper:ve$per@localhost:3306/vesper_db"
+        
+        # postgresql via pscyopg2 - default
+        # 'postgresql+psycopg2://user:password@host:port/dbname[?key=value&key=value...]'
+#        self.tmpfilename = "postgresql+psycopg2://vesper:ve$per@localhost:5432/vesper_db"
+        
     def tearDown(self):
         shutil.rmtree(self.tmpdir)
 
