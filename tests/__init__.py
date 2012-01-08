@@ -29,7 +29,7 @@ try:
 except ImportError:
     print "skipping AlchemySql tests"
 else:
-#    __all__.append('AlchemySqlModelTest')
+    __all__.append('AlchemySqlModelTest')
 
 try:
     import multiprocessing

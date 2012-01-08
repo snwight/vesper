@@ -16,30 +16,44 @@ import os.path
 class AlchemySqlModelTestCase(modelTest.BasicModelTestCase):
     
     def getModel(self):
-        model = AlchemySqlStore(self.tmpfilename, autocommit=True)
+        model = AlchemySqlStore(self.tmpfilename, pStore=self.persistentStore, autocommit=True)
         return self._getModel(model)
 
     def getTransactionModel(self):
-        model = AlchemySqlStore(self.tmpfilename, autocommit=False)
+        model = AlchemySqlStore(self.tmpfilename, pStore=self.persistentStore, autocommit=False)
         return self._getModel(model)
 
     def setUp(self):
+        # sqlite is our backend default
+        # sqlite via sqlite3/pysql - (default python driver)
         self.tmpdir = tempfile.mkdtemp(prefix="rhizometest")
-
-        # sqlite via sqlite3/pysql - default
         fname = os.path.abspath(os.path.join(self.tmpdir, 'test.sqlite'))
         self.tmpfilename = "sqlite:///{0}".format(fname)
-                
-        # mysql via mysqldb - default
-        # 'mysql+mysqldb://<user>:<password>@<host>[:<port>]/<dbname>'
-#        self.tmpfilename = "mysql+mysqldb://vesper:ve$per@localhost:3306/vesper_db"
-        
-        # postgresql via pscyopg2 - default
-        # 'postgresql+psycopg2://user:password@host:port/dbname[?key=value&key=value...]'
-#        self.tmpfilename = "postgresql+psycopg2://vesper:ve$per@localhost:5432/vesper_db"
-        
+       
     def tearDown(self):
         shutil.rmtree(self.tmpdir)
+
+
+class SqlaPostgresqlModelTestCase(AlchemySqlModelTestCase):
+
+    def setUp(self):
+        # postgresql via pscyopg2 - (default python driver)
+        # 'postgresql+psycopg2://user:password@host:port/dbname[?key=value&key=value...]'
+        self.tmpfilename = "postgresql+psycopg2://vesper:vspr@localhost:5432/vesper_db"
+
+    def tearDown(self):
+        pass
+
+class SqlaMysqlModelTestCase(AlchemySqlModelTestCase):
+
+    def setUp(self):
+        # mysql via mysqldb - (default python driver)
+        # 'mysql+mysqldb://<user>:<password>@<host>[:<port>]/<dbname>'
+        self.tmpfilename = "mysql+mysqldb://vesper:ve$per@localhost:3306/vesper_db"
+
+    def tearDown(self):
+        pass
+
 
 if __name__ == '__main__':
     modelTest.main(AlchemySqlModelTestCase)

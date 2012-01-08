@@ -8,6 +8,9 @@ class MemStore(Model):
     '''
     updateAdvisory = True
     
+    def close(self):
+        pass
+    
     def __init__(self,defaultStatements=None, **kw):
         self.by_s = {}
         self.by_p = {}

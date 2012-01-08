@@ -20,7 +20,7 @@ def random_name(length):
 
 class SimpleModelTestCase(unittest.TestCase):
     "Tests basic features of a store"
-    persistentStore = True
+    persistentStore = False
 
     def _getModel(self, model):
         return model
@@ -67,6 +67,7 @@ class SimpleModelTestCase(unittest.TestCase):
         model = self.getModel()
         r1 = model.getStatements(subject=subj)
         self.assertEqual(set(r1), set([s1, s3]))
+        model.close()
 
     def _testGetStatements(self, asQuad=True):
         model = self.getModel()
@@ -144,6 +145,9 @@ class SimpleModelTestCase(unittest.TestCase):
         r = model.getStatements(predicate='p1', object='o2', objecttype='en-1')
         self.assertEqual(set(r), set( (more[0], more[-1]) ) )
 
+        model.close()
+
+
     def testGetStatements(self):
         self._testGetStatements(asQuad=True)
 
@@ -180,7 +184,7 @@ class SimpleModelTestCase(unittest.TestCase):
         # remove the statement and confirm that it's gone
         ret = model.removeStatement(s1)
         if checkr:
-          assert ret, "statement should have been removed"
+            assert ret, "statement should have been removed"
 
         r2 = model.getStatements(subject=subj)
         self.assertEqual(r2, []) # object is gone
@@ -188,11 +192,11 @@ class SimpleModelTestCase(unittest.TestCase):
         # remove the statement again
         ret = model.removeStatement(s1)
         if checkr:
-          assert not ret, "statement shouldn't have been removed"
+            assert not ret, "statement shouldn't have been removed"
 
         ret = model.addStatement(s1)
         if checkr:
-          assert ret, "statement should have been added"
+            assert ret, "statement should have been added"
 
         r2 = model.getStatements(subject=subj)
         self.assertEqual(r2, [s1])
@@ -200,7 +204,7 @@ class SimpleModelTestCase(unittest.TestCase):
         #add statement that already exists
         ret = model.addStatement(s2)
         if checkr:
-          assert not ret, "statement shouldn't have been added"
+            assert not ret, "statement shouldn't have been added"
 
         #remove it (and another one for good measure)
         ret = model.removeStatements([s2, s3])
@@ -220,7 +224,7 @@ class SimpleModelTestCase(unittest.TestCase):
             # remove the statement and confirm that it's gone
             ret = model.removeStatement(s1)
             if checkr:
-              assert ret, "statement should have been removed"
+                assert ret, "statement should have been removed"
 
             r2 = model.getStatements(subject=subj)
             self.assertEqual(r2, []) # object is gone
@@ -228,7 +232,10 @@ class SimpleModelTestCase(unittest.TestCase):
             # remove the statement again
             ret = model.removeStatement(s1)
             if checkr:
-              assert not ret, "statement shouldn't have been removed"
+                assert not ret, "statement shouldn't have been removed"  
+
+        model.close()
+
 
     def testSetBehavior(self):
         "confirm model behaves as a set"
@@ -272,9 +279,11 @@ class SimpleModelTestCase(unittest.TestCase):
 
         # add a third statement with same predicate & object as s1
         model.addStatement(s3)
-
         r5 = model.getStatements()
         self.assertEqual(set(r5), set([s1,s2,s3]))
+
+        model.close()
+
 
     def testQuads(self):
         "test (somewhat confusing) quad behavior"
@@ -296,7 +305,9 @@ class SimpleModelTestCase(unittest.TestCase):
         r2 = model.getStatements(asQuad=False)
         self.assertEqual(len(r2), 1)
         self.failUnless(r2[0] in statements)
-    
+        model.close()
+
+
     def testHints(self):
         "test limit and offset hints"
         model = self.getModel()
@@ -331,6 +342,8 @@ class SimpleModelTestCase(unittest.TestCase):
         self.assertEquals(len(r5), 2)
         r5.sort()
         self.assertEquals(r5, statements[1:3])
+        model.close()
+                    
 
 class BasicModelTestCase(SimpleModelTestCase):
 
@@ -347,10 +360,11 @@ class BasicModelTestCase(SimpleModelTestCase):
         model = self.getTransactionModel()
         model.autocommit = True
         model.addStatements(statements)
-        #rollback should have no effect
+        # rollback should have no effect
         model.rollback() 
         r1 = model.getStatements()
         self.assertEqual(set(r1), set(statements))
+        model.close()
         if self.persistentStore:
             modelA = self.getTransactionModel()
             modelA.autocommit = True
@@ -371,8 +385,10 @@ class BasicModelTestCase(SimpleModelTestCase):
             self.assertEqual(set(r3a), set(statements+s2))
             r3b = modelB.getStatements()
             self.assertEqual(set(r3b), set(statements))
+            modelA.close()
+            modelB.close()
 
-            
+
     def testTransactionCommitAndRollback(self):
         "test simple commit and rollback on a single model instance"
         model = self.getTransactionModel()
@@ -397,6 +413,8 @@ class BasicModelTestCase(SimpleModelTestCase):
         model.rollback()
         r3 = model.getStatements()
         self.assertEqual(set(r3), set([s1]))
+        model.close()
+
 
     def testTransactionIsolationCommit(self):
         "test commit transaction isolation across 2 models"
@@ -425,6 +443,10 @@ class BasicModelTestCase(SimpleModelTestCase):
         r3a = modelA.getStatements()
         r3b = modelB.getStatements()
         self.assertEqual(set(statements), set(r3a), set(r3b))
+
+        # XXX bit of a mystery - pgsql needs these close() invocations - snwight
+        modelA.close()
+        modelB.close()
         
         #reload the data
         if not self.persistentStore:
@@ -433,7 +455,9 @@ class BasicModelTestCase(SimpleModelTestCase):
         modelC = self.getTransactionModel()
         r3c = modelC.getStatements()
         self.assertEqual(set(statements), set(r3c))
-        
+        modelC.close()
+
+
     def testTransactionIsolationRollback(self):
         "test rollback transaction isolation across 2 models"
         modelA = self.getTransactionModel()
@@ -460,6 +484,9 @@ class BasicModelTestCase(SimpleModelTestCase):
         r3a = modelA.getStatements()
         r3b = modelB.getStatements()
         self.assertEqual(set(), set(r3a), set(r3b))
+        modelA.close()
+        modelB.close()
+
 
     def testInsert(self):
         model = self.getModel()
@@ -476,7 +503,6 @@ class BasicModelTestCase(SimpleModelTestCase):
         try:
             if self.persistentStore:
                 if hasattr(model, 'close'):
-                    print 'closing'
                     sys.stdout.flush()
                     start = time.time()
                     model.close()
@@ -485,6 +511,7 @@ class BasicModelTestCase(SimpleModelTestCase):
         except:
             import traceback
             traceback.print_exc()
+            model.close()
             sys.stdout.flush()
             raise
 
@@ -504,6 +531,7 @@ class BasicModelTestCase(SimpleModelTestCase):
                 lastSubject = s[0]
                 self.assertEqual(len(model.getStatements(s[0])), 7)
         print 'did %s subject lookups in %s seconds' % (BIG, time.time() - start)
+        model.close()
 
 class TransactionModelTestCase(SimpleModelTestCase):
     persistentStore = False
