@@ -34,25 +34,28 @@ class AlchemySqlModelTestCase(modelTest.BasicModelTestCase):
         shutil.rmtree(self.tmpdir)
 
 
-class SqlaPostgresqlModelTestCase(AlchemySqlModelTestCase):
+if os.getenv("SQLA_TEST_POSTGRESQL"):
+    class SqlaPostgresqlModelTestCase(AlchemySqlModelTestCase):
+            
+        def setUp(self):
+            # postgresql via pscyopg2 - (default python driver)
+            # 'postgresql+psycopg2://user:password@host:port/dbname[?key=value&key=value...]'
+            self.tmpfilename = "postgresql+psycopg2://vesper:vspr@localhost:5432/vesper_db"
+        
+        def tearDown(self):
+            pass
+        
 
-    def setUp(self):
-        # postgresql via pscyopg2 - (default python driver)
-        # 'postgresql+psycopg2://user:password@host:port/dbname[?key=value&key=value...]'
-        self.tmpfilename = "postgresql+psycopg2://vesper:vspr@localhost:5432/vesper_db"
-
-    def tearDown(self):
-        pass
-
-class SqlaMysqlModelTestCase(AlchemySqlModelTestCase):
-
-    def setUp(self):
-        # mysql via mysqldb - (default python driver)
-        # 'mysql+mysqldb://<user>:<password>@<host>[:<port>]/<dbname>'
-        self.tmpfilename = "mysql+mysqldb://vesper:ve$per@localhost:3306/vesper_db"
-
-    def tearDown(self):
-        pass
+if os.getenv("SQLA_TEST_MYSQL"):
+    class SqlaMysqlModelTestCase(AlchemySqlModelTestCase):
+        
+        def setUp(self):
+            # mysql via mysqldb - (default python driver)
+            # 'mysql+mysqldb://<user>:<password>@<host>[:<port>]/<dbname>'
+            self.tmpfilename = "mysql+mysqldb://vesper:ve$per@localhost:3306/vesper_db"
+        
+        def tearDown(self):
+            pass
 
 
 if __name__ == '__main__':
