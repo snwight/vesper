@@ -28,19 +28,10 @@ class AlchemySqlStore(Model):
       context UNIQUE
     )
     '''
-    def __init__(self, source=None, defaultStatements=None, pStore=False, autocommit=False, **kw):
-        if source is None:
-            # this seems like a reasonable default thing to do 
-            source = 'sqlite://'
-            log.debug("SQLite in-memory database being opened")
-
-        # We take source to be a SQLAlchemy-style dbapi spec: 
-        # dialect+driver://username:password@host:port/database
-        log.debug("sqla engine being created with:", source)
-        self.engine = create_engine(source)
-        self.md = sqlalchemy.schema.MetaData()
-        if not pStore:
-            self.engine.execute("drop table if exists vesper_stmts;")
+    def __init__(self, engine=None, autocommit=False, **kw):
+        # XXX test engine and fail somehow
+        self.engine = engine
+        self.md = MetaData(self.engine)
 
         # create our simple quin-tuple store
         self.vesper_stmts = Table('vesper_stmts', self.md, 

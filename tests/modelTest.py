@@ -20,7 +20,7 @@ def random_name(length):
 
 class SimpleModelTestCase(unittest.TestCase):
     "Tests basic features of a store"
-    persistentStore = False
+    persistentStore = True
 
     def _getModel(self, model):
         return model
