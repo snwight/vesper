@@ -5,24 +5,22 @@
 """
 import unittest
 import subprocess, tempfile, os, signal, sys
+from subprocess import check_call, call
 import string, random, shutil, time
 import modelTest
 
 import sqlalchemy
-from sqlalchemy import engine, create_engine
-from sqlalchemy.schema import MetaData 
-from  sqlalchemy.pool import AssertionPool 
 
 from vesper.data.store.alchemysql import AlchemySqlStore
 
 class AlchemySqlModelTestCase(modelTest.BasicModelTestCase):
     
     def getModel(self):
-        model = AlchemySqlStore(engine=self.engine, md=self.md, autocommit=True)
+        model = AlchemySqlStore(source=self.tmpfilename, autocommit=True)
         return self._getModel(model)
 
     def getTransactionModel(self):
-        model = AlchemySqlStore(engine=self.engine, md=self.md, autocommit=False)
+        model = AlchemySqlStore(source=self.tmpfilename, autocommit=False)
         return self._getModel(model)
 
     def setUp(self):
@@ -31,29 +29,24 @@ class AlchemySqlModelTestCase(modelTest.BasicModelTestCase):
         self.tmpdir = tempfile.mkdtemp(prefix="rhizometest")
         fname = os.path.abspath(os.path.join(self.tmpdir, 'test.sqlite'))
         self.tmpfilename = "sqlite:///{0}".format(fname)
-        self.engine = create_engine(self.tmpfilename)       # , poolclass=AssertionPool)
-        self.md = MetaData(self.engine)            
         
     def tearDown(self):
-        self.md.drop_all()
         shutil.rmtree(self.tmpdir)
 
 
 if os.getenv("SQLA_TEST_POSTGRESQL"):
     class SqlaPostgresqlModelTestCase(AlchemySqlModelTestCase):
-            
+           
         def setUp(self):
             # postgresql via pscyopg2 - (default python driver)
             # 'postgresql+psycopg2://user:password@host:port/dbname[?key=value&key=value...]'
             # "postgresql+psycopg2://vesper:vspr@localhost:5432/vesper_db"
             self.tmpfilename = os.getenv("SQLA_TEST_POSTGRESQL")
-
-            # dialect+driver://username:password@host:port/database
-            self.engine = create_engine(self.tmpfilename)
-            self.md = MetaData(self.engine)            
+#            check_call("dropdb vesper_db", shell=True, stderr='/dev/null')
+            check_call("createdb vesper_db", shell=True)
 
         def tearDown(self):
-            self.md.drop_all()
+            check_call("dropdb vesper_db", shell=True)
 
 
 if os.getenv("SQLA_TEST_MYSQL"):
@@ -64,13 +57,14 @@ if os.getenv("SQLA_TEST_MYSQL"):
             # 'mysql+mysqldb://<user>:<password>@<host>[:<port>]/<dbname>'
             # "mysql+mysqldb://vesper:ve$per@localhost:3306/vesper_db"
             self.tmpfilename = os.getenv("SQLA_TEST_MYSQL")
+ #           call("mysqladmin -f -pve\$per -u vesper drop vesper_db", 
+ #                shell=True)
+            call("mysqladmin -f -pve\$per -u vesper create vesper_db", 
+                 shell=True)
 
-            # dialect+driver://username:password@host:port/database
-            self.engine = create_engine(self.tmpfilename)
-            self.md = MetaData(self.engine)            
-        
         def tearDown(self):
-            self.md.drop_all()
+            call("mysqladmin -f -pve\$per -u vesper drop vesper_db", 
+                 shell=True)
 
 
 if __name__ == '__main__':

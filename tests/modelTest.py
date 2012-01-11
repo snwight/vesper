@@ -44,26 +44,22 @@ class SimpleModelTestCase(unittest.TestCase):
         model.addStatement(s1)
         s2 = Statement(subj, 'pred2', "obj2")
         model.addStatement(s2)
-        
         r1 = model.getStatements(subject=subj)
         self.assertEqual(set(r1), set([s1, s2]))
+        model.commit()
+        model.close()
 
         if not self.persistentStore:
-            model.close()
-            return
-        
-        model.commit()
-#        model = self.getModel()
+            return 
+
+        model = self.getModel()
         r1 = model.getStatements(subject=subj)
         self.assertEqual(set(r1), set([s1, s2]))
-        
         model.removeStatement(s2)
         s3 = Statement(subj, 'pred3', "obj3")
         model.addStatement(s3)
-        
         r1 = model.getStatements(subject=subj)
         self.assertEqual(set(r1), set([s1, s3]))
-
         model.commit()
         model.close()
         model = self.getModel()
@@ -150,7 +146,6 @@ class SimpleModelTestCase(unittest.TestCase):
 
         model.close()
 
-
     def testGetStatements(self):
         self._testGetStatements(asQuad=True)
 
@@ -218,9 +213,10 @@ class SimpleModelTestCase(unittest.TestCase):
         r3 = model.getStatements(subject=s2.subject)
         self.assertEqual(r3, [])
 
+        model.commit()
+        model.close()
+        
         if self.persistentStore:
-            model.commit()
-            model.close()
             model = self.getModel()
             r2 = model.getStatements(subject=subj)
             self.assertEqual(r2, [s1])
@@ -238,7 +234,7 @@ class SimpleModelTestCase(unittest.TestCase):
             if checkr:
                 assert not ret, "statement shouldn't have been removed"  
 
-        model.close()
+            model.close()
 
 
     def testSetBehavior(self):
@@ -309,6 +305,7 @@ class SimpleModelTestCase(unittest.TestCase):
         r2 = model.getStatements(asQuad=False)
         self.assertEqual(len(r2), 1)
         self.failUnless(r2[0] in statements)
+
         model.close()
 
 
@@ -346,8 +343,9 @@ class SimpleModelTestCase(unittest.TestCase):
         self.assertEquals(len(r5), 2)
         r5.sort()
         self.assertEquals(r5, statements[1:3])
+
         model.close()
-                    
+
 
 class BasicModelTestCase(SimpleModelTestCase):
 
@@ -355,6 +353,7 @@ class BasicModelTestCase(SimpleModelTestCase):
         model = TransactionMemStore()
         self.persistentStore = False
         return self._getModel(model)
+
 
     def testAutocommit(self):
         statements = [Statement("one", "equals", " one "),
@@ -369,6 +368,7 @@ class BasicModelTestCase(SimpleModelTestCase):
         r1 = model.getStatements()
         self.assertEqual(set(r1), set(statements))
         model.close()
+
         if self.persistentStore:
             modelA = self.getTransactionModel()
             modelA.autocommit = True
@@ -386,13 +386,11 @@ class BasicModelTestCase(SimpleModelTestCase):
             s2 = [Statement("sky", "is", "blue")]
             modelA.addStatements(s2)
             r3a = modelA.getStatements()
-            modelA.close()
             self.assertEqual(set(r3a), set(statements+s2))
             r3b = modelB.getStatements()
-            modelB.commit()
-            modelB.close()
             self.assertEqual(set(r3b), set(statements))
-
+            modelA.close()
+            modelB.close()
 
     def testTransactionCommitAndRollback(self):
         "test simple commit and rollback on a single model instance"
@@ -418,6 +416,7 @@ class BasicModelTestCase(SimpleModelTestCase):
         model.rollback()
         r3 = model.getStatements()
         self.assertEqual(set(r3), set([s1]))
+
         model.close()
 
 
@@ -445,11 +444,10 @@ class BasicModelTestCase(SimpleModelTestCase):
 
         # commit A and confirm both models see the statements
         modelA.commit()
-        r3a = modelA.getStatements()
+        r3a= modelA.getStatements()
         r3b = modelB.getStatements()
         self.assertEqual(set(statements), set(r3a), set(r3b))
-
-        # XXX bit of a mystery - pgsql needs these close() invocations - snwight
+        
         modelA.close()
         modelB.close()
         
@@ -460,6 +458,7 @@ class BasicModelTestCase(SimpleModelTestCase):
         modelC = self.getTransactionModel()
         r3c = modelC.getStatements()
         self.assertEqual(set(statements), set(r3c))
+
         modelC.close()
 
 
@@ -489,6 +488,7 @@ class BasicModelTestCase(SimpleModelTestCase):
         r3a = modelA.getStatements()
         r3b = modelB.getStatements()
         self.assertEqual(set(), set(r3a), set(r3b))
+
         modelA.close()
         modelB.close()
 
@@ -536,7 +536,9 @@ class BasicModelTestCase(SimpleModelTestCase):
                 lastSubject = s[0]
                 self.assertEqual(len(model.getStatements(s[0])), 7)
         print 'did %s subject lookups in %s seconds' % (BIG, time.time() - start)
+
         model.close()
+
 
 class TransactionModelTestCase(SimpleModelTestCase):
     persistentStore = False
@@ -557,6 +559,7 @@ class SplitGraphModelTestCase(BasicModelTestCase):
         modelUri = base.generateBnode()
         revmodel = TransactionMemStore()
         return graphManagerClass(model, revmodel, modelUri)
+
     
 BIG = 100 #10000
 def main(testCaseClass):
@@ -565,7 +568,7 @@ def main(testCaseClass):
         global BIG
         BIG = int(sys.argv[i+1])
         del sys.argv[i:i+2]
-    
+        
     try:
         test=sys.argv[sys.argv.index("-r")+1]
     except (IndexError, ValueError):

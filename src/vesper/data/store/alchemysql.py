@@ -28,10 +28,9 @@ class AlchemySqlStore(Model):
       context UNIQUE
     )
     '''
-    def __init__(self, engine=None, md=None, autocommit=False, **kw):
-        # XXX test for life needed
-        self.engine = engine
-        self.md = md
+    def __init__(self, source=None, autocommit=False, **kw):
+        self.engine = create_engine(source)
+        self.md = MetaData(self.engine)            
 
         # create our simple quin-tuple store
         self.vesper_stmts = Table('vesper_stmts', self.md, 
@@ -44,6 +43,7 @@ class AlchemySqlStore(Model):
                                   mysql_engine='InnoDB', 
                                   keep_existing = True)
         Index('idx_vs', self.vesper_stmts.c.subject, self.vesper_stmts.c.predicate, self.vesper_stmts.c.object) 
+        self.md.create_all(self.engine)
 
         # create our duplicate-insert-exception-ignoring stored procedure for postgresql backend
         if self.engine.name == 'postgresql':
@@ -52,8 +52,6 @@ class AlchemySqlStore(Model):
 RETURNS void AS $$ BEGIN LOOP BEGIN INSERT INTO vesper_stmts VALUES (s, p, o, ot, c); RETURN; \
 EXCEPTION WHEN unique_violation THEN RETURN; END; END LOOP; END $$ LANGUAGE plpgsql")
 
-        self.md.create_all(self.engine)
-        
         # attend to private matters of state
         self.conn = None
         self.trans = None
