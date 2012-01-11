@@ -49,10 +49,11 @@ class SimpleModelTestCase(unittest.TestCase):
         self.assertEqual(set(r1), set([s1, s2]))
 
         if not self.persistentStore:
+            model.close()
             return
         
         model.commit()
-        model = self.getModel()
+#        model = self.getModel()
         r1 = model.getStatements(subject=subj)
         self.assertEqual(set(r1), set([s1, s2]))
         
@@ -64,10 +65,12 @@ class SimpleModelTestCase(unittest.TestCase):
         self.assertEqual(set(r1), set([s1, s3]))
 
         model.commit()
+        model.close()
         model = self.getModel()
         r1 = model.getStatements(subject=subj)
         self.assertEqual(set(r1), set([s1, s3]))
         model.close()
+
 
     def _testGetStatements(self, asQuad=True):
         model = self.getModel()
@@ -217,6 +220,7 @@ class SimpleModelTestCase(unittest.TestCase):
 
         if self.persistentStore:
             model.commit()
+            model.close()
             model = self.getModel()
             r2 = model.getStatements(subject=subj)
             self.assertEqual(r2, [s1])
@@ -382,11 +386,12 @@ class BasicModelTestCase(SimpleModelTestCase):
             s2 = [Statement("sky", "is", "blue")]
             modelA.addStatements(s2)
             r3a = modelA.getStatements()
+            modelA.close()
             self.assertEqual(set(r3a), set(statements+s2))
             r3b = modelB.getStatements()
-            self.assertEqual(set(r3b), set(statements))
-            modelA.close()
+            modelB.commit()
             modelB.close()
+            self.assertEqual(set(r3b), set(statements))
 
 
     def testTransactionCommitAndRollback(self):

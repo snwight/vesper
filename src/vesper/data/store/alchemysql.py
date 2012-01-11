@@ -28,10 +28,10 @@ class AlchemySqlStore(Model):
       context UNIQUE
     )
     '''
-    def __init__(self, engine=None, autocommit=False, **kw):
-        # XXX test engine and fail somehow
+    def __init__(self, engine=None, md=None, autocommit=False, **kw):
+        # XXX test for life needed
         self.engine = engine
-        self.md = MetaData(self.engine)
+        self.md = md
 
         # create our simple quin-tuple store
         self.vesper_stmts = Table('vesper_stmts', self.md, 
@@ -42,8 +42,16 @@ class AlchemySqlStore(Model):
                                   Column('context', String(8)),
                                   UniqueConstraint('subject', 'predicate', 'object', 'objecttype', 'context'),
                                   mysql_engine='InnoDB', 
-                                  keep_existing = False)
+                                  keep_existing = True)
         Index('idx_vs', self.vesper_stmts.c.subject, self.vesper_stmts.c.predicate, self.vesper_stmts.c.object) 
+
+        # create our duplicate-insert-exception-ignoring stored procedure for postgresql backend
+        if self.engine.name == 'postgresql':
+            self.engine.execute(
+"CREATE OR REPLACE FUNCTION insert_ignore_duplicates (s text, p text, o text, ot text, c text ) \
+RETURNS void AS $$ BEGIN LOOP BEGIN INSERT INTO vesper_stmts VALUES (s, p, o, ot, c); RETURN; \
+EXCEPTION WHEN unique_violation THEN RETURN; END; END LOOP; END $$ LANGUAGE plpgsql")
+
         self.md.create_all(self.engine)
         
         # attend to private matters of state
@@ -90,11 +98,8 @@ class AlchemySqlStore(Model):
                             func.min(self.vesper_stmts.c.context).label('context')]).\
                             group_by('subject', 'predicate', 'object', 'objecttype')
         else:
-            if self.engine.name != 'postgresql':
-                query = self.vesper_stmts.select()
-            else:
-                query = self.vesper_stmts.select().\
-                    order_by('subject', 'predicate', 'object','objecttype', 'context')
+            query = self.vesper_stmts.select()
+
         if fs:
             query = query.where(self.vesper_stmts.c.subject == subject)
         if fp:
@@ -105,10 +110,13 @@ class AlchemySqlStore(Model):
             query = query.where(self.vesper_stmts.c.objecttype == objecttype)
         if fc:
             query = query.where(self.vesper_stmts.c.context == context)
+
         if limit:
+            if self.engine.name == 'postgresql':
+                query = query.order_by('subject', 'predicate', 'object','objecttype', 'context')
             query = query.limit(limit)
-        if offset:
-            query = query.offset(offset)
+            if offset:
+                query = query.offset(offset)
 
         stmts = []
         self._checkConnection()
@@ -123,24 +131,25 @@ class AlchemySqlStore(Model):
         '''add the specified statement to the model'''
         log.debug("addStatement called with ", stmt)
         
-        ins =  self.vesper_stmts.insert(
-            {'subject' : stmt[0],
-             'predicate' : stmt[1],
-             'object' : stmt[2],
-             'objecttype' : stmt[3],
-             'context' : stmt[4]})
+        argDict = {'subject' : stmt[0],
+                   'predicate' : stmt[1],
+                   'object' : stmt[2],
+                   'objecttype' : stmt[3],
+                   'context' : stmt[4]}
 
-        # switch on 'dialect' i.e. backend DB type
-        if self.engine.name == "sqlite":
-            ins = ins.prefix_with("OR IGNORE")
-        elif self.engine.name == "mysql":
-            ins = ins.prefix_with("IGNORE")
-            
         self._checkConnection()
-        try:
-            result = self.conn.execute(ins)
-        except sqlalchemy.exc.IntegrityError, exc:
-            return 0    # or one?
+        if self.engine.name == 'postgresql':
+            result = self.conn.execute(
+                func.insert_ignore_duplicates(stmt[0], stmt[1], stmt[2], stmt[3], stmt[4]),
+                argDict)
+        else:
+            ins = self.vesper_stmts.insert()
+            if self.engine.name == "sqlite":
+                ins = ins.prefix_with("OR IGNORE")
+            elif self.engine.name == "mysql":
+                ins = ins.prefix_with("IGNORE")
+            result = self.conn.execute(ins, argDict)
+
         return result.rowcount
 
     def addStatements(self, stmts):
@@ -153,15 +162,20 @@ class AlchemySqlStore(Model):
                         'objecttype' : stmt[3], 
                         'context' : stmt[4]} for stmt in stmts]
 
-        ins = self.vesper_stmts.insert()
         self._checkConnection()
+        if self.engine.name == 'postgresql':
+            # XXX injection threat -snwight
+            result = self.conn.execute(
+                "select insert_ignore_duplicates(%(subject)s, %(predicate)s, %(object)s, %(objecttype)s, %(context)s)", 
+                argDictList)
+        else:
+            ins = self.vesper_stmts.insert()
+            if self.engine.name == "sqlite":
+                ins = ins.prefix_with("OR IGNORE")
+            elif self.engine.name == "mysql":
+                ins = ins.prefix_with("IGNORE")
+            result = self.conn.execute(ins, argDictList)
 
-        if self.engine.name == "sqlite":
-            ins = ins.prefix_with("OR IGNORE")
-        elif self.engine.name == "mysql":
-            ins = ins.prefix_with("IGNORE")
-
-        result = self.conn.execute(ins, argDictList)
         return result.rowcount
 
     def removeStatement(self, stmt):

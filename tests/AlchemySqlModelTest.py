@@ -11,18 +11,18 @@ import modelTest
 import sqlalchemy
 from sqlalchemy import engine, create_engine
 from sqlalchemy.schema import MetaData 
+from  sqlalchemy.pool import AssertionPool 
 
 from vesper.data.store.alchemysql import AlchemySqlStore
-
 
 class AlchemySqlModelTestCase(modelTest.BasicModelTestCase):
     
     def getModel(self):
-        model = AlchemySqlStore(engine=self.engine, autocommit=True)
+        model = AlchemySqlStore(engine=self.engine, md=self.md, autocommit=True)
         return self._getModel(model)
 
     def getTransactionModel(self):
-        model = AlchemySqlStore(engine=self.engine, autocommit=False)
+        model = AlchemySqlStore(engine=self.engine, md=self.md, autocommit=False)
         return self._getModel(model)
 
     def setUp(self):
@@ -31,9 +31,11 @@ class AlchemySqlModelTestCase(modelTest.BasicModelTestCase):
         self.tmpdir = tempfile.mkdtemp(prefix="rhizometest")
         fname = os.path.abspath(os.path.join(self.tmpdir, 'test.sqlite'))
         self.tmpfilename = "sqlite:///{0}".format(fname)
-        self.engine = create_engine(self.tmpfilename)
-    
+        self.engine = create_engine(self.tmpfilename)       # , poolclass=AssertionPool)
+        self.md = MetaData(self.engine)            
+        
     def tearDown(self):
+        self.md.drop_all()
         shutil.rmtree(self.tmpdir)
 
 
@@ -48,9 +50,10 @@ if os.getenv("SQLA_TEST_POSTGRESQL"):
 
             # dialect+driver://username:password@host:port/database
             self.engine = create_engine(self.tmpfilename)
+            self.md = MetaData(self.engine)            
 
         def tearDown(self):
-            self.engine.execute("drop table if exists vesper_stmts;")
+            self.md.drop_all()
 
 
 if os.getenv("SQLA_TEST_MYSQL"):
@@ -64,9 +67,10 @@ if os.getenv("SQLA_TEST_MYSQL"):
 
             # dialect+driver://username:password@host:port/database
             self.engine = create_engine(self.tmpfilename)
+            self.md = MetaData(self.engine)            
         
         def tearDown(self):
-            self.engine.execute("drop table if exists vesper_stmts;")
+            self.md.drop_all()
 
 
 if __name__ == '__main__':
