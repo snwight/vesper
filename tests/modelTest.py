@@ -498,11 +498,12 @@ class BasicModelTestCase(SimpleModelTestCase):
         print 'start insert with %s objects (-b to change)' % BIG 
         start = time.time()
 
+        n = 0
         for i in xrange(BIG):
             subj = random_name(12)
             for j in xrange(7):
-                model.addStatement(Statement(subj, 'pred'+str(j), 'obj'+str(j)) )
-        print 'added %s statements in %s seconds' % (BIG * 7, time.time() - start)
+                n += model.addStatement(Statement(subj, 'pred'+str(j), 'obj'+str(j)))
+        print 'added %s statements in %s seconds' % (n, time.time() - start)
         model.commit()
 
         try:
@@ -524,7 +525,7 @@ class BasicModelTestCase(SimpleModelTestCase):
         sys.stdout.flush()
         start = time.time()
         stmts = model.getStatements()
-        print 'got %s statements in %s seconds' % (BIG * 7, time.time() - start)
+        print 'got %s statements in %s seconds' % (len(stmts), time.time() - start)
         self.assertEqual(len(stmts), BIG * 7)
         
         start = time.time()

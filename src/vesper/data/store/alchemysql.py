@@ -5,7 +5,7 @@ __all__ = ['AlchemySQLStore']
 import os, os.path
 
 import sqlalchemy
-from sqlalchemy import engine, sql, create_engine
+from sqlalchemy import engine, sql, create_engine, text
 from sqlalchemy.types import *
 from sqlalchemy.sql import select
 from sqlalchemy.sql.expression import func, or_, asc
@@ -29,7 +29,7 @@ class AlchemySqlStore(Model):
     )
     '''
     def __init__(self, source=None, autocommit=False, **kw):
-        self.engine = create_engine(source)
+        self.engine = create_engine(source, echo=False)
         self.md = MetaData(self.engine)            
 
         # create our simple quin-tuple store
@@ -51,7 +51,7 @@ class AlchemySqlStore(Model):
 "CREATE OR REPLACE FUNCTION insert_ignore_duplicates (s text, p text, o text, ot text, c text ) \
 RETURNS void AS $$ BEGIN LOOP BEGIN INSERT INTO vesper_stmts VALUES (s, p, o, ot, c); RETURN; \
 EXCEPTION WHEN unique_violation THEN RETURN; END; END LOOP; END $$ LANGUAGE plpgsql")
-
+            
         # attend to private matters of state
         self.conn = None
         self.trans = None
@@ -137,9 +137,10 @@ EXCEPTION WHEN unique_violation THEN RETURN; END; END LOOP; END $$ LANGUAGE plpg
 
         self._checkConnection()
         if self.engine.name == 'postgresql':
-            result = self.conn.execute(
-                func.insert_ignore_duplicates(stmt[0], stmt[1], stmt[2], stmt[3], stmt[4]),
-                argDict)
+            t = text(
+                "select insert_ignore_duplicates(:subject, :predicate, :object, :objecttype, :context)").\
+                execution_options(autocommit=self.autocommit)
+            result = self.conn.execute(t, argDict)
         else:
             ins = self.vesper_stmts.insert()
             if self.engine.name == "sqlite":
@@ -162,10 +163,10 @@ EXCEPTION WHEN unique_violation THEN RETURN; END; END LOOP; END $$ LANGUAGE plpg
 
         self._checkConnection()
         if self.engine.name == 'postgresql':
-            # XXX injection threat -snwight
-            result = self.conn.execute(
-                "select insert_ignore_duplicates(%(subject)s, %(predicate)s, %(object)s, %(objecttype)s, %(context)s)", 
-                argDictList)
+            t = text(
+                "select insert_ignore_duplicates(:subject, :predicate, :object, :objecttype, :context)").\
+                execution_options(autocommit=self.autocommit)
+            result = self.conn.execute(t, argDictList)
         else:
             ins = self.vesper_stmts.insert()
             if self.engine.name == "sqlite":

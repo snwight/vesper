@@ -42,11 +42,12 @@ if os.getenv("SQLA_TEST_POSTGRESQL"):
             # 'postgresql+psycopg2://user:password@host:port/dbname[?key=value&key=value...]'
             # "postgresql+psycopg2://vesper:vspr@localhost:5432/vesper_db"
             self.tmpfilename = os.getenv("SQLA_TEST_POSTGRESQL")
-#            check_call("dropdb vesper_db", shell=True, stderr='/dev/null')
-            check_call("createdb vesper_db", shell=True)
+            call("createdb vesper_db", shell=True)
 
         def tearDown(self):
-            check_call("dropdb vesper_db", shell=True)
+            # destroy all zombies
+            call("psql -f pg_kill_zombies.sql postgres >> /dev/null",  shell=True)
+            call("dropdb vesper_db", shell=True)
 
 
 if os.getenv("SQLA_TEST_MYSQL"):
@@ -57,14 +58,10 @@ if os.getenv("SQLA_TEST_MYSQL"):
             # 'mysql+mysqldb://<user>:<password>@<host>[:<port>]/<dbname>'
             # "mysql+mysqldb://vesper:ve$per@localhost:3306/vesper_db"
             self.tmpfilename = os.getenv("SQLA_TEST_MYSQL")
- #           call("mysqladmin -f -pve\$per -u vesper drop vesper_db", 
- #                shell=True)
-            call("mysqladmin -f -pve\$per -u vesper create vesper_db", 
-                 shell=True)
+            call("mysqladmin -f -pve\$per -u vesper create vesper_db", shell=True)
 
         def tearDown(self):
-            call("mysqladmin -f -pve\$per -u vesper drop vesper_db", 
-                 shell=True)
+            call("mysqladmin -f -pve\$per -u vesper drop vesper_db >> /dev/null", shell=True)
 
 
 if __name__ == '__main__':
