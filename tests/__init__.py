@@ -32,6 +32,13 @@ else:
     __all__.append('AlchemySqlModelTest')
 
 try:
+    import vesper.data.store.sqlmapping
+except ImportError:
+    print "skipping SqlMapping tests"
+else:
+    __all__.append('SqlMappingModelTest')
+
+try:
     import multiprocessing
     import stomp    
     try:

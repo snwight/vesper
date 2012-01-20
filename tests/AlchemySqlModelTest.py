@@ -27,11 +27,12 @@ class AlchemySqlModelTestCase(modelTest.BasicModelTestCase):
         # sqlite is our backend default
         # sqlite via sqlite3/pysql - (default python driver)
         self.tmpdir = tempfile.mkdtemp(prefix="rhizometest")
-        fname = os.path.abspath(os.path.join(self.tmpdir, 'test.sqlite'))
+        fname = os.path.abspath(os.path.join(self.tmpdir, 'vesper_db'))
         self.tmpfilename = "sqlite:///{0}".format(fname)
         
     def tearDown(self):
         shutil.rmtree(self.tmpdir)
+
 
 
 if os.getenv("SQLA_TEST_POSTGRESQL"):
@@ -40,14 +41,16 @@ if os.getenv("SQLA_TEST_POSTGRESQL"):
         def setUp(self):
             # postgresql via pscyopg2 - (default python driver)
             # 'postgresql+psycopg2://user:password@host:port/dbname[?key=value&key=value...]'
-            # "postgresql+psycopg2://vesper:vspr@localhost:5432/vesper_db"
-            self.tmpfilename = os.getenv("SQLA_TEST_POSTGRESQL")
-            call("createdb vesper_db", shell=True)
+            self.tmpfilename = '/'.join([os.getenv("SQLA_TEST_POSTGRESQL"), "vesper_db"])
+            call("psql -q -c \"create database vesper_db\" postgres", shell=True)
+
 
         def tearDown(self):
             # destroy all zombies
-            call("psql -f pg_kill_zombies.sql postgres >> /dev/null",  shell=True)
-            call("dropdb vesper_db", shell=True)
+            cmd = "select pg_terminate_backend(procpid) from pg_stat_activity where datname = \'vesper_db\'"
+            call("psql -q -c \"{0}\" postgres >> /dev/null".format(cmd), shell=True)
+            call("psql -q -c \"drop database if exists vesper_db\" postgres", shell=True)
+
 
 
 if os.getenv("SQLA_TEST_MYSQL"):
@@ -56,8 +59,7 @@ if os.getenv("SQLA_TEST_MYSQL"):
         def setUp(self):
             # mysql via mysqldb - (default python driver)
             # 'mysql+mysqldb://<user>:<password>@<host>[:<port>]/<dbname>'
-            # "mysql+mysqldb://vesper:ve$per@localhost:3306/vesper_db"
-            self.tmpfilename = os.getenv("SQLA_TEST_MYSQL")
+            self.tmpfilename = '/'.join([os.getenv("SQLA_TEST_MYSQL"), "vesper_db"])
             call("mysqladmin -f -pve\$per -u vesper create vesper_db", shell=True)
 
         def tearDown(self):
