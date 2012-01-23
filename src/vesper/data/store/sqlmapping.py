@@ -17,7 +17,11 @@ from sqlalchemy.schema import Table, Column, MetaData, UniqueConstraint, Index
 from sqlalchemy.engine import reflection
 
 import logging 
-# log = logging.getLogger("sqlmapping")
+log = logging.getLogger("sqlmapping")
+
+# XXX fakery
+RSRC_TEMPLATE="http:/souzis.com/"
+RSRC_DELIM="/"
 
 class SqlMappingStore(Model):
     '''
@@ -84,34 +88,42 @@ class SqlMappingStore(Model):
         if context:
             raise "contexts not supported"
         
+        s = p = ''
         tbls = []
         if subject: 
-            tbls = [self.getTableFromResourceId('artist')]   #subject)
+            # XXX TESTING
+            subject = RSRC_TEMPLATE + 'artist/artistid/{somePrimaryKeyVal}'
+            tbls = [self.getTableFromResourceId(subject)]
+            s = self.getPrimaryKeyNameFromResourceId(subject)
+            sValue = self.getValueFromResourceId(subject)
         elif predicate:
-            tbls = self.getTablesWithProperty('trackname')   #predicate)
+            # XXX TESTING
+            predicate = RSRC_TEMPLATE + 'artist/artistname/{someVal}'
+            tbls = self.getTablesWithProperty(predicate)
+            p = self.getPropertyNameFromResourceId(predicate)
         else:
             tbls = self.tables
 
         query = None
         stmts = []
         for table in tbls:
-            if not subject and not predicate and not object:
+            if not s and not p and not object:
                 # * * * => select * from table
                 query = table.select()
-            elif subject and not predicate and not object:
-                # s * * => select * from table where id = s  
-                query = table.select()           # .where(table.id == subject)
-            elif subject and predicate and not object:
+            elif s and not p and not object:
+                # s * * => select * from table where id = s 
+                query = table.select().where(table.c[s] == sValue)
+            elif s and p and not object:
                 # s p * => select p from table where id = s
-                query = table.select()            # .property], table.id == subject)
-            elif not subject and predicate and object:
+                query = table.select(table.c[p]).where(table.c[s] == sValue)
+            elif not s and p and object:
                 # * p o => select p from table where p = object
-                query = table.select()            # .property], table.property == object)
-            elif not subject and not predicate and object:
+                query = table.select(table.c[p]).where(table.c[p] == object)
+            elif not s and not p and object:
                 # * * o => select o from table where o.type = objecttype
                 for column in table.columns:
-                #                    if self.jsonStore.isCompatibleType(objecttype, column.type):
-                    query = table.select()         # .column], table.column == object)
+                #  if self.jsonStore.isCompatibleType(objecttype, column.type):
+                    query = table.select(column).where(column.type == objecttype)
 
             self._checkConnection()
             print query
@@ -132,23 +144,48 @@ class SqlMappingStore(Model):
 
 
     def getTableFromResourceId(self, subj):
-        # extract table name from URI and return matching Table object from our db
+        # extract table name from URI and return matching and return corresponding SQLA object
+        # XXX note that here we ASSUME subj IS RSRC_TEMPLATE/TABLENAME/COLUMNAME/{Value}
         print "subj: ", subj
+        tName = subj.rsplit(RSRC_DELIM, 3)[1]
+        print "tName: ", tName
         for t in self.tables:
-            if subj == t.name:
+            if t.name == tName:
                 return t
 
 
     def getTablesWithProperty(self, prop):
         # search our db for tables w/columns matching prop, return list of Table objects
+        # XXX note that here we ASSUME prop IS RSRC_TEMPLATE/TABLENAME/COLUMNNAME/{Value}
         print "prop: ", prop
+        pName = getPropertyNameFromResourceId(prop)
+        print "pName: ", pName
         tbls = [] 
         for t in self.tables:
             for c in t.c:
-                if c.name == prop:
+                if c.name == pName:
                     tbls.append(t)
                     break
         return tbls
+
+
+    def getPrimaryKeyNameFromResourceId(self, subj):
+        # extract subject, ie. primary key column name from URI 
+        # XXX note that here we ASSUME subj IS RSRC_TEMPLATE/TABLENAME/COLUMNAME/{Value}
+        return subj.rsplit(RSRC_DELIM, 3)[2]
+        
+
+    def getPropertyNameFromResourceId(self, prop):
+        # extract property, ie. column name from URI
+        # XXX note that here we ASSUME subj IS RSRC_TEMPLATE/TABLENAME/COLUMNAME/{Value}
+        return subj.rsplit(RSRC_DELIM, 3)[2]
+        
+
+    def getValueFromResourceId(self, subj):
+        # extract value ie. row cell value from URI
+        # XXX note that here we ASSUME subj IS RSRC_TEMPLATE/TABLENAME/COLUMNAME/{Value}
+        v = subj.rsplit(RSRC_DELIM, 2)[2]
+        return v.lstrip('{').rstrip('}')
 
 
     def addStatement(self, stmt):
