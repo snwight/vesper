@@ -9,6 +9,7 @@ from subprocess import check_call, call
 import string, random, shutil, time
 import logging
 
+# import mappingTest
 import modelTest
 import vesper.app
 from vesper import utils

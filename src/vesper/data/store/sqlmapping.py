@@ -37,6 +37,17 @@ class SqlMappingStore(Model):
         self.md = MetaData(self.engine, reflect=True)
         insp = reflection.Inspector.from_engine(self.engine)
 
+        # one level of data abstraction for devel purposes
+        self.tables = self.md.sorted_tables
+
+        # save our json map object
+        self.jsonStore = store
+        
+        # private matters
+        self.conn = None
+        self.trans = None
+        self.autocommit = autocommit
+
         # debug/devel output
         print '=============================================================='
         print 'JSON store::\n', store.storage_template
@@ -68,46 +79,81 @@ class SqlMappingStore(Model):
                         k['referred_table'], [rc.encode('ascii') for rc in k['referred_columns']]
 
 
-    def getStatements(self, jsonStmt=None, subject=None, predicate=None, object=None,
+    def getStatements(self, subject=None, predicate=None, object=None,
                       objecttype=None, context=None, asQuad=True, hints=None):
-
-        '''        if context: raise "contexts not supported"
-
-        if subj: 
-            tables = [extractTablefromResourceId(subj)]
-        elif prop:
-            tables = tableswithproperty(prop)
+        if context:
+            raise "contexts not supported"
+        
+        tbls = []
+        if subject: 
+            tbls = [self.getTableFromResourceId('artist')]   #subject)
+        elif predicate:
+            tbls = self.getTablesWithProperty('trackname')   #predicate)
         else:
-            tables = alltables
-            
-        for table in tables:
-            patterns:
-            if not subj and not prop:
-                if not obj:
-                    select * from table;
-                else:
-                    for column in table.columns:
-                        if compatible(objecttype, columntype):
-                            select column from table where column = obj
-                        else:
+            tbls = self.tables
 
-                            s * * => select * from table where id = subj  
-                            s property * => select property from table where id = s
-                            * property object => select property from table where property = object
-                            '''
-        return []
+        query = None
+        stmts = []
+        for table in tbls:
+            if not subject and not predicate and not object:
+                # * * * => select * from table
+                query = table.select()
+            elif subject and not predicate and not object:
+                # s * * => select * from table where id = s  
+                query = table.select()           # .where(table.id == subject)
+            elif subject and predicate and not object:
+                # s p * => select p from table where id = s
+                query = table.select()            # .property], table.id == subject)
+            elif not subject and predicate and object:
+                # * p o => select p from table where p = object
+                query = table.select()            # .property], table.property == object)
+            elif not subject and not predicate and object:
+                # * * o => select o from table where o.type = objecttype
+                for column in table.columns:
+                #                    if self.jsonStore.isCompatibleType(objecttype, column.type):
+                    query = table.select()         # .column], table.column == object)
+
+            self._checkConnection()
+            print query
+            result = self.conn.execute(query)
+#            for r in result:
+#                stmts.append( Statement(r['subject'], r['predicate'], r['object'], r['objecttype'], r['context']) )
+           
+        return stmts
+
+                            
+    def _checkConnection(self):
+        if self.conn is None:
+            self.conn = self.engine.connect()
+        if self.autocommit is False:
+            if not self.conn.in_transaction():
+                self.trans = self.conn.begin()
+        self.conn.execution_options(autocommit=self.autocommit)
+
+
+    def getTableFromResourceId(self, subj):
+        # extract table name from URI and return matching Table object from our db
+        print "subj: ", subj
+        for t in self.tables:
+            if subj == t.name:
+                return t
+
+
+    def getTablesWithProperty(self, prop):
+        # search our db for tables w/columns matching prop, return list of Table objects
+        print "prop: ", prop
+        tbls = [] 
+        for t in self.tables:
+            for c in t.c:
+                if c.name == prop:
+                    tbls.append(t)
+                    break
+        return tbls
+
 
     def addStatement(self, stmt):
-        '''add the specified statement to the model'''
-        
-        '''
-        argDict = {'subject' : stmt[0],
-        'predicate' : stmt[1],
-        'object' : stmt[2],
-        'objecttype' : stmt[3],
-        'context' : stmt[4]}
-        '''
         return 0
+
 
     def removeStatement(self, stmt):
         '''
@@ -129,27 +175,10 @@ class SqlMappingStore(Model):
                 '''
         return 0
 
+
     def addStatements(self, stmts):
-        '''adds multiple statements to the model'''
- 
-        '''
-        argDictList = [{'subject' : stmt[0],
-                        'predicate' : stmt[1],
-                        'object' : stmt[2],
-                        'objecttype' : stmt[3], 
-                        'context' : stmt[4]} for stmt in stmts]
-                        '''
         return 0
 
-    def removeStatements(self, stmts=None):
-        '''removes multiple statements from the model'''
 
-        '''
-        wc = []
-        [wc.append((self.vesper_stmts.c.subject == stmt[0]) & 
-                   (self.vesper_stmts.c.predicate == stmt[1]) & 
-                   (self.vesper_stmts.c.object == stmt[2]) & 
-                   (self.vesper_stmts.c.objecttype == stmt[3]) & 
-                   (self.vesper_stmts.c.context == stmt[4])) for stmt in stmts]
-                   '''
+    def removeStatements(self, stmts=None):
         return 0

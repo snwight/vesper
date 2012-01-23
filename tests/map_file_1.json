@@ -1,12 +1,15 @@
 {
     "tableprop": "type",
     "idpattern": "(table:)(id:)",
-    "tables": {
+    "table": {
         "artist": { 
             "id": "artistid",
             "properties": ["*"] },
         "track": { 
             "id": "trackid",
-            "properties": ["*", {"trackartist": {"references": "artist", "key": "artistid"}} ]}
+            "properties": ["*", {
+	    		"trackartist": {
+			"references": "artist", "key": "artistid"}} 
+			]}
     }
 }
