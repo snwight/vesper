@@ -7,6 +7,7 @@ from vesper.query import *
 from vesper.query.engine import SimpleQueryEngine, getColumn, flatten
 from vesper.data import base
 from vesper.data.base.graph import CTX_NS
+import vesper.query.jqlAST
 
 def _getTransactionFunc(context, op):
     '''
@@ -15,7 +16,7 @@ def _getTransactionFunc(context, op):
     if not hasattr(context.initialModel, 'revisionModel'):
         return None
     
-    if not isinstance(op, jqlAST.Project) or not op.varref:
+    if not isinstance(op, vesper.query.jqlAST.Project) or not op.varref:
         raise QueryException("getTransaction argument must be a full property reference", op)
     subjectPos = context.currentTupleset.findColumnPos(op.varref)
     if not subjectPos:        
