@@ -347,6 +347,92 @@ class SimpleModelTestCase(unittest.TestCase):
         model.close()
 
 
+RSRC_URI = "http://souzis.com"
+class SqlMappingModelTestCase(unittest.TestCase):
+    '''Tests basic features of a JSON RDF SQL mapping store'''
+
+    persistentStore = True
+
+    def _getModel(self, model):
+        return model
+
+
+    def getModel(self):
+        model = MemStore()
+        self.persistentStore = False
+        return self._getModel(model)
+    
+
+    def testGetStatements(self, asQuad=True):
+        global RSRC_URI
+
+        model = self.getModel()
+        '''
+        stmts = [
+        Statement(RSRC_URI + '/artist/artistid/{1}', 'id:', 1, 'en', None),
+        Statement(RSRC_URI + '/artist/artistid/{1}', RSRC_URI + '/artist/artistname', 'ralph', 'en', None),
+        Statement(RSRC_URI + '/artist/artistid/{2}', 'id:', 2, 'en-1', None),
+        Statement(RSRC_URI + '/artist/artistid/{2}', RSRC_URI + '/artist/artistname', 'lauren', 'en-1', None),
+        Statement(RSRC_URI + '/artist/artistid/{3}', 'id:', 3, 'en-1', None),
+        Statement(RSRC_URI + '/artist/artistid/{3}', RSRC_URI + '/artist/artistname', 'diane', 'en-1', None)
+        ]
+        model.addStatements(stmts)
+        '''
+        
+        conditions = [
+            'subject', RSRC_URI + '/artist/artistid/{1}', 
+            'predicate', RSRC_URI + '/artist/artistname', 
+            'object', 'ralph',
+            'objecttype', 'en'
+            ]
+        pairs = [ 
+            (('subject', RSRC_URI + '/artist/artistid/{2}'),), 
+            (('predicate', RSRC_URI + '/artist/artistname'),), 
+            #look up object and objectype together:
+            (('object', 'lauren'), ('objecttype', 'en'))
+            ]
+        #each additional condition eliminates one of the matches
+        beginMatches = 4+1
+        while pairs:
+            matches = beginMatches
+            kw = {}
+            for p in pairs:
+                #first match each condition individually
+                matches -= len(p)
+                q = dict(p)
+                r1 = model.getStatements(**q) #{k : v})                
+#                self.assertEqual(len(r1), matches, 'getstatements(**%s) found %s but expected length %d' % (q,r1,matches))
+#                self.assertEqual(set(r1), set(stmts[:matches]))
+                count = matches
+                if not asQuad and len(expected) > 1:
+                    del expected[1] #delete ('s', 'p', 'o', 'en', 'c1')
+                    count -= 1
+#                self.assertEqual(len(r2), count)
+#                self.assertEqual(set(r2), set(expected))
+               
+            #repeat tests but start matching at next position
+            popped = pairs.pop(0)
+            beginMatches -= len(popped)
+
+        r = model.getStatements(predicate=RSRC_URI + '/artist/artistname')
+#        self.assertEqual(set(r), set(more[1:]) )
+        
+        r = model.getStatements(subject=RSRC_URI + '/artist/artistid/{s}', predicate=RSRC_URI + '/artist/artistname')
+#        self.assertEqual(set(r), set( (more[0], more[1], stmts[-2]) ) )
+        
+        r = model.getStatements(predicate=RSRC_URI + '/artist/artistname')
+#        self.assertEqual(set(r), set( more + stmts[-2:] ) )
+        
+        r = model.getStatements(predicate=RSRC_URI + '/artist/artistname', object='lauren')
+#        self.assertEqual(r, [])
+        
+        r = model.getStatements(predicate=RSRC_URI + '/artist/artistname', object='diane', objecttype='en-1')
+#        self.assertEqual(set(r), set( (more[0], more[-1]) ) )
+
+        model.close()
+
+
+
 class BasicModelTestCase(SimpleModelTestCase):
 
     def getTransactionModel(self):

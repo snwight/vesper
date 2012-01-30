@@ -4,8 +4,9 @@ import sys, unittest, docTest
 import os, subprocess
 
 __all__ = ['glockTest', 'appTest', 'MRUCacheTest', 
- 'transactionsTest', 'utilsTest', 'RDFDomTest', 'htmlfilterTest',
-  'pjsonTest', 'jqlTest', 'jsonqlDocTest', 'jsonqlTutorialTest', 'modelTest', 'FileModelTest']
+           'transactionsTest', 'utilsTest', 'RDFDomTest', 'htmlfilterTest',
+           'pjsonTest', 'jqlTest', 'jsonqlDocTest', 'jsonqlTutorialTest', 'modelTest', 'FileModelTest',
+           'mappingTest']
 
 if sys.version_info[:2] >= (2,5):
     __all__.append('python25Test')
