@@ -9,7 +9,3 @@ CREATE TABLE track(
   FOREIGN KEY(trackartist) REFERENCES artist(artistid)
 );
 CREATE INDEX trackindex ON track(trackartist);
-
-insert into artist values (1, 'ralph');
-insert into artist values (2, 'lauren');
-insert into artist values (3, 'diane');
