@@ -1,7 +1,7 @@
 {
-    "tableprop": "type",
+    "tablesprop": "type",
     "idpattern": "http://souzis.com",
-    "table": {
+    "tables": {
         "artist": { 
             "id": "artistid",
             "properties": [

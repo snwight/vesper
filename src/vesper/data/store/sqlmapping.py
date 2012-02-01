@@ -35,7 +35,7 @@ class SqlMappingStore(Model):
         and datatypes must precisely match the contents of the input mapping description json file.
         '''
         # instantiate SqlAlchemy DB connection based upon uri passed to this method 
-        self.engine = create_engine(source, echo=True)
+        self.engine = create_engine(source, echo=False)
 
         # reflect the designated db schema into python space for examination
         self.md = MetaData(self.engine, reflect=True)
@@ -125,7 +125,8 @@ class SqlMappingStore(Model):
                 pattern = 'sp'
             elif not pkName and colName and object:
                 # * p o => select p from table where p = object
-                query = table.select(table.c[colName]).where(table.c[colName] == object)
+#                query = table.select(table.c[colName]).where(table.c[colName] == object)
+                query = table.select().where(table.c[colName] == object)
                 pattern = 'po'
             self._checkConnection()
             print query
@@ -146,54 +147,66 @@ class SqlMappingStore(Model):
             # for EVERY PrimaryKey value, for EVERY column, for EVERY cell value add a Statement with:
             # PrimaryKeys ==> subject, ColumnNames ==> predicate, ColumnElements ==> object, ColumnTypes ==> objecttype
             for r in fetchedRows:
-                print "r: ", r
+                print "* r: ", r
                 stmts.append(Statement(td['pKeyName'], 'id', r[td['pKeyName']], None, None))
                 [stmts.append(Statement(td['pKeyName'], c, r[c], None, None)) for c in td['colNames']]
         elif pattern == 's':
             # for A PARTICULAR PrimaryKey value, for EVERY column, for EVERY cell value, add a Statement with:
             # PrimaryKey ==> subject, ColumnNames ==> predicate, ColumnElements ==> object, ColumnTypes ==> objecttype
             for r in fetchedRows:
-                print "r: ", r
+                print " S r: ", r
                 stmts.append(Statement(td['pKeyName'], 'id', r[td['pKeyName']], None, None))
                 [stmts.append(Statement(td['pKeyName'], c, r[c], None, None)) for c in td['colNames']]
         elif pattern == 'sp':
             # for A PARTICULAR PrimaryKey value, for A PARTICULAR column, for EVERY cell value, add a Statement with:
             # PrimaryKey ==> subject, ColumnName ==> predicate, ColumnElement ==> object, ColumnType ==> objecttype
             for r in fetchedRows:
-                print "r: ", r
-                stmts.append(Statement(td['pKeyName'], 'id', r[td['pKeyName']], None, None),
-                             Statement(td['pKeyName'], colName, r[colName], None, None))
+                print "SP r: ", r
+                stmts.append(Statement(td['pKeyName'], 'id', r[td['pKeyName']], None, None))
+                stmts.append(Statement(td['pKeyName'], colName, r[colName], None, None))
         elif pattern == 'po':
             # for ANY PrimaryKey value, for a PARTICULAR column, for A PARTICULAR cell value, add a Statement with:
             # PrimaryKeys ==> subject, ColumnName ==> predicate, CellValue ==> object, ColumnType ==> objecttype
             for r in fetchedRows:
-                print "r: ", r
-                stmts.append(Statement(td['pKeyName'], 'id', r[td['pKeyName']], None, None),
-                             Statement(td['pKeyName'], colName, r[colName], None, None))
+                print "PO r: ", r
+                stmts.append(Statement(td['pKeyName'], 'id', r[td['pKeyName']], None, None))
+                stmts.append(Statement(td['pKeyName'], colName, r[colName], None, None))
         return stmts
 
                             
     def _getColumnsOfInterest(self, tableName=None):
         # use json map and sql schema to determine columns of interest, make a list
-        tableDesc = self.mapping["table"][tableName]
+        tableDesc = self.mapping["tables"][tableName]
         if 'id' in tableDesc:
             pKeyName = tableDesc['id']
+        if 'relationship'in tableDesc:
+            if tableDesc['relationship'] == True:
+                # this is a correlation definition
+                pass
         colNames = []
         if 'properties' in tableDesc:
             # walk through table's properties list collecting column names
-            for p in tableDesc['properties']:
-                if p == "*":
+            for prop in tableDesc['properties']:
+                if isinstance(prop, dict):
+                    if 'id' in prop:
+                        print "id: ", prop['id'], "ignored in ", tableName  
+                    if 'references' in prop:
+                        print "uh foreign key: ", prop['references'], "ignored in ", tableName  
+                    if 'view' in prop:
+                        print "view definition: ", prop['view'], "ignored in", tableName
+                    if 'relationship' in prop:
+                        print "relationship: ", prop['relationship'], "ignored in", tableName
+                    else:
+                        print "column name/s: ", prop, "ignored in", tableName
+                elif prop == "*":
                     # turn to sql schema to compile list of all (non-pkey) column names
                     for c in self.insp.get_columns(tableName):
                         if c['name'] not in self.insp.get_primary_keys(tableName):
                             colNames.append(c['name'])
-                elif isinstance(p, dict):
-                    # seems to be a foreign key reference, process accordingly
-                    if 'references' in p:
-                        print "uh foreign key ", p['references'],  " ignored in ", tableName  
                 else:
                     # a [single] specific column name - add to list
                     colNames.append(p)
+
         # return dict w/all column names tagged in json map, ready to permute through
         return {'tableName':tableName, 'pKeyName':pKeyName, 'colNames':colNames}
 
@@ -252,17 +265,13 @@ class SqlMappingStore(Model):
         if colName == 'id:':
             # this is a primary key def... ideally should be cached and delayed
             colName = pkName
-        argDict = {pkName : pkValue, colName : o}
         self._checkConnection()
-        query = table.select().where(table.c[pkName] == pkValue)
-        result = self.conn.execute(query)
-        if result.first():
-            argDict.pop(pkName)
-            upsert = table.update().where(table.c[pkName] == pkValue)
-        else:
-            upsert = table.insert()
-        result = self.conn.execute(upsert, argDict)
-        return 1
+        upd = table.update().where(table.c[pkName] == pkValue)
+        result = self.conn.execute(upd, {colName : o})
+        if not result.rowcount:
+            ins = table.insert()
+            result = self.conn.execute(ins, {pkName : pkValue, colName : o})
+        return result.rowcount
 
 
     def addStatements(self, stmts):
