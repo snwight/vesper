@@ -347,6 +347,100 @@ class SimpleModelTestCase(unittest.TestCase):
         model.close()
 
 
+RSRC_URI = "http://souzis.com"
+class SqlMappingModelTestCase(unittest.TestCase):
+    '''Tests basic features of a JSON RDF SQL mapping store'''
+
+    persistentStore = True
+
+    def _getModel(self, model):
+        return model
+
+
+    def getModel(self):
+        model = MemStore()
+        self.persistentStore = False
+        return self._getModel(model)
+    
+
+    def testGetStatements(self, asQuad=True):
+        # <HACK>...<COUGH>...
+        global RSRC_URI
+
+        aStmts = [
+        Statement(RSRC_URI + '/artist/artistid{1}', 'id:', 1, 'en', None),
+        Statement(RSRC_URI + '/artist/artistid{1}', RSRC_URI + '/artist/artistname', 'ralph', 'en', None),
+
+        Statement(RSRC_URI + '/artist/artistid{2}', 'id:', 2, 'en-1', None),
+        Statement(RSRC_URI + '/artist/artistid{2}', RSRC_URI + '/artist/artistname', 'lauren', 'en-1', None),
+
+        Statement(RSRC_URI + '/artist/artistid{3}', 'id:', 3, 'en-1', None),
+        Statement(RSRC_URI + '/artist/artistid{3}', RSRC_URI + '/artist/artistname', 'diane', 'en-1', None)
+        ]
+        
+        tStmts = [
+        Statement(RSRC_URI + '/track/trackid{1}', 'id:', 1, 'en-1', None),
+        Statement(RSRC_URI + '/track/trackid{1}', RSRC_URI + '/track/trackname', 'track 1', 'en-1', None),
+        Statement(RSRC_URI + '/track/trackid{1}', RSRC_URI + '/track/trackartist', 1, 'en-1', None),
+
+        Statement(RSRC_URI + '/track/trackid{2}', 'id:', 2, 'en-1', None),
+        Statement(RSRC_URI + '/track/trackid{2}', RSRC_URI + '/track/trackname', 'track 2', 'en-1', None),
+        Statement(RSRC_URI + '/track/trackid{2}', RSRC_URI + '/track/trackartist', 1, 'en-1', None),
+
+        Statement(RSRC_URI + '/track/trackid{3}', 'id:', 3, 'en-1', None),
+        Statement(RSRC_URI + '/track/trackid{3}', RSRC_URI + '/track/trackname', 'track 3', 'en-1', None),
+        Statement(RSRC_URI + '/track/trackid{3}', RSRC_URI + '/track/trackartist', 1, 'en-1', None),
+
+        Statement(RSRC_URI + '/track/trackid{4}', 'id:', 4, 'en-1', None),
+        Statement(RSRC_URI + '/track/trackid{4}', RSRC_URI + '/track/trackname', 'track A ', 'en-1', None),
+        Statement(RSRC_URI + '/track/trackid{4}', RSRC_URI + '/track/trackartist', 2, 'en-1', None),
+
+        Statement(RSRC_URI + '/track/trackid{5}', 'id:', 5, 'en-1', None),
+        Statement(RSRC_URI + '/track/trackid{5}', RSRC_URI + '/track/trackname', 'track B', 'en-1', None),
+        Statement(RSRC_URI + '/track/trackid{5}', RSRC_URI + '/track/trackartist', 2, 'en-1', None),
+
+        Statement(RSRC_URI + '/track/trackid{6}', 'id:', 6, 'en-1', None),
+        Statement(RSRC_URI + '/track/trackid{6}', RSRC_URI + '/track/trackname', 'track C', 'en-1', None),
+        Statement(RSRC_URI + '/track/trackid{6}', RSRC_URI + '/track/trackartist', 2, 'en-1', None),
+
+        Statement(RSRC_URI + '/track/trackid{7}', 'id:', 7, 'en-1', None),
+        Statement(RSRC_URI + '/track/trackid{7}', RSRC_URI + '/track/trackname', 'song 1', 'en-1', None),
+        Statement(RSRC_URI + '/track/trackid{7}', RSRC_URI + '/track/trackartist', 3, 'en-1', None),
+
+        Statement(RSRC_URI + '/track/trackid{8}', 'id:', 8, 'en-1', None),
+        Statement(RSRC_URI + '/track/trackid{8}', RSRC_URI + '/track/trackname', 'song 2', 'en-1', None),
+        Statement(RSRC_URI + '/track/trackid{8}', RSRC_URI + '/track/trackartist', 3, 'en-1', None),
+
+        Statement(RSRC_URI + '/track/trackid{9}', 'id:', 9, 'en-1', None),
+        Statement(RSRC_URI + '/track/trackid{9}', RSRC_URI + '/track/trackname', 'song 3', 'en-1', None),
+        Statement(RSRC_URI + '/track/trackid{9}', RSRC_URI + '/track/trackartist', 3, 'en-1', None),
+        ]
+
+        model = self.getModel()
+        model.addStatements(aStmts)
+        model.addStatements(tStmts)
+        
+        r = model.getStatements()
+
+        r = model.getStatements(predicate=RSRC_URI + '/artist/artistname')
+#        self.assertEqual(set(r), set(more[1:]) )
+        
+        r = model.getStatements(subject=RSRC_URI + '/artist/artistid{1}', predicate=RSRC_URI + '/artist/artistname')
+#        self.assertEqual(set(r), set( (more[0], more[1], stmts[-2]) ) )
+        
+        r = model.getStatements(predicate=RSRC_URI + '/artist/artistname')
+#        self.assertEqual(set(r), set( more + stmts[-2:] ) )
+        
+        r = model.getStatements(predicate=RSRC_URI + '/artist/artistname', object='lauren')
+#        self.assertEqual(r, [])
+        
+        r = model.getStatements(predicate=RSRC_URI + '/artist/artistname', object='diane', objecttype='en-1')
+#        self.assertEqual(set(r), set( (more[0], more[-1]) ) )
+
+        model.close()
+
+
+
 class BasicModelTestCase(SimpleModelTestCase):
 
     def getTransactionModel(self):

@@ -3,7 +3,7 @@ CREATE TABLE artist(
   artistname  TEXT
 );
 CREATE TABLE track(
-  trackid     INTEGER, 
+  trackid     INTEGER PRIMARY KEY,
   trackname   TEXT, 
   trackartist INTEGER,
   FOREIGN KEY(trackartist) REFERENCES artist(artistid)

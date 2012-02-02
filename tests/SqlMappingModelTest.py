@@ -4,6 +4,7 @@
     SqlMapping model unit tests
 """
 import unittest
+import json
 import subprocess, tempfile, os, signal, sys
 from subprocess import check_call, call
 import string, random, shutil, time
@@ -15,21 +16,20 @@ import vesper.app
 from vesper import utils
 from vesper.data.store.sqlmapping import SqlMappingStore
 
-class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
+class SqlMappingModelTestCase(modelTest.SqlMappingModelTestCase):
     
     # initialize our json-to-sql mapping engine w/ coordinated SQL and JSON mapthingies
-    # XXX insisting on a file-based starting point for testing - for "transparency"
     sqlSchemaPath = os.path.join(os.getcwd(), 'map_file_1.sql')
     jsonMapPath = os.path.join(os.getcwd(), 'map_file_1.json')
-    store = vesper.app.createStore(open(jsonMapPath).read())
+    mapping = json.loads(open(jsonMapPath).read())
 
     def getModel(self):
-        model = SqlMappingStore(source=self.tmpfilename, store=self.store, autocommit=True)
+        model = SqlMappingStore(source=self.tmpfilename, mapping=self.mapping, autocommit=True)
         return self._getModel(model)
 
 
     def getTransactionModel(self):
-        model = SqlMappingStore(source=self.tmpfilename, store=self.store, autocommit=False)
+        model = SqlMappingStore(source=self.tmpfilename, mapping=self.mapping, autocommit=False)
         return self._getModel(model)
 
 
