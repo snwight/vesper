@@ -101,76 +101,66 @@ class SqlMappingStore(Model):
             tables = [self._getTableFromResourceId(subject)]
             pkName = self._getPropNameFromResourceId(subject)
             pkValue = self._getValueFromResourceId(subject)
-        elif predicate:
-            tables = self._getTablesWithProperty(predicate)
+        if predicate:
             colName = self._getPropNameFromResourceId(predicate)
+            if not subject:
+                # if all we have is a column name... it better be unique
+                tables = self._getTablesWithProperty(predicate)
+                for td in self.parsedTables:
+                    if td['tableName'] == tables[0].name:
+                        pkName = td['pKeyName']
+                        break
         else:
             # I really will return * tables, so deal
             tables = self.md.sorted_tables
 
         stmts = []
         for table in tables:
-            query = table.select()
+            query = select([table])
             pattern = None
-            if not pkName and not colName and not object:
+            if not subject and not predicate and not object:
                 # * * * => select * from table
-                pass
-            elif pkName and not colName and not object:
+                pattern = 'multicol'
+            elif subject and not predicate and not object:
                 # s * * => select * from table where id = s
-                query = table.select().where(table.c[pkName] == pkValue)
-                pattern = 's'
-            elif pkName and colName and not object:
+                query = select([table]).where(pkName == pkValue)
+                pattern = 'multicol'
+            elif not subject and predicate and not object:
+                # * p * => select id, p from table
+                query = select([table.c[pkName], table.c[colName]])
+                pattern = 'unicol'
+            elif subject and predicate and not object:
                 # s p * => select p from table where id = s
-                query = table.select(table.c[colName]).where(table.c[pkName] == pkValue)
-                pattern = 'sp'
-            elif not pkName and colName and object:
-                # * p o => select p from table where p = object
-#                query = table.select(table.c[colName]).where(table.c[colName] == object)
-                query = table.select().where(table.c[colName] == object)
-                pattern = 'po'
+                query = select(table.c[colName]).where(pkName == pkValue)
+                pattern = 'unicol'
+            elif not subject and predicate and object:
+                # * p o => select id from table where p = object
+                query = select([table.c[pkName]]).where(colName == object)
+                pattern = 'unicol'
             self._checkConnection()
             print query
             result = self.conn.execute(query)
             # ridin' bareback here - should test for errors etc but the hell with that
-            stmts = self._generateStatementAssignments(result, table.name, colName, pattern)
-            print stmts
+            stmts.extend(self._generateStatementAssignments(result, table.name, colName, pattern))
+
         return stmts
 
 
     def _generateStatementAssignments(self, fetchedRows=None, tableName=None, colName=None, pattern=None):
+        stmts = []
         td = None
         for td in self.parsedTables:
             if td['tableName'] == tableName:
+                pkName = td['pKeyName']
                 break;
-        stmts = []
-        if pattern is None:
-            # for EVERY PrimaryKey value, for EVERY column, for EVERY cell value add a Statement with:
-            # PrimaryKeys ==> subject, ColumnNames ==> predicate, ColumnElements ==> object, ColumnTypes ==> objecttype
-            for r in fetchedRows:
-                print "* r: ", r
-                stmts.append(Statement(td['pKeyName'], 'id', r[td['pKeyName']], None, None))
-                [stmts.append(Statement(td['pKeyName'], c, r[c], None, None)) for c in td['colNames']]
-        elif pattern == 's':
-            # for A PARTICULAR PrimaryKey value, for EVERY column, for EVERY cell value, add a Statement with:
-            # PrimaryKey ==> subject, ColumnNames ==> predicate, ColumnElements ==> object, ColumnTypes ==> objecttype
-            for r in fetchedRows:
-                print " S r: ", r
-                stmts.append(Statement(td['pKeyName'], 'id', r[td['pKeyName']], None, None))
-                [stmts.append(Statement(td['pKeyName'], c, r[c], None, None)) for c in td['colNames']]
-        elif pattern == 'sp':
-            # for A PARTICULAR PrimaryKey value, for A PARTICULAR column, for EVERY cell value, add a Statement with:
-            # PrimaryKey ==> subject, ColumnName ==> predicate, ColumnElement ==> object, ColumnType ==> objecttype
-            for r in fetchedRows:
-                print "SP r: ", r
-                stmts.append(Statement(td['pKeyName'], 'id', r[td['pKeyName']], None, None))
-                stmts.append(Statement(td['pKeyName'], colName, r[colName], None, None))
-        elif pattern == 'po':
-            # for ANY PrimaryKey value, for a PARTICULAR column, for A PARTICULAR cell value, add a Statement with:
-            # PrimaryKeys ==> subject, ColumnName ==> predicate, CellValue ==> object, ColumnType ==> objecttype
-            for r in fetchedRows:
-                print "PO r: ", r
-                stmts.append(Statement(td['pKeyName'], 'id', r[td['pKeyName']], None, None))
-                stmts.append(Statement(td['pKeyName'], colName, r[colName], None, None))
+        print "fetchedRows: ", fetchedRows
+        for r in fetchedRows:
+            subj = pkName + '{' + str(r[pkName]) + '}'
+            stmts.append(Statement(subj, 'id', r[pkName], None, None))
+            if pattern is 'multicol':
+                [stmts.append(Statement(subj, c, r[c], None, None)) for c in td['colNames']]
+            elif pattern is 'unicol':
+                stmts.append(Statement(subj, colName, r[colName], None, None))
         return stmts
 
                             
@@ -216,7 +206,7 @@ class SqlMappingStore(Model):
         tName = uri
         if self.baseUri in tName:
             tName = tName.rsplit(RSRC_DELIM, 3)[2]
-        print "tName, uri: ", tName, uri
+        #        print "tName, uri: ", tName, uri
         for t in self.md.sorted_tables:
             if t.name == tName:
                 return t
@@ -228,7 +218,7 @@ class SqlMappingStore(Model):
         pName = uri
         if self.baseUri in pName:
             pName = (pName.rsplit(RSRC_DELIM, 3)[3]).rsplit(VAL_OPEN_DELIM)[0]
-        print "pName, uri: ", pName, uri
+        #        print "pName, uri: ", pName, uri
         return pName
 
 
@@ -237,14 +227,14 @@ class SqlMappingStore(Model):
         val = uri
         if self.baseUri in val:
             val = val.rsplit(VAL_OPEN_DELIM)[1].rstrip(VAL_CLOSE_DELIM)
-        print "val, uri: ", val, uri
+        #        print "val, uri: ", val, uri
         return val
 
 
     def _getTablesWithProperty(self, uri):
         # search our db for tables w/columns matching prop, return list of Table objects
         pName = self._getPropNameFromResourceId(uri)
-        print "pName, uri: ", pName, uri
+        #        print "pName, uri: ", pName, uri
         tbls = []
         for t in self.md.sorted_tables:
             for c in t.c:
@@ -279,7 +269,7 @@ class SqlMappingStore(Model):
         # we are forced to use a generic UPSERT algorithm 
         rc = 0
         for stmt in stmts:
-            rc += self.addStatement(stmt)
+             rc += self.addStatement(stmt)
         return rc
         
 

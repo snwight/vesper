@@ -420,13 +420,18 @@ class SqlMappingModelTestCase(unittest.TestCase):
         model.addStatements(aStmts)
         model.addStatements(tStmts)
         
-        r = model.getStatements()
+        rows = model.getStatements()
+        self.assertEqual(len(aStmts) + len(tStmts), len(rows))
 
-        r = model.getStatements(predicate=RSRC_URI + '/artist/artistname')
-#        self.assertEqual(set(r), set(more[1:]) )
+        rows = model.getStatements(predicate=RSRC_URI + '/artist/artistname')
+        self.assertEqual([s[2] for s in aStmts], [r[2] for r in rows])
         
+        rows = model.getStatements(predicate=RSRC_URI + '/track/trackname')
+        print [s[2] for s in tStmts], [r[2] for r in rows]
+        self.assertEqual([s[2] for s in tStmts], [r[2] for r in rows])
+
         r = model.getStatements(subject=RSRC_URI + '/artist/artistid{1}', predicate=RSRC_URI + '/artist/artistname')
-#        self.assertEqual(set(r), set( (more[0], more[1], stmts[-2]) ) )
+        self.assertEqual('ralph', rows[0][2])
         
         r = model.getStatements(predicate=RSRC_URI + '/artist/artistname')
 #        self.assertEqual(set(r), set( more + stmts[-2:] ) )
