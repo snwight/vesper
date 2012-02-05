@@ -123,7 +123,7 @@ class SqlMappingStore(Model):
                 pattern = 'multicol'
             elif subject and not predicate and not object:
                 # s * * => select * from table where id = s
-                query = select([table]).where(pkName == pkValue)
+                query = select([table]).where(table.c[pkName] == pkValue)
                 pattern = 'multicol'
             elif not subject and predicate and not object:
                 # * p * => select id, p from table
@@ -131,12 +131,12 @@ class SqlMappingStore(Model):
                 pattern = 'unicol'
             elif subject and predicate and not object:
                 # s p * => select p from table where id = s
-                query = select(table.c[colName]).where(pkName == pkValue)
+                query = select([table.c[pkName], table.c[colName]]).where(table.c[pkName] == pkValue)
                 pattern = 'unicol'
             elif not subject and predicate and object:
                 # * p o => select id from table where p = object
-                query = select([table.c[pkName]]).where(colName == object)
-                pattern = 'unicol'
+                query = select([table.c[pkName]]).where(table.c[colName] == object)
+                pattern = None
             self._checkConnection()
             print query
             result = self.conn.execute(query)
@@ -153,14 +153,16 @@ class SqlMappingStore(Model):
             if td['tableName'] == tableName:
                 pkName = td['pKeyName']
                 break;
-        print "fetchedRows: ", fetchedRows
         for r in fetchedRows:
+            print "r: ", r
             subj = pkName + '{' + str(r[pkName]) + '}'
             stmts.append(Statement(subj, 'id', r[pkName], None, None))
             if pattern is 'multicol':
                 [stmts.append(Statement(subj, c, r[c], None, None)) for c in td['colNames']]
             elif pattern is 'unicol':
                 stmts.append(Statement(subj, colName, r[colName], None, None))
+        for s in stmts:
+            print s, '\n'
         return stmts
 
                             
