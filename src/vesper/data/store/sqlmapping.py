@@ -41,39 +41,82 @@ class SqlMappingStore(Model):
         self.md = MetaData(self.engine, reflect=True)
         self.insp = reflection.Inspector.from_engine(self.engine)
 
-        # save our json map, parse it into a list of {tbl,pkey,cols[]} dicts for efficient internal use
-        self.mapping = mapping
-        self.parsedTables = []
-        [self.parsedTables.append(self._getColumnsOfInterest(tbl)) for tbl in self.insp.get_table_names()]
+        print '===BEGIN SCHEMA INFO==========================================================='
+        print 'SQL schema::'
+        for tbl in self.insp.get_table_names():
+            print tbl
+            for c in self.insp.get_columns(tbl):
+                print '\t', c['name'], c['type']
+            for pk in self.insp.get_primary_keys(tbl):
+                print '\tPRIMARY KEY:'
+                print '\t\t', pk
+            for i in self.insp.get_indexes(tbl):
+                print '\tINDEX:' 
+                print '\t\t', i['name'], 'UNIQUE' if 'unique' in i else '', 'ON', \
+                    [ic.encode('ascii') for ic in i['column_names']]
+            for fk in self.insp.get_foreign_keys(tbl):
+                print '\tFOREIGN KEY:'
+                print '\t\t', [cc.encode('ascii') for cc in fk['constrained_columns']], 'ON', \
+                    fk['referred_table'], [rc.encode('ascii') for rc in fk['referred_columns']]
+        for vw in self.insp.get_view_names():
+            print vw
+            q = self.insp.get_view_definition(vw)
+            for c in self.insp.get_columns(vw):
+                print '\t', c['name'], c['type']
+            print 'VIEW DEFINITION:'
+            print '\t', q
+            
+        # XXXXXXXXXXXXX
+        mapping = None
+        # XXXXXXXXXXXXX
+        if mapping:
+            self.mapping = mapping
+        else:
+            self._generateMapFromSchema()
+        print 'JSON mapping::'
+        print json.dumps(self.mapping, sort_keys=True, indent=4)
+        print '===END SCHEMA INFO============================================================='
 
         # divine our resource format strings here, now
         if 'idpattern' in self.mapping:
             self.baseUri = self.mapping['idpattern']
             print "baseUri: ", self.baseUri
 
+        # save our json map, parse it into a list of {tbl,pkey,cols[]} dicts for efficient internal use
+        self.parsedTables = []
+        [self.parsedTables.append(self._getColumnsOfInterest(tbl)) for tbl in self.insp.get_table_names()]
+
         # private matters
         self.conn = None
         self.trans = None
         self.autocommit = autocommit
 
-        print '===BEGIN SCHEMA INFO==========================================================='
-        print 'JSON mapping::'
-        print json.dumps(self.mapping, sort_keys=True, indent=4)
-        # and get_view_names someday
-        print 'SQL schema::'
+
+    def _generateMapFromSchema(self):
+        # generate our best guess at a JSON-from-SQL mapping
+        self.mapping = {
+            "tablesprop": "type",
+            "idpattern": "http://souzis.com/",
+            "tables": { }
+            }
         for tbl in self.insp.get_table_names():
-            print '\t', tbl
-            for c in self.insp.get_columns(tbl):
-                print '\t\t', c['name'], c['type'], 'PRIMARY KEY' if 'primary_key' in c else ''
-            for i in self.insp.get_indexes(tbl):
-                print 'Index::' 
-                print '\t\t', i['name'], 'UNIQUE' if 'unique' in i else '', 'ON', \
-                    [ic.encode('ascii') for ic in i['column_names']]
-            for k in self.insp.get_foreign_keys(tbl):
-                print 'ForeignKey::'
-                print '\t\t', [cc.encode('ascii') for cc in k['constrained_columns']], 'ON', \
-                    k['referred_table'], [rc.encode('ascii') for rc in k['referred_columns']]
-        print '===END SCHEMA INFO============================================================='
+            self.mapping['tables'][tbl] = {
+                'id' : self.insp.get_primary_keys(tbl[0]), 'properties' : ['*'] 
+                }
+            for fk in self.insp.get_foreign_keys(tbl):
+                for cc in fk['constrained_columns']:
+                    for rc in fk['referred_columns']:
+                        (self.mapping['tables'][tbl]['properties']).append( {
+                                cc.encode('ascii') : {'references' : fk['referred_table'],
+                                 'key': rc.encode('ascii') }})
+
+
+    '''
+    for vw in self.insp.get_view_names():
+    q = self.insp.get_view_definition(vw)
+    for c in self.insp.get_columns(vw):
+    print '\t', c['name'], c['type']
+    '''
 
 
     def _checkConnection(self):
@@ -83,6 +126,7 @@ class SqlMappingStore(Model):
             if not self.conn.in_transaction():
                 self.trans = self.conn.begin()
         self.conn.execution_options(autocommit=self.autocommit)
+
 
 
     def getStatements(self, subject=None, predicate=None, object=None,
@@ -95,34 +139,36 @@ class SqlMappingStore(Model):
         if context:
             print "contexts not supported"
 
-        pkName = colName = None
         tables = []
-        if subject: 
+        pkName = pkValue = colName = None
+        if subject:
             tables = [self._getTableFromResourceId(subject)]
             pkName = self._getPropNameFromResourceId(subject)
             pkValue = self._getValueFromResourceId(subject)
         if predicate:
             colName = self._getPropNameFromResourceId(predicate)
             if not subject:
-                # if all we have is a column name... it better be unique
-                tables = self._getTablesWithProperty(predicate)
+                tables = [self._getTableWithProperty(predicate)]
                 for td in self.parsedTables:
                     if td['tableName'] == tables[0].name:
                         pkName = td['pKeyName']
                         break
-        else:
-            # I really will return * tables, so deal
-            tables = self.md.sorted_tables
+        if not subject and not predicate:
+            for st in self.md.sorted_tables:
+                for td in self.parsedTables: 
+                    if st.name == td['tableName']:
+                       tables.append(st)
+        
+        print "pkName pkValue colName: ", pkName, pkValue, colName
 
+        pattern = None
         stmts = []
         for table in tables:
+            # set our fall-through action: => select all rows from this table
             query = select([table])
-            pattern = None
-            if not subject and not predicate and not object:
-                # * * * => select * from table
-                pattern = 'multicol'
-            elif subject and not predicate and not object:
-                # s * * => select * from table where id = s
+            pattern = 'multicol'
+            if subject and pkValue and not predicate and not object:
+                # s * * => select row from table where id = s
                 query = select([table]).where(table.c[pkName] == pkValue)
                 pattern = 'multicol'
             elif not subject and predicate and not object:
@@ -137,6 +183,7 @@ class SqlMappingStore(Model):
                 # * p o => select id from table where p = object
                 query = select([table.c[pkName]]).where(table.c[colName] == object)
                 pattern = None
+
             self._checkConnection()
             print query
             result = self.conn.execute(query)
@@ -147,12 +194,11 @@ class SqlMappingStore(Model):
 
 
     def _generateStatementAssignments(self, fetchedRows=None, tableName=None, colName=None, pattern=None):
-        stmts = []
-        td = None
         for td in self.parsedTables:
             if td['tableName'] == tableName:
                 pkName = td['pKeyName']
                 break;
+        stmts = []
         for r in fetchedRows:
             print "r: ", r
             subj = pkName + '{' + str(r[pkName]) + '}'
@@ -171,7 +217,7 @@ class SqlMappingStore(Model):
         tableDesc = self.mapping["tables"][tableName]
         if 'id' in tableDesc:
             pKeyName = tableDesc['id']
-        if 'relationship'in tableDesc:
+        if 'relationship' in tableDesc:
             if tableDesc['relationship'] == True:
                 # this is a correlation definition
                 pass
@@ -181,15 +227,15 @@ class SqlMappingStore(Model):
             for prop in tableDesc['properties']:
                 if isinstance(prop, dict):
                     if 'id' in prop:
-                        print "id: ", prop['id'], "ignored in ", tableName  
+                        print "property: id", prop['id'], "for", tableName  
+                    if 'key' in prop:
+                        print "property: key", prop['key'], "for", tableName  
                     if 'references' in prop:
-                        print "uh foreign key: ", prop['references'], "ignored in ", tableName  
+                        print "property: references", prop['references'], "for", tableName  
                     if 'view' in prop:
-                        print "view definition: ", prop['view'], "ignored in", tableName
-                    if 'relationship' in prop:
-                        print "relationship: ", prop['relationship'], "ignored in", tableName
+                        print "property: view", prop['view'], "for", tableName
                     else:
-                        print "column name/s: ", prop, "ignored in", tableName
+                        print "column name/s: ", prop, "for", tableName
                 elif prop == "*":
                     # turn to sql schema to compile list of all (non-pkey) column names
                     for c in self.insp.get_columns(tableName):
@@ -204,59 +250,76 @@ class SqlMappingStore(Model):
 
 
     def _getTableFromResourceId(self, uri):
-        # extract table name from URI and return matching and return corresponding SQLA object
+        # extract table name from URI and return corresponding SQLA object
+        if not uri:
+            return None
         tName = uri
-        if self.baseUri in tName:
-            tName = tName.rsplit(RSRC_DELIM, 3)[2]
-        #        print "tName, uri: ", tName, uri
-        for t in self.md.sorted_tables:
-            if t.name == tName:
-                return t
+        if self.baseUri in uri:
+            uri = uri[len(self.baseUri):]
+            tName = uri.split(RSRC_DELIM)[0]
+        for td in self.parsedTables:
+            if td['tableName'] == tName:
+                for t in self.md.sorted_tables:
+                    if t.name == tName:
+                        # print "tName, uri: ", tName, uri
+                        return t
         return None
 
 
     def _getPropNameFromResourceId(self, uri):
         # generic tool to extract primary key or property name from uri
+        if not uri:
+            return None
         pName = uri
-        if self.baseUri in pName:
-            pName = (pName.rsplit(RSRC_DELIM, 3)[3]).rsplit(VAL_OPEN_DELIM)[0]
-        #        print "pName, uri: ", pName, uri
+        if self.baseUri in uri:
+            uri = uri[len(self.baseUri):]
+            if VAL_OPEN_DELIM in uri:
+                uri = uri.split(VAL_OPEN_DELIM)[0]
+            pName = uri.split(RSRC_DELIM, 2)[1]        
         return pName
 
 
     def _getValueFromResourceId(self, uri):
         # extract value ie. row cell value from URI
+        if not uri:
+            return None
         val = uri
-        if self.baseUri in val:
-            val = val.rsplit(VAL_OPEN_DELIM)[1].rstrip(VAL_CLOSE_DELIM)
-        #        print "val, uri: ", val, uri
+        if self.baseUri in uri:
+            uri = uri[len(self.baseUri):]
+            if VAL_OPEN_DELIM in uri:
+                # this is our normal case - unique pkey/ID is given
+                val = uri.split(VAL_OPEN_DELIM)[1].rstrip(VAL_CLOSE_DELIM)
+            else:
+                val = None                
+        # print "val, uri: ", val, uri
         return val
 
 
-    def _getTablesWithProperty(self, uri):
+    def _getTableWithProperty(self, uri):
         # search our db for tables w/columns matching prop, return list of Table objects
+        if not uri:
+            return None
         pName = self._getPropNameFromResourceId(uri)
         #        print "pName, uri: ", pName, uri
-        tbls = []
         for t in self.md.sorted_tables:
             for c in t.c:
                 if c.name == pName:
-                    tbls.append(t)
-                    break
-        return tbls
+                    return t
+        return None
 
 
     def addStatement(self, stmt):
-        # tragically due to the incremental-update nature of how the RDF model hands us row elements,
-        # we are forced to use a generic UPSERT algorithm 
         s, p, o, ot, c = stmt
         table = self._getTableFromResourceId(s)
         pkName = self._getPropNameFromResourceId(s)
         pkValue = self._getValueFromResourceId(s)
         colName = self._getPropNameFromResourceId(p)
-        if colName == 'id:':
+        if colName == 'id':
             # this is a primary key def... ideally should be cached and delayed
             colName = pkName
+
+        print "ADD: ", pkName, pkValue, colName, stmt
+
         self._checkConnection()
         upd = table.update().where(table.c[pkName] == pkValue)
         result = self.conn.execute(upd, {colName : o})
@@ -276,20 +339,23 @@ class SqlMappingStore(Model):
         
 
     def removeStatement(self, stmt):
-        '''
-        subject, p, o, ot, c = stmt
+        subject, predicate, object, ot, context = stmt
+        if context:
+            print "contexts not supported"
 
-        table = None
-        if p == "rdf:type":
-            for t in self.md.sorted_tables:
-                if t.name == o:
-                    table = t
-            s = self._getPrimaryKeyNameFromResourceId(subject)
-            sValue = self._getValueFromResourceId(subject)
+        table = pKeyName = pKeyValue = None
+        rmv = None
+        if predicate == "rdf:type":
+            for st in self.md.sorted_tables:
+                if st.name == object:
+                    table = st
+            pKeyName = self._getPrimaryKeyNameFromResourceId(subject)
+            pKeyValue = self._getValueFromResourceId(subject)
             # delete from table where id = subj
-            rmv = table.delete().where(table.c[s] == sValue)
+            rmv = table.delete().where(table.c[pKeyName] == pKeyValue)
         else:
-            propinfo = self.store[p]
+            '''
+            propinfo = self.mapping[predicate]
             if propinfo.references:
                 if relationship = True:
                     delete row
@@ -300,7 +366,10 @@ class SqlMappingStore(Model):
                 #  NB: CAN'T NULL COLUMNS!!!   
                 update table set propinfo.column = null
                 '''
-        return 0
+            pass
+        self._checkConnection()
+        result = self.conn.execute(rmv)
+        return result.rowcount
 
 
     def removeStatements(self, stmts=None):

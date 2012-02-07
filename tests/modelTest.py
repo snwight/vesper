@@ -347,7 +347,7 @@ class SimpleModelTestCase(unittest.TestCase):
         model.close()
 
 
-RSRC_URI = "http://souzis.com"
+RSRC_URI = "http://souzis.com/"
 class SqlMappingModelTestCase(unittest.TestCase):
     '''Tests basic features of a JSON RDF SQL mapping store'''
 
@@ -368,79 +368,175 @@ class SqlMappingModelTestCase(unittest.TestCase):
         global RSRC_URI
 
         aStmts = [
-        Statement(RSRC_URI + '/artist/artistid{1}', 'id:', 1, 'en', None),
-        Statement(RSRC_URI + '/artist/artistid{1}', RSRC_URI + '/artist/artistname', 'ralph', 'en', None),
+        Statement(RSRC_URI + 'artist/artistid{1}', 'id', 1, 'en', None),
+        Statement(RSRC_URI + 'artist/artistid{1}', RSRC_URI + 'artist/artistname', 'ralph', 'en', None),
 
-        Statement(RSRC_URI + '/artist/artistid{2}', 'id:', 2, 'en-1', None),
-        Statement(RSRC_URI + '/artist/artistid{2}', RSRC_URI + '/artist/artistname', 'lauren', 'en-1', None),
+        Statement(RSRC_URI + 'artist/artistid{2}', 'id', 2, 'en-1', None),
+        Statement(RSRC_URI + 'artist/artistid{2}', RSRC_URI + 'artist/artistname', 'lauren', 'en-1', None),
 
-        Statement(RSRC_URI + '/artist/artistid{3}', 'id:', 3, 'en-1', None),
-        Statement(RSRC_URI + '/artist/artistid{3}', RSRC_URI + '/artist/artistname', 'diane', 'en-1', None)
+        Statement(RSRC_URI + 'artist/artistid{3}', 'id', 3, 'en-1', None),
+        Statement(RSRC_URI + 'artist/artistid{3}', RSRC_URI + 'artist/artistname', 'diane', 'en-1', None)
         ]
         
         tStmts = [
-        Statement(RSRC_URI + '/track/trackid{1}', 'id:', 1, 'en-1', None),
-        Statement(RSRC_URI + '/track/trackid{1}', RSRC_URI + '/track/trackname', 'track 1', 'en-1', None),
-        Statement(RSRC_URI + '/track/trackid{1}', RSRC_URI + '/track/trackartist', 1, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{1}', 'id', 1, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{1}', RSRC_URI + 'track/trackname', 'track 1', 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{1}', RSRC_URI + 'track/trackartist', 1, 'en-1', None),
 
-        Statement(RSRC_URI + '/track/trackid{2}', 'id:', 2, 'en-1', None),
-        Statement(RSRC_URI + '/track/trackid{2}', RSRC_URI + '/track/trackname', 'track 2', 'en-1', None),
-        Statement(RSRC_URI + '/track/trackid{2}', RSRC_URI + '/track/trackartist', 1, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{2}', 'id', 2, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{2}', RSRC_URI + 'track/trackname', 'track 2', 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{2}', RSRC_URI + 'track/trackartist', 1, 'en-1', None),
 
-        Statement(RSRC_URI + '/track/trackid{3}', 'id:', 3, 'en-1', None),
-        Statement(RSRC_URI + '/track/trackid{3}', RSRC_URI + '/track/trackname', 'track 3', 'en-1', None),
-        Statement(RSRC_URI + '/track/trackid{3}', RSRC_URI + '/track/trackartist', 1, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{3}', 'id', 3, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{3}', RSRC_URI + 'track/trackname', 'track 3', 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{3}', RSRC_URI + 'track/trackartist', 1, 'en-1', None),
 
-        Statement(RSRC_URI + '/track/trackid{4}', 'id:', 4, 'en-1', None),
-        Statement(RSRC_URI + '/track/trackid{4}', RSRC_URI + '/track/trackname', 'track A ', 'en-1', None),
-        Statement(RSRC_URI + '/track/trackid{4}', RSRC_URI + '/track/trackartist', 2, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{4}', 'id', 4, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{4}', RSRC_URI + 'track/trackname', 'track A ', 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{4}', RSRC_URI + 'track/trackartist', 2, 'en-1', None),
 
-        Statement(RSRC_URI + '/track/trackid{5}', 'id:', 5, 'en-1', None),
-        Statement(RSRC_URI + '/track/trackid{5}', RSRC_URI + '/track/trackname', 'track B', 'en-1', None),
-        Statement(RSRC_URI + '/track/trackid{5}', RSRC_URI + '/track/trackartist', 2, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{5}', 'id', 5, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{5}', RSRC_URI + 'track/trackname', 'track B', 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{5}', RSRC_URI + 'track/trackartist', 2, 'en-1', None),
 
-        Statement(RSRC_URI + '/track/trackid{6}', 'id:', 6, 'en-1', None),
-        Statement(RSRC_URI + '/track/trackid{6}', RSRC_URI + '/track/trackname', 'track C', 'en-1', None),
-        Statement(RSRC_URI + '/track/trackid{6}', RSRC_URI + '/track/trackartist', 2, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{6}', 'id', 6, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{6}', RSRC_URI + 'track/trackname', 'track C', 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{6}', RSRC_URI + 'track/trackartist', 2, 'en-1', None),
 
-        Statement(RSRC_URI + '/track/trackid{7}', 'id:', 7, 'en-1', None),
-        Statement(RSRC_URI + '/track/trackid{7}', RSRC_URI + '/track/trackname', 'song 1', 'en-1', None),
-        Statement(RSRC_URI + '/track/trackid{7}', RSRC_URI + '/track/trackartist', 3, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{7}', 'id', 7, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{7}', RSRC_URI + 'track/trackname', 'song 1', 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{7}', RSRC_URI + 'track/trackartist', 3, 'en-1', None),
 
-        Statement(RSRC_URI + '/track/trackid{8}', 'id:', 8, 'en-1', None),
-        Statement(RSRC_URI + '/track/trackid{8}', RSRC_URI + '/track/trackname', 'song 2', 'en-1', None),
-        Statement(RSRC_URI + '/track/trackid{8}', RSRC_URI + '/track/trackartist', 3, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{8}', 'id', 8, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{8}', RSRC_URI + 'track/trackname', 'song 2', 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{8}', RSRC_URI + 'track/trackartist', 3, 'en-1', None),
 
-        Statement(RSRC_URI + '/track/trackid{9}', 'id:', 9, 'en-1', None),
-        Statement(RSRC_URI + '/track/trackid{9}', RSRC_URI + '/track/trackname', 'song 3', 'en-1', None),
-        Statement(RSRC_URI + '/track/trackid{9}', RSRC_URI + '/track/trackartist', 3, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{9}', 'id', 9, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{9}', RSRC_URI + 'track/trackname', 'song 3', 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{9}', RSRC_URI + 'track/trackartist', 3, 'en-1', None),
         ]
 
         model = self.getModel()
+        
+        # load our two 'arbitrary' tables
         model.addStatements(aStmts)
         model.addStatements(tStmts)
         
+        # verify select all rows from both tables
         rows = model.getStatements()
         self.assertEqual(len(aStmts) + len(tStmts), len(rows))
 
-        rows = model.getStatements(predicate=RSRC_URI + '/artist/artistname')
+        # verify select all rows from a single table
+        rows = model.getStatements(subject=RSRC_URI + 'artist/artistid')
+        self.assertEqual([a[2] for a in aStmts], [r[2] for r in rows])
+
+        # verify select all elements from one row of one table
+        rows = model.getStatements(subject=RSRC_URI + 'artist/artistid{1}')
+        self.assertEqual([aStmts[i][2] for i in range(0, 2)], [r[2] for r in rows])
+
+        # verify select all objects with a particular property from one table
+        rows = model.getStatements(predicate=RSRC_URI + 'artist/artistname')
         self.assertEqual([s[2] for s in aStmts], [r[2] for r in rows])
         
-        rows = model.getStatements(predicate=RSRC_URI + '/track/trackname')
-        def rmvMatches(x): return 'trackartist' not in x[1] 
-        self.assertEqual([s[2] for s in filter(rmvMatches, tStmts)], [r[2] for r in rows])
-
-        rows = model.getStatements(subject=RSRC_URI + '/artist/artistid{1}', predicate=RSRC_URI + '/artist/artistname')
+        # verify select a property's object given subject ID  
+        rows = model.getStatements(subject=RSRC_URI + 'artist/artistid{1}', predicate=RSRC_URI + 'artist/artistname')
         self.assertEqual('ralph', rows[1][2])
         
-        rows = model.getStatements(predicate=RSRC_URI + '/artist/artistname')
-        self.assertEqual([s[2] for s in aStmts], [r[2] for r in rows])
-        
-        rows = model.getStatements(predicate=RSRC_URI + '/artist/artistname', object='lauren')
+        # verify select subject ID given a property and object value
+        rows = model.getStatements(predicate=RSRC_URI + 'artist/artistname', object='lauren')
         self.assertEqual(2, rows[0][2])
+
+        # REPEAT the above tests against another (bigger) table
+
+        # verify select all rows from a single table
+        rows = model.getStatements(subject=RSRC_URI + 'track/trackid')
+        self.assertEqual([t[2] for t in tStmts], [r[2] for r in rows])
+
+        # verify select all elements from one row of one table
+        rows = model.getStatements(subject=RSRC_URI + 'track/trackid{1}')
+        self.assertEqual([tStmts[i][2] for i in range(0, 3)], [r[2] for r in rows])
+
+        # verify select all objects with a particular property from one table
+        rows = model.getStatements(predicate=RSRC_URI + 'track/trackname')
+        def rmvMatches(x): return 'trackartist' not in x[1] 
+        self.assertEqual([t[2] for t in filter(rmvMatches, tStmts)], [r[2] for r in rows])
+    
+        # verify select a property's object given subject ID  
+        rows = model.getStatements(subject=RSRC_URI + 'track/trackid{1}', predicate=RSRC_URI + 'track/trackname')
+        self.assertEqual('track 1', rows[1][2])
+        
+        # verify select subject ID given a property and object value
+        rows = model.getStatements(predicate=RSRC_URI + 'track/trackname', object='track 1')
+        self.assertEqual(1, rows[0][2])
 
         model.close()
 
+
+    def testRemove(self):
+        """
+        basic removal test
+
+        current seq    expected
+        ------- ---    --------
+        exists  r,a    no-op 
+        doesnt  r,a    adds  
+        exists  a,r    remove
+        doesnt  a,r    no-op
+        """
+        model = self.getModel()
+        checkr = model.updateAdvisory
+
+        tStmts = [
+            Statement(RSRC_URI + 'track/trackid{1}', 'id', 1, 'en-1', None),
+            Statement(RSRC_URI + 'track/trackid{1}', RSRC_URI + 'track/trackname', 'track 1', 'en-1', None),
+            Statement(RSRC_URI + 'track/trackid{1}', RSRC_URI + 'track/trackartist', 1, 'en-1', None),
+        ]
+        
+        ret = model.addStatements(tStmts)
+        if checkr:
+            self.assertEqual(ret, 3, 'added count is wrong')
+
+        # confirm a search for the subject finds it
+        rows = model.getStatements(subject=tStmts[0][0])
+        self.assertEqual([tStmts[i][2] for i in range(0, 3)], [r[2] for r in rows])
+
+        # remove the statement and confirm that it's gone
+        ret = model.removeStatement(tStmts[0])
+        if checkr:
+            assert ret, "statement should have been removed"
+
+        rows = model.getStatements(subject=tStmts[0][0])
+        self.assertEqual([], rows)     # object is gone?
+
+        # remove the statement again
+        ret = model.removeStatement(tStmts[0])
+        if checkr:
+            assert not ret, "statement shouldn't have been removed"
+
+        ret = model.addStatement(tStmts[0])
+        if checkr:
+            assert ret, "statement should have been added"
+
+        rows = model.getStatements(subject=tStmts[0][0])
+        self.assertEqual([tStmts[i][2] for i in range(0, 3)], [r[2] for r in rows])
+
+        #add statement that already exists
+        ret = model.addStatement(tStmts[0])
+        if checkr:
+            assert not ret, "statement shouldn't have been added"
+
+        #remove it (and another one for good measure)
+        ret = model.removeStatements([tStmts[0], tStmts[1]])
+        if checkr:
+            self.assertEqual(ret, 6, 'remove count is wrong')
+        
+        #confirm that it's been removed
+        rows = model.getStatements(subject=tStmts[1].subject)
+        self.assertEqual([], rows)
+
+        model.commit()
+        model.close()
+        
 
 
 class BasicModelTestCase(SimpleModelTestCase):
