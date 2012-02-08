@@ -101,7 +101,7 @@ class SqlMappingStore(Model):
             }
         for tbl in self.insp.get_table_names():
             self.mapping['tables'][tbl] = {
-                'id' : self.insp.get_primary_keys(tbl[0]), 'properties' : ['*'] 
+                'id' : self.insp.get_primary_keys(tbl)[0], 'properties' : ['*'] 
                 }
             for fk in self.insp.get_foreign_keys(tbl):
                 for cc in fk['constrained_columns']:
