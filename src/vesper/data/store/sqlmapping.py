@@ -95,7 +95,7 @@ class SqlMappingStore(Model):
     def _generateMapFromSchema(self):
         # generate our best guess at a JSON-from-SQL mapping
         self.mapping = {
-            "tablesprop": "type",
+            "tablesprop": "HYPEtype",
             "idpattern": "http://souzis.com/",
             "tables": { }
             }
@@ -105,18 +105,16 @@ class SqlMappingStore(Model):
                 }
             for fk in self.insp.get_foreign_keys(tbl):
                 for cc in fk['constrained_columns']:
-                    for rc in fk['referred_columns']:
-                        (self.mapping['tables'][tbl]['properties']).append( {
-                                cc.encode('ascii') : {'references' : fk['referred_table'],
-                                 'key': rc.encode('ascii') }})
+                    (self.mapping['tables'][tbl]['properties']).append({
+                            cc.encode('ascii') : {
+                                'key': fk['referred_columns'][0].encode('ascii'),
+                                'references' : fk['referred_table']}})
+                                                  
 
-
-    '''
-    for vw in self.insp.get_view_names():
-    q = self.insp.get_view_definition(vw)
-    for c in self.insp.get_columns(vw):
-    print '\t', c['name'], c['type']
-    '''
+#    for vw in self.insp.get_view_names():
+#    q = self.insp.get_view_definition(vw)
+#    for c in self.insp.get_columns(vw):
+#    print '\t', c['name'], c['type']
 
 
     def _checkConnection(self):
