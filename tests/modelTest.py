@@ -368,50 +368,50 @@ class SqlMappingModelTestCase(unittest.TestCase):
         global RSRC_URI
 
         aStmts = [
-        Statement(RSRC_URI + 'artist/artistid{1}', 'id', 1, 'en', None),
+        Statement(RSRC_URI + 'artist/artistid{1}', 'rdf:type', 1, 'en', None),
         Statement(RSRC_URI + 'artist/artistid{1}', RSRC_URI + 'artist/artistname', 'ralph', 'en', None),
 
-        Statement(RSRC_URI + 'artist/artistid{2}', 'id', 2, 'en-1', None),
+        Statement(RSRC_URI + 'artist/artistid{2}', 'rdf:type', 2, 'en-1', None),
         Statement(RSRC_URI + 'artist/artistid{2}', RSRC_URI + 'artist/artistname', 'lauren', 'en-1', None),
 
-        Statement(RSRC_URI + 'artist/artistid{3}', 'id', 3, 'en-1', None),
+        Statement(RSRC_URI + 'artist/artistid{3}', 'rdf:type', 3, 'en-1', None),
         Statement(RSRC_URI + 'artist/artistid{3}', RSRC_URI + 'artist/artistname', 'diane', 'en-1', None)
         ]
         
         tStmts = [
-        Statement(RSRC_URI + 'track/trackid{1}', 'id', 1, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{1}', 'rdf:type', 1, 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{1}', RSRC_URI + 'track/trackname', 'track 1', 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{1}', RSRC_URI + 'track/trackartist', 1, 'en-1', None),
 
-        Statement(RSRC_URI + 'track/trackid{2}', 'id', 2, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{2}', 'rdf:type', 2, 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{2}', RSRC_URI + 'track/trackname', 'track 2', 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{2}', RSRC_URI + 'track/trackartist', 1, 'en-1', None),
 
-        Statement(RSRC_URI + 'track/trackid{3}', 'id', 3, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{3}', 'rdf:type', 3, 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{3}', RSRC_URI + 'track/trackname', 'track 3', 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{3}', RSRC_URI + 'track/trackartist', 1, 'en-1', None),
 
-        Statement(RSRC_URI + 'track/trackid{4}', 'id', 4, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{4}', 'rdf:type', 4, 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{4}', RSRC_URI + 'track/trackname', 'track A ', 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{4}', RSRC_URI + 'track/trackartist', 2, 'en-1', None),
 
-        Statement(RSRC_URI + 'track/trackid{5}', 'id', 5, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{5}', 'rdf:type', 5, 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{5}', RSRC_URI + 'track/trackname', 'track B', 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{5}', RSRC_URI + 'track/trackartist', 2, 'en-1', None),
 
-        Statement(RSRC_URI + 'track/trackid{6}', 'id', 6, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{6}', 'rdf:type', 6, 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{6}', RSRC_URI + 'track/trackname', 'track C', 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{6}', RSRC_URI + 'track/trackartist', 2, 'en-1', None),
 
-        Statement(RSRC_URI + 'track/trackid{7}', 'id', 7, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{7}', 'rdf:type', 7, 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{7}', RSRC_URI + 'track/trackname', 'song 1', 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{7}', RSRC_URI + 'track/trackartist', 3, 'en-1', None),
 
-        Statement(RSRC_URI + 'track/trackid{8}', 'id', 8, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{8}', 'rdf:type', 8, 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{8}', RSRC_URI + 'track/trackname', 'song 2', 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{8}', RSRC_URI + 'track/trackartist', 3, 'en-1', None),
 
-        Statement(RSRC_URI + 'track/trackid{9}', 'id', 9, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{9}', 'rdf:type', 9, 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{9}', RSRC_URI + 'track/trackname', 'song 3', 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{9}', RSRC_URI + 'track/trackartist', 3, 'en-1', None),
         ]
@@ -487,7 +487,7 @@ class SqlMappingModelTestCase(unittest.TestCase):
         checkr = model.updateAdvisory
 
         tStmts = [
-            Statement(RSRC_URI + 'track/trackid{1}', 'id', 1, 'en-1', None),
+            Statement(RSRC_URI + 'track/trackid{1}', 'rdf:type', 1, 'en-1', None),
             Statement(RSRC_URI + 'track/trackid{1}', RSRC_URI + 'track/trackname', 'track 1', 'en-1', None),
             Statement(RSRC_URI + 'track/trackid{1}', RSRC_URI + 'track/trackartist', 1, 'en-1', None),
         ]

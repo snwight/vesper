@@ -182,8 +182,8 @@ class SqlMappingStore(Model):
                 query = select([table.c[pkName]]).where(table.c[colName] == object)
                 pattern = None
 
-            self._checkConnection()
             print query
+            self._checkConnection()
             result = self.conn.execute(query)
             # ridin' bareback here - should test for errors etc but the hell with that
             stmts.extend(self._generateStatementAssignments(result, table.name, colName, pattern))
@@ -200,7 +200,7 @@ class SqlMappingStore(Model):
         for r in fetchedRows:
             print "r: ", r
             subj = pkName + '{' + str(r[pkName]) + '}'
-            stmts.append(Statement(subj, 'id', r[pkName], None, None))
+            stmts.append(Statement(subj, 'rdf:type', r[pkName], None, None))
             if pattern is 'multicol':
                 [stmts.append(Statement(subj, c, r[c], None, None)) for c in td['colNames']]
             elif pattern is 'unicol':
@@ -221,7 +221,6 @@ class SqlMappingStore(Model):
                 pass
         colNames = []
         if 'properties' in tableDesc:
-            # walk through table's properties list collecting column names
             for prop in tableDesc['properties']:
                 if isinstance(prop, dict):
                     if 'id' in prop:
@@ -298,7 +297,7 @@ class SqlMappingStore(Model):
         if not uri:
             return None
         pName = self._getPropNameFromResourceId(uri)
-        #        print "pName, uri: ", pName, uri
+        # print "pName, uri: ", pName, uri
         for t in self.md.sorted_tables:
             for c in t.c:
                 if c.name == pName:
@@ -312,12 +311,10 @@ class SqlMappingStore(Model):
         pkName = self._getPropNameFromResourceId(s)
         pkValue = self._getValueFromResourceId(s)
         colName = self._getPropNameFromResourceId(p)
-        if colName == 'id':
+        if colName == 'rdf:type':
             # this is a primary key def... ideally should be cached and delayed
             colName = pkName
-
         print "ADD: ", pkName, pkValue, colName, stmt
-
         self._checkConnection()
         upd = table.update().where(table.c[pkName] == pkValue)
         result = self.conn.execute(upd, {colName : o})
