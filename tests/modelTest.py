@@ -368,50 +368,50 @@ class SqlMappingModelTestCase(unittest.TestCase):
         global RSRC_URI
 
         aStmts = [
-        Statement(RSRC_URI + 'artist/artistid{1}', 'rdf:type', 1, 'en', None),
+        Statement(RSRC_URI + 'artist/artistid{1}', 'rdf:type', 'artist', 'en', None),
         Statement(RSRC_URI + 'artist/artistid{1}', RSRC_URI + 'artist/artistname', 'ralph', 'en', None),
 
-        Statement(RSRC_URI + 'artist/artistid{2}', 'rdf:type', 2, 'en-1', None),
+        Statement(RSRC_URI + 'artist/artistid{2}', 'rdf:type', 'artist', 'en-1', None),
         Statement(RSRC_URI + 'artist/artistid{2}', RSRC_URI + 'artist/artistname', 'lauren', 'en-1', None),
 
-        Statement(RSRC_URI + 'artist/artistid{3}', 'rdf:type', 3, 'en-1', None),
+        Statement(RSRC_URI + 'artist/artistid{3}', 'rdf:type', 'artist', 'en-1', None),
         Statement(RSRC_URI + 'artist/artistid{3}', RSRC_URI + 'artist/artistname', 'diane', 'en-1', None)
         ]
         
         tStmts = [
-        Statement(RSRC_URI + 'track/trackid{1}', 'rdf:type', 1, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{1}', 'rdf:type', 'track', 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{1}', RSRC_URI + 'track/trackname', 'track 1', 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{1}', RSRC_URI + 'track/trackartist', 1, 'en-1', None),
 
-        Statement(RSRC_URI + 'track/trackid{2}', 'rdf:type', 2, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{2}', 'rdf:type', 'track', 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{2}', RSRC_URI + 'track/trackname', 'track 2', 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{2}', RSRC_URI + 'track/trackartist', 1, 'en-1', None),
 
-        Statement(RSRC_URI + 'track/trackid{3}', 'rdf:type', 3, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{3}', 'rdf:type', 'track', 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{3}', RSRC_URI + 'track/trackname', 'track 3', 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{3}', RSRC_URI + 'track/trackartist', 1, 'en-1', None),
 
-        Statement(RSRC_URI + 'track/trackid{4}', 'rdf:type', 4, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{4}', 'rdf:type', 'track', 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{4}', RSRC_URI + 'track/trackname', 'track A ', 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{4}', RSRC_URI + 'track/trackartist', 2, 'en-1', None),
 
-        Statement(RSRC_URI + 'track/trackid{5}', 'rdf:type', 5, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{5}', 'rdf:type', 'track', 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{5}', RSRC_URI + 'track/trackname', 'track B', 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{5}', RSRC_URI + 'track/trackartist', 2, 'en-1', None),
 
-        Statement(RSRC_URI + 'track/trackid{6}', 'rdf:type', 6, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{6}', 'rdf:type', 'track', 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{6}', RSRC_URI + 'track/trackname', 'track C', 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{6}', RSRC_URI + 'track/trackartist', 2, 'en-1', None),
 
-        Statement(RSRC_URI + 'track/trackid{7}', 'rdf:type', 7, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{7}', 'rdf:type', 'track', 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{7}', RSRC_URI + 'track/trackname', 'song 1', 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{7}', RSRC_URI + 'track/trackartist', 3, 'en-1', None),
 
-        Statement(RSRC_URI + 'track/trackid{8}', 'rdf:type', 8, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{8}', 'rdf:type', 'track', 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{8}', RSRC_URI + 'track/trackname', 'song 2', 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{8}', RSRC_URI + 'track/trackartist', 3, 'en-1', None),
 
-        Statement(RSRC_URI + 'track/trackid{9}', 'rdf:type', 9, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{9}', 'rdf:type', 'track', 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{9}', RSRC_URI + 'track/trackname', 'song 3', 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{9}', RSRC_URI + 'track/trackartist', 3, 'en-1', None),
         ]
@@ -444,7 +444,7 @@ class SqlMappingModelTestCase(unittest.TestCase):
         
         # verify select subject ID given a property and object value
         rows = model.getStatements(predicate=RSRC_URI + 'artist/artistname', object='lauren')
-        self.assertEqual(2, rows[0][2])
+        self.assertEqual('artistid{2}', rows[0][0])
 
         # REPEAT the above tests against another (bigger) table
 
@@ -467,7 +467,7 @@ class SqlMappingModelTestCase(unittest.TestCase):
         
         # verify select subject ID given a property and object value
         rows = model.getStatements(predicate=RSRC_URI + 'track/trackname', object='track 1')
-        self.assertEqual(1, rows[0][2])
+        self.assertEqual('trackid{1}', rows[0][0])
 
         model.close()
 
@@ -487,7 +487,7 @@ class SqlMappingModelTestCase(unittest.TestCase):
         checkr = model.updateAdvisory
 
         tStmts = [
-            Statement(RSRC_URI + 'track/trackid{1}', 'rdf:type', 1, 'en-1', None),
+            Statement(RSRC_URI + 'track/trackid{1}', 'rdf:type', 'track', 'en-1', None),
             Statement(RSRC_URI + 'track/trackid{1}', RSRC_URI + 'track/trackname', 'track 1', 'en-1', None),
             Statement(RSRC_URI + 'track/trackid{1}', RSRC_URI + 'track/trackartist', 1, 'en-1', None),
         ]

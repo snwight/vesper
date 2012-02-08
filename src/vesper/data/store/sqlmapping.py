@@ -200,7 +200,7 @@ class SqlMappingStore(Model):
         for r in fetchedRows:
             print "r: ", r
             subj = pkName + '{' + str(r[pkName]) + '}'
-            stmts.append(Statement(subj, 'rdf:type', r[pkName], None, None))
+            stmts.append(Statement(subj, 'rdf:type', tableName, None, None))
             if pattern is 'multicol':
                 [stmts.append(Statement(subj, c, r[c], None, None)) for c in td['colNames']]
             elif pattern is 'unicol':
@@ -311,18 +311,21 @@ class SqlMappingStore(Model):
         pkName = self._getPropNameFromResourceId(s)
         pkValue = self._getValueFromResourceId(s)
         colName = self._getPropNameFromResourceId(p)
-        if colName == 'rdf:type':
-            # this is a primary key def... ideally should be cached and delayed
-            colName = pkName
-        print "ADD: ", pkName, pkValue, colName, stmt
+        print "ADD: ", pkName, pkValue, colName, o, stmt
         self._checkConnection()
-        upd = table.update().where(table.c[pkName] == pkValue)
-        result = self.conn.execute(upd, {colName : o})
-        if not result.rowcount:
-            ins = table.insert()
-            result = self.conn.execute(ins, {pkName : pkValue, colName : o})
+        if colName != "rdf:type":
+            upd = table.update().where(table.c[pkName] == pkValue)
+            result = self.conn.execute(upd, {colName : o})
+            if result.rowcount:
+                return result.rowcount
+        ins = table.insert()
+        if colName == "rdf:type":
+            insArgs = {pkName : pkValue}
+        else:
+            insArgs = {pkName : pkValue, colName : o}
+        result = self.conn.execute(ins, insArgs)
         return result.rowcount
-
+        
 
     def addStatements(self, stmts):
         # tragically due to the incremental-update nature of how the RDF model hands us row elements,
@@ -340,12 +343,13 @@ class SqlMappingStore(Model):
 
         table = pKeyName = pKeyValue = None
         rmv = None
+        if subject:
+            pKeyName = self._getPropNameFromResourceId(subject)
+            pKeyValue = self._getValueFromResourceId(subject)
         if predicate == "rdf:type":
             for st in self.md.sorted_tables:
                 if st.name == object:
                     table = st
-            pKeyName = self._getPrimaryKeyNameFromResourceId(subject)
-            pKeyValue = self._getValueFromResourceId(subject)
             # delete from table where id = subj
             rmv = table.delete().where(table.c[pKeyName] == pKeyValue)
         else:
