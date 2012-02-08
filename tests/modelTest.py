@@ -484,7 +484,8 @@ class SqlMappingModelTestCase(unittest.TestCase):
         doesnt  a,r    no-op
         """
         model = self.getModel()
-        checkr = model.updateAdvisory
+#        checkr = model.updateAdvisory
+        checkr = True
 
         tStmts = [
             Statement(RSRC_URI + 'track/trackid{1}', 'rdf:type', 'track', 'en-1', None),
@@ -513,12 +514,12 @@ class SqlMappingModelTestCase(unittest.TestCase):
         if checkr:
             assert not ret, "statement shouldn't have been removed"
 
-        ret = model.addStatement(tStmts[0])
+        ret = model.addStatements(tStmts)
         if checkr:
             assert ret, "statement should have been added"
 
         rows = model.getStatements(subject=tStmts[0][0])
-        self.assertEqual([tStmts[i][2] for i in range(0, 3)], [r[2] for r in rows])
+        self.assertEqual([t[2] for t in tStmts], [r[2] for r in rows])
 
         #add statement that already exists
         ret = model.addStatement(tStmts[0])
