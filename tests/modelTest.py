@@ -361,6 +361,59 @@ class SqlMappingModelTestCase(unittest.TestCase):
         model = MemStore()
         self.persistentStore = False
         return self._getModel(model)
+
+
+    def testStore(self):
+        "basic storage test"
+
+        global RSRC_URI
+
+        model = self.getModel()
+
+        # confirm a randomly created subject does not exist
+        subj = RSRC_URI + 'track/trackid{1}'
+        r1 = model.getStatements(subject=subj)
+        self.assertEqual(set(r1), set())
+
+        # add a new statement and confirm the search succeeds
+        stmts = [
+            Statement(subj, 'rdf:type', 'track'),
+            Statement(subj, 'track/trackname', 'track 1'),
+            Statement(subj, 'track/trackartist', 1)
+            ]
+        model.addStatements(stmts)
+        r1 = model.getStatements(subject = subj)
+        # XXX - EXPLICIT knowledge of number of tables needed for this test mode
+        self.assertEqual([stmts[i][2] for i in range(0, 3)], [r[2] for r in r1])
+
+        model.commit()
+        model.close()
+
+        if not self.persistentStore:
+            return 
+
+        model = self.getModel()
+        r1 = model.getStatements(subject=subj)
+        # XXX - EXPLICIT knowledge of number of columns per table is needed for this test mode
+        self.assertEqual([stmts[i][2] for i in range(0, 3)], [r[2] for r in r1])
+
+        # NOT IMPLEMENTED YET
+        # - removal object value/s (null row element/s)
+        # - removal of subject key/ID ignored 
+        # 
+        # - duplicate values. duplicate subject key/IDs
+        model.removeStatement()
+        s3 = Statement(subj, 'track/trackartist', 1)
+        model.addStatement(s3)
+        r1 = model.getStatements(subject=subj)
+        self.assertEqual(set(r1), set([s1, s3]))
+        model.commit()
+        model.close()
+        model = self.getModel()
+        r1 = model.getStatements(subject=subj)
+        self.assertEqual(set(r1), set([s1, s3]))
+        model.close()
+
     
 
     def testGetStatements(self, asQuad=True):
@@ -432,6 +485,7 @@ class SqlMappingModelTestCase(unittest.TestCase):
 
         # verify select all elements from one row of one table
         rows = model.getStatements(subject=RSRC_URI + 'artist/artistid{1}')
+        # XXX - EXPLICIT knowledge of number of columns per table is needed for this test mode
         self.assertEqual([aStmts[i][2] for i in range(0, 2)], [r[2] for r in rows])
 
         # verify select all objects with a particular property from one table
@@ -454,6 +508,7 @@ class SqlMappingModelTestCase(unittest.TestCase):
 
         # verify select all elements from one row of one table
         rows = model.getStatements(subject=RSRC_URI + 'track/trackid{1}')
+        # XXX - EXPLICIT knowledge of number of columns per table is needed for this test mode
         self.assertEqual([tStmts[i][2] for i in range(0, 3)], [r[2] for r in rows])
 
         # verify select all objects with a particular property from one table
@@ -488,6 +543,21 @@ class SqlMappingModelTestCase(unittest.TestCase):
         checkr = True
 
         tStmts = [
+            # this list is based upon 'private' knowledge - decoupled from this test scenario - of the
+            # active backend schema... 
+            # each unique subject key/ID needs a set of Statements to denote all its properties - one
+            # Statement per column, plus one to denote the logical table which contains it all...
+            # in order to properly test addition or removal of any given property value to the backend store, 
+            # we need to:
+            # - gain intimate knowledge of the target schema through a JSON mapping object - this will
+            #   establish a namespace for us to use to refer to abstract resources and their properties 
+            #   independently of backend namespace details (table names and column names) 
+            # - insert a unique subject key/ID into some target table (create a row to store property 
+            #   values for this resource as they are inserted)
+            # - assign values to each property (insert into row cell) individually 
+            # - remove each value from each property (null the row cell) individually
+            # - "delete" the subject key/ID (null out all row elements, but leave empty row in backend)
+            #  
             Statement(RSRC_URI + 'track/trackid{1}', 'rdf:type', 'track', 'en-1', None),
             Statement(RSRC_URI + 'track/trackid{1}', RSRC_URI + 'track/trackname', 'track 1', 'en-1', None),
             Statement(RSRC_URI + 'track/trackid{1}', RSRC_URI + 'track/trackartist', 1, 'en-1', None),
@@ -497,11 +567,12 @@ class SqlMappingModelTestCase(unittest.TestCase):
         if checkr:
             self.assertEqual(ret, 3, 'added count is wrong')
 
-        # confirm a search for the subject finds it
+        # confirm a search for the subject finds all related properties and values 
         rows = model.getStatements(subject=tStmts[0][0])
+        # XXX - EXPLICIT knowledge of number of columns per table is needed for this test mode
         self.assertEqual([tStmts[i][2] for i in range(0, 3)], [r[2] for r in rows])
 
-        # remove the statement and confirm that it's gone
+        # remove the subject  and confirm that it's gone
         ret = model.removeStatement(tStmts[0])
         if checkr:
             assert ret, "statement should have been removed"
@@ -527,6 +598,7 @@ class SqlMappingModelTestCase(unittest.TestCase):
             assert not ret, "statement shouldn't have been added"
 
         #remove it (and another one for good measure)
+        print [tStmts[0], tStmts[1]]
         ret = model.removeStatements([tStmts[0], tStmts[1]])
         if checkr:
             self.assertEqual(ret, 6, 'remove count is wrong')

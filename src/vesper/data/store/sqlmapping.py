@@ -37,6 +37,18 @@ class SqlMappingStore(Model):
         # instantiate SqlAlchemy DB connection based upon uri passed to this method 
         self.engine = create_engine(source, echo=False)
 
+        # create our duplicate-insert-exception-ignoring stored procedure for postgresql backend
+        if self.engine.name == 'postgresql':
+            self.engine.execute(
+"CREATE OR REPLACE FUNCTION insert_ignore_duplicates (tbl text, col text, val text) \
+RETURNS void AS $$ BEGIN LOOP BEGIN INSERT INTO tbl (col) VALUES (val); RETURN; \
+EXCEPTION WHEN unique_violation THEN RETURN; END; END LOOP; END $$ LANGUAGE plpgsql")
+
+        '''
+        EXECUTE format('UPDATE tbl SET %I = $1 WHERE key = $2', colname)
+        USING newvalue, keyvalue;
+        '''
+
         # reflect the designated db schema into python space for examination
         self.md = MetaData(self.engine, reflect=True)
         self.insp = reflection.Inspector.from_engine(self.engine)
@@ -138,18 +150,18 @@ class SqlMappingStore(Model):
             print "contexts not supported"
 
         tables = []
-        pkName = pkValue = colName = None
+        pKeyName = pKeyValue = colName = None
         if subject:
             tables = [self._getTableFromResourceId(subject)]
-            pkName = self._getPropNameFromResourceId(subject)
-            pkValue = self._getValueFromResourceId(subject)
+            pKeyName = self._getPropNameFromResourceId(subject)
+            pKeyValue = self._getValueFromResourceId(subject)
         if predicate:
             colName = self._getPropNameFromResourceId(predicate)
             if not subject:
                 tables = [self._getTableWithProperty(predicate)]
                 for td in self.parsedTables:
                     if td['tableName'] == tables[0].name:
-                        pkName = td['pKeyName']
+                        pKeyName = td['pKeyName']
                         break
         if not subject and not predicate:
             for st in self.md.sorted_tables:
@@ -157,7 +169,7 @@ class SqlMappingStore(Model):
                     if st.name == td['tableName']:
                        tables.append(st)
         
-        print "pkName pkValue colName: ", pkName, pkValue, colName
+        print "pKeyName pKeyValue colName: ", pKeyName, pKeyValue, colName
 
         pattern = None
         stmts = []
@@ -165,21 +177,21 @@ class SqlMappingStore(Model):
             # set our fall-through action: => select all rows from this table
             query = select([table])
             pattern = 'multicol'
-            if subject and pkValue and not predicate and not object:
+            if subject and pKeyValue and not predicate and not object:
                 # s * * => select row from table where id = s
-                query = select([table]).where(table.c[pkName] == pkValue)
+                query = select([table]).where(table.c[pKeyName] == pKeyValue)
                 pattern = 'multicol'
             elif not subject and predicate and not object:
                 # * p * => select id, p from table
-                query = select([table.c[pkName], table.c[colName]])
+                query = select([table.c[pKeyName], table.c[colName]])
                 pattern = 'unicol'
             elif subject and predicate and not object:
                 # s p * => select p from table where id = s
-                query = select([table.c[pkName], table.c[colName]]).where(table.c[pkName] == pkValue)
+                query = select([table.c[pKeyName], table.c[colName]]).where(table.c[pKeyName] == pKeyValue)
                 pattern = 'unicol'
             elif not subject and predicate and object:
                 # * p o => select id from table where p = object
-                query = select([table.c[pkName]]).where(table.c[colName] == object)
+                query = select([table.c[pKeyName]]).where(table.c[colName] == object)
                 pattern = None
 
             print query
@@ -194,12 +206,12 @@ class SqlMappingStore(Model):
     def _generateStatementAssignments(self, fetchedRows=None, tableName=None, colName=None, pattern=None):
         for td in self.parsedTables:
             if td['tableName'] == tableName:
-                pkName = td['pKeyName']
+                pKeyName = td['pKeyName']
                 break;
         stmts = []
         for r in fetchedRows:
             print "r: ", r
-            subj = pkName + '{' + str(r[pkName]) + '}'
+            subj = pKeyName + '{' + str(r[pKeyName]) + '}'
             stmts.append(Statement(subj, 'rdf:type', tableName, None, None))
             if pattern is 'multicol':
                 [stmts.append(Statement(subj, c, r[c], None, None)) for c in td['colNames']]
@@ -250,10 +262,9 @@ class SqlMappingStore(Model):
         # extract table name from URI and return corresponding SQLA object
         if not uri:
             return None
-        tName = uri
         if self.baseUri in uri:
             uri = uri[len(self.baseUri):]
-            tName = uri.split(RSRC_DELIM)[0]
+        tName = uri.split(RSRC_DELIM)[0]
         for td in self.parsedTables:
             if td['tableName'] == tName:
                 for t in self.md.sorted_tables:
@@ -270,24 +281,25 @@ class SqlMappingStore(Model):
         pName = uri
         if self.baseUri in uri:
             uri = uri[len(self.baseUri):]
-            if VAL_OPEN_DELIM in uri:
-                uri = uri.split(VAL_OPEN_DELIM)[0]
-            pName = uri.split(RSRC_DELIM, 2)[1]        
+        if VAL_OPEN_DELIM in uri:
+            uri = uri.split(VAL_OPEN_DELIM)[0]
+            pName = uri.split(RSRC_DELIM, 2)[1]
+        if RSRC_DELIM in uri:
+            pName = uri.split(RSRC_DELIM)[1]
         return pName
 
 
     def _getValueFromResourceId(self, uri):
-        # extract value ie. row cell value from URI
+        # extract "{value}" from resource string
         if not uri:
             return None
         val = uri
         if self.baseUri in uri:
             uri = uri[len(self.baseUri):]
-            if VAL_OPEN_DELIM in uri:
-                # this is our normal case - unique pkey/ID is given
-                val = uri.split(VAL_OPEN_DELIM)[1].rstrip(VAL_CLOSE_DELIM)
-            else:
-                val = None                
+        if VAL_OPEN_DELIM in uri:
+            val = uri.split(VAL_OPEN_DELIM)[1].rstrip(VAL_CLOSE_DELIM)
+        else:
+            val = None                
         # print "val, uri: ", val, uri
         return val
 
@@ -308,22 +320,38 @@ class SqlMappingStore(Model):
     def addStatement(self, stmt):
         s, p, o, ot, c = stmt
         table = self._getTableFromResourceId(s)
-        pkName = self._getPropNameFromResourceId(s)
-        pkValue = self._getValueFromResourceId(s)
+        pKeyName = self._getPropNameFromResourceId(s)
+        pKeyValue = self._getValueFromResourceId(s)
         colName = self._getPropNameFromResourceId(p)
-        print "ADD: ", pkName, pkValue, colName, o, stmt
+        print "ADD: ", pKeyName, pKeyValue, colName, o, stmt
+
+        # try update first - if it fails we'll drop through to insert
         self._checkConnection()
         if colName != "rdf:type":
-            upd = table.update().where(table.c[pkName] == pkValue)
+            upd = table.update().where(table.c[pKeyName] == pKeyValue)
             result = self.conn.execute(upd, {colName : o})
             if result.rowcount:
                 return result.rowcount
-        ins = table.insert()
+        
         if colName == "rdf:type":
-            insArgs = {pkName : pkValue}
+            # try creating brand new empty row in logical table
+            insArgs = {pKeyName : pKeyValue}
         else:
-            insArgs = {pkName : pkValue, colName : o}
-        result = self.conn.execute(ins, insArgs)
+            # try creating brand new row with one populated cell
+            insArgs = {pKeyName : pKeyValue, colName : o}
+
+        if self.engine.name == 'postgresql':
+            # XXXXX HACKERY TEMPORARY
+            cmd = format("select insert_ignore_duplicates({0}, {1}, {3})", table.name, colName, o)
+            t = text(cmd).execution_options(autocommit=self.autocommit)
+            result = self.conn.execute(t, insArgs)
+        else:
+            ins = table.insert()
+            if self.engine.name == "sqlite":
+                ins = ins.prefix_with("OR IGNORE")
+            elif self.engine.name == "mysql":
+                ins = ins.prefix_with("IGNORE")
+            result = self.conn.execute(ins, insArgs)
         return result.rowcount
         
 
@@ -341,38 +369,54 @@ class SqlMappingStore(Model):
         if context:
             print "contexts not supported"
 
-        table = pKeyName = pKeyValue = None
-        rmv = None
+        table = cmd = pKeyName = pKeyValue = colName = None
         if subject:
+            table = self._getTableFromResourceId(subject)
             pKeyName = self._getPropNameFromResourceId(subject)
             pKeyValue = self._getValueFromResourceId(subject)
-        if predicate == "rdf:type":
-            for st in self.md.sorted_tables:
-                if st.name == object:
-                    table = st
-            # delete from table where id = subj
-            rmv = table.delete().where(table.c[pKeyName] == pKeyValue)
-        else:
-            '''
-            propinfo = self.mapping[predicate]
-            if propinfo.references:
-                if relationship = True:
-                    delete row
-                else:
-                    if key != "id":
-                        "update table set " + key+" = null" 
+        if predicate:
+            if predicate == "rdf:type":
+                for st in self.md.sorted_tables:
+                    if st.name == object:
+                        table = st
+                # delete from table where id = subj
+                cmd = table.delete().where(table.c[pKeyName] == pKeyValue)
             else:
-                #  NB: CAN'T NULL COLUMNS!!!   
-                update table set propinfo.column = null
+                if not subject:
+                    table = self._getTableWithProperty(predicate)
+                    for td in self.parsedTables:
+                        if td['tableName'] == tables.name:
+                           pKeyName = td['pKeyName']
+                           break
+                colName = self._getPropNameFromResourceId(predicate)
                 '''
+                prop = self.mapping[predicate]
+                if props['references']:
+                    # this is a foreign key 
+                    if key != "id":
+                        #  cmd = update([table] set " + key+" = null 
+                        {colName : ''}
+                        upd = table.update().where(table.c[pKeyName] == pKeyValue)
+
+                elif props['relationship']:
+                    # delete row
+                    cmd = table.delete().where(table.c[pKeyName] == pKeyValue)
+                    '''
+        else:
+            #  NB: CAN'T NULL COLUMNS!!!   
+            #  update table set propinfo.column = null
             pass
+
         self._checkConnection()
-        result = self.conn.execute(rmv)
+        result = self.conn.execute(cmd)
         return result.rowcount
 
 
     def removeStatements(self, stmts=None):
-        return 0
+        rc = 0
+        for stmt in stmts:
+             rc += self.removeStatement(stmt)
+        return rc
 
 
     def commit(self, **kw):
