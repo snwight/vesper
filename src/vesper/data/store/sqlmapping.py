@@ -35,68 +35,80 @@ class SqlMappingStore(Model):
         and datatypes must precisely match the contents of the input mapping description json file.
         '''
         # instantiate SqlAlchemy DB connection based upon uri passed to this method 
-        self.engine = create_engine(source, echo=False)
-
-        # create our duplicate-insert-exception-ignoring stored procedure for postgresql backend
-        if self.engine.name == 'postgresql':
-            self.engine.execute(
-"CREATE OR REPLACE FUNCTION insert_ignore_duplicates (tbl text, col text, val text) \
-RETURNS void AS $$ BEGIN LOOP BEGIN INSERT INTO tbl (col) VALUES (val); RETURN; \
-EXCEPTION WHEN unique_violation THEN RETURN; END; END LOOP; END $$ LANGUAGE plpgsql")
-
-        '''
-        EXECUTE format('UPDATE tbl SET %I = $1 WHERE key = $2', colname)
-        USING newvalue, keyvalue;
-        '''
+        self.engine = create_engine(source, echo=True)
 
         # reflect the designated db schema into python space for examination
         self.md = MetaData(self.engine, reflect=True)
         self.insp = reflection.Inspector.from_engine(self.engine)
 
-        print '===BEGIN SCHEMA INFO==========================================================='
-        print 'SQL schema::'
-        for tbl in self.insp.get_table_names():
-            print tbl
-            for c in self.insp.get_columns(tbl):
-                print '\t', c['name'], c['type']
-            for pk in self.insp.get_primary_keys(tbl):
-                print '\tPRIMARY KEY:'
-                print '\t\t', pk
-            for i in self.insp.get_indexes(tbl):
-                print '\tINDEX:' 
-                print '\t\t', i['name'], 'UNIQUE' if 'unique' in i else '', 'ON', \
-                    [ic.encode('ascii') for ic in i['column_names']]
-            for fk in self.insp.get_foreign_keys(tbl):
-                print '\tFOREIGN KEY:'
-                print '\t\t', [cc.encode('ascii') for cc in fk['constrained_columns']], 'ON', \
-                    fk['referred_table'], [rc.encode('ascii') for rc in fk['referred_columns']]
-        for vw in self.insp.get_view_names():
-            print vw
-            q = self.insp.get_view_definition(vw)
-            for c in self.insp.get_columns(vw):
-                print '\t', c['name'], c['type']
-            print 'VIEW DEFINITION:'
-            print '\t', q
-            
         # XXXXXXXXXXXXX
         mapping = None
         # XXXXXXXXXXXXX
-        if mapping:
-            self.mapping = mapping
-        else:
-            self._generateMapFromSchema()
-        print 'JSON mapping::'
-        print json.dumps(self.mapping, sort_keys=True, indent=4)
-        print '===END SCHEMA INFO============================================================='
+        self.mapping = mapping
 
-        # divine our resource format strings here, now
-        if 'idpattern' in self.mapping:
-            self.baseUri = self.mapping['idpattern']
-            print "baseUri: ", self.baseUri
+        if self.insp.get_schema_names():
+            print '===BEGIN SCHEMA INFO==========================================================='
+            print 'SQL schema::'
+            for tbl in self.insp.get_table_names():
+                print tbl
+                for c in self.insp.get_columns(tbl):
+                    print '\t', c['name'], c['type']
+                    for pk in self.insp.get_primary_keys(tbl):
+                        print '\tPRIMARY KEY:'
+                        print '\t\t', pk
+                    for i in self.insp.get_indexes(tbl):
+                        print '\tINDEX:' 
+                        print '\t\t', i['name'], 'UNIQUE' if 'unique' in i else '', 'ON', \
+                            [ic.encode('ascii') for ic in i['column_names']]
+                    for fk in self.insp.get_foreign_keys(tbl):
+                        print '\tFOREIGN KEY:'
+                        print '\t\t', [cc.encode('ascii') for cc in fk['constrained_columns']], 'ON', \
+                            fk['referred_table'], [rc.encode('ascii') for rc in fk['referred_columns']]
+            for vw in self.insp.get_view_names():
+                print vw
+                q = self.insp.get_view_definition(vw)
+                for c in self.insp.get_columns(vw):
+                    print '\t', c['name'], c['type']
+                    print 'VIEW DEFINITION:'
+                    print '\t', q
+            print '===END SCHEMA INFO============================================================='
+            if not self.mapping:
+                self._generateMapFromSchema()
 
-        # save our json map, parse it into a list of {tbl,pkey,cols[]} dicts for efficient internal use
         self.parsedTables = []
-        [self.parsedTables.append(self._getColumnsOfInterest(tbl)) for tbl in self.insp.get_table_names()]
+        self.vesper_stmts = None
+        self.baseUri = ""
+        if self.mapping:
+            print '===BEGIN JSON MAP=============================================================='
+            print json.dumps(self.mapping, sort_keys=True, indent=4)
+            print '===END JSON MAP================================================================'
+            # divine our resource format strings here, now
+            if 'idpattern' in self.mapping:
+                self.baseUri = self.mapping['idpattern']
+                print "baseUri: ", self.baseUri
+            # save our json map, parse it into a list of {tbl,pkey,cols[]} dicts for efficient internal use
+            [self.parsedTables.append(self._getColumnsOfInterest(tbl)) for tbl in self.insp.get_table_names()]
+        else:
+            # create our private special-purpose store for orphan stmts
+            print "LOADING VESPER TABLE: "
+            self.vesper_stmts = Table('vesper_stmts', self.md, 
+                                      Column('subject', String(255)),
+                                      Column('predicate', String(255)),
+                                      Column('object', String(255)),
+                                      Column('objecttype', String(8)),
+                                      Column('context', String(8)),
+                                      UniqueConstraint('subject', 'predicate', 'object', 'objecttype', 'context'),
+                                      mysql_engine='InnoDB', 
+                                      keep_existing = True)
+            Index('idx_vs', self.vesper_stmts.c.subject, self.vesper_stmts.c.predicate, self.vesper_stmts.c.object) 
+            self.md.create_all(self.engine)
+
+            # create our duplicate-insert-exception-ignoring stored procedure for postgresql backend
+            if self.engine.name == 'postgresql':
+                self.engine.execute(
+                    "CREATE OR REPLACE FUNCTION insert_ignore_duplicates (s text, p text, o text, ot text, c text ) \
+RETURNS void AS $$ BEGIN LOOP BEGIN INSERT INTO vesper_stmts VALUES (s, p, o, ot, c); RETURN; \
+EXCEPTION WHEN unique_violation THEN RETURN; END; END LOOP; END $$ LANGUAGE plpgsql")
 
         # private matters
         self.conn = None
@@ -104,29 +116,35 @@ EXCEPTION WHEN unique_violation THEN RETURN; END; END LOOP; END $$ LANGUAGE plpg
         self.autocommit = autocommit
 
 
+
     def _generateMapFromSchema(self):
         # generate our best guess at a JSON-from-SQL mapping
-        self.mapping = {
+        mDict = {
             "tablesprop": "HYPEtype",
             "idpattern": "http://souzis.com/",
             "tables": { }
             }
         for tbl in self.insp.get_table_names():
-            self.mapping['tables'][tbl] = {
+            if tbl == 'vesper_stmts':
+                break
+            mDict['tables'][tbl] = {
                 'id' : self.insp.get_primary_keys(tbl)[0], 'properties' : ['*'] 
                 }
             for fk in self.insp.get_foreign_keys(tbl):
                 for cc in fk['constrained_columns']:
-                    (self.mapping['tables'][tbl]['properties']).append({
+                    (mDict['tables'][tbl]['properties']).append({
                             cc.encode('ascii') : {
                                 'key': fk['referred_columns'][0].encode('ascii'),
                                 'references' : fk['referred_table']}})
-                                                  
+        if mDict['tables']:
+            self.mapping = mDict
+
 
 #    for vw in self.insp.get_view_names():
 #    q = self.insp.get_view_definition(vw)
 #    for c in self.insp.get_columns(vw):
 #    print '\t', c['name'], c['type']
+
 
 
     def _checkConnection(self):
@@ -146,38 +164,53 @@ EXCEPTION WHEN unique_violation THEN RETURN; END; END LOOP; END $$ LANGUAGE plpg
         "RDF JSON" data descriptors, which we parse into table/col/data elements and thencely
         interrogate the underlying SQL database with.
         '''
-        if context:
-            print "contexts not supported"
-
         tables = []
         pKeyName = pKeyValue = colName = None
         if subject:
-            tables = [self._getTableFromResourceId(subject)]
-            pKeyName = self._getPropNameFromResourceId(subject)
-            pKeyValue = self._getValueFromResourceId(subject)
+            t = self._getTableFromResourceId(subject)
+            if t:
+                tables = [t]
+                pKeyName = self._getPropNameFromResourceId(subject)
+                pKeyValue = self._getValueFromResourceId(subject)
+            else:
+                # we have a subject to look for but no table is named - vesperize it
+                tables = [self.vesper_stmts]
         if predicate:
             colName = self._getPropNameFromResourceId(predicate)
             if not subject:
-                tables = [self._getTableWithProperty(predicate)]
-                for td in self.parsedTables:
-                    if td['tableName'] == tables[0].name:
-                        pKeyName = td['pKeyName']
-                        break
-        if not subject and not predicate:
-            for st in self.md.sorted_tables:
-                for td in self.parsedTables: 
-                    if st.name == td['tableName']:
-                       tables.append(st)
-        
-        print "pKeyName pKeyValue colName: ", pKeyName, pKeyValue, colName
+                t = self._getTableFromResourceId(predicate)
+                if t:
+                    tables = [t]
+                    for td in self.parsedTables:
+                        if td['tableName'] == tables[0].name:
+                            pKeyName = td['pKeyName']
+                            break
+                else:
+                    # we have a predicate to match but no table has a col of this name - vesperize it
+                    tables = [self.vesper_stmts]
 
-        pattern = None
+        if not subject and not predicate:
+            # loop through any and all client tables
+            if self.parsedTables:
+                for st in self.md.sorted_tables:
+                    for td in self.parsedTables: 
+                        if st.name == td['tableName']:
+                            tables.append(st)
+            else:
+                # we finally believe this is a select * query on the vesper_stmts db
+                tables = [self.vesper_stmts]
+
         stmts = []
         for table in tables:
-            # set our fall-through action: => select all rows from this table
-            query = select([table])
-            pattern = 'multicol'
-            if subject and pKeyValue and not predicate and not object:
+            if table.name == 'vesper_stmts':
+                # special case, we are implicitly querying our private statment store
+                query = self._buildVesperQuery(subject, predicate, object, objecttype, context, asQuad, hints)
+                pattern = 'vespercols'
+            elif not subject and not pKeyValue and not predicate and not object:
+                # * * * => select all rows from this table
+                query = select([table])
+                pattern = 'multicol'
+            elif subject and pKeyValue and not predicate and not object:
                 # s * * => select row from table where id = s
                 query = select([table]).where(table.c[pKeyName] == pKeyValue)
                 pattern = 'multicol'
@@ -204,19 +237,23 @@ EXCEPTION WHEN unique_violation THEN RETURN; END; END LOOP; END $$ LANGUAGE plpg
 
 
     def _generateStatementAssignments(self, fetchedRows=None, tableName=None, colName=None, pattern=None):
-        for td in self.parsedTables:
-            if td['tableName'] == tableName:
-                pKeyName = td['pKeyName']
-                break;
+        if pattern != 'vespercols':
+            for td in self.parsedTables:
+                if td['tableName'] == tableName:
+                    pKeyName = td['pKeyName']
+                    break;
         stmts = []
         for r in fetchedRows:
             print "r: ", r
-            subj = pKeyName + '{' + str(r[pKeyName]) + '}'
-            stmts.append(Statement(subj, 'rdf:type', tableName, None, None))
-            if pattern is 'multicol':
-                [stmts.append(Statement(subj, c, r[c], None, None)) for c in td['colNames']]
-            elif pattern is 'unicol':
-                stmts.append(Statement(subj, colName, r[colName], None, None))
+            if pattern == 'vespercols':
+                stmts.append(Statement(r['subject'], r['predicate'], r['object'], r['objecttype'], r['context']) )
+            else:
+                subj = pKeyName + '{' + str(r[pKeyName]) + '}'
+                stmts.append(Statement(subj, 'rdf:type', tableName, None, None))
+                if pattern == 'multicol':
+                    [stmts.append(Statement(subj, c, r[c], None, None)) for c in td['colNames']]
+                elif pattern == 'unicol':
+                    stmts.append(Statement(subj, colName, r[colName], None, None))
         for s in stmts:
             print s, '\n'
         return stmts
@@ -258,6 +295,47 @@ EXCEPTION WHEN unique_violation THEN RETURN; END; END LOOP; END $$ LANGUAGE plpg
         return {'tableName':tableName, 'pKeyName':pKeyName, 'colNames':colNames}
 
 
+
+    def _buildVesperQuery(self, subject=None, predicate=None, object=None,
+                          objecttype=None, context=None, asQuad=True, hints=None):
+        hints = hints or {}
+        limit = hints.get('limit')
+        offset = hints.get('offset')
+        if object:
+            if isinstance(object, ResourceUri):
+                object = object.uri
+                objecttype = True
+                objecttype = OBJECT_TYPE_RESOURCE
+            elif not objecttype:
+                objecttype = OBJECT_TYPE_LITERAL
+
+        if not asQuad and not context:
+            query = select(['subject', 'predicate', 'object', 'objecttype',
+                            func.min(self.vesper_stmts.c.context).label('context')]).\
+                            group_by('subject', 'predicate', 'object', 'objecttype')
+        else:
+            query = self.vesper_stmts.select()
+
+        if subject:
+            query = query.where(self.vesper_stmts.c.subject == subject)
+        if predicate:
+            query = query.where(self.vesper_stmts.c.predicate == predicate)
+        if object:
+            query = query.where(self.vesper_stmts.c.object == object)
+        if objecttype: 
+            query = query.where(self.vesper_stmts.c.objecttype == objecttype)
+        if context:
+            query = query.where(self.vesper_stmts.c.context == context)
+        if limit:
+            if self.engine.name == 'postgresql':
+                query = query.order_by('subject', 'predicate', 'object','objecttype', 'context')
+            query = query.limit(limit)
+            if offset:
+                query = query.offset(offset)
+        return query
+
+
+
     def _getTableFromResourceId(self, uri):
         # extract table name from URI and return corresponding SQLA object
         if not uri:
@@ -274,6 +352,7 @@ EXCEPTION WHEN unique_violation THEN RETURN; END; END LOOP; END $$ LANGUAGE plpg
         return None
 
 
+
     def _getPropNameFromResourceId(self, uri):
         # generic tool to extract primary key or property name from uri
         if not uri:
@@ -284,9 +363,10 @@ EXCEPTION WHEN unique_violation THEN RETURN; END; END LOOP; END $$ LANGUAGE plpg
         if VAL_OPEN_DELIM in uri:
             uri = uri.split(VAL_OPEN_DELIM)[0]
             pName = uri.split(RSRC_DELIM, 2)[1]
-        if RSRC_DELIM in uri:
+        elif RSRC_DELIM in uri:
             pName = uri.split(RSRC_DELIM)[1]
         return pName
+
 
 
     def _getValueFromResourceId(self, uri):
@@ -304,6 +384,7 @@ EXCEPTION WHEN unique_violation THEN RETURN; END; END LOOP; END $$ LANGUAGE plpg
         return val
 
 
+
     def _getTableWithProperty(self, uri):
         # search our db for tables w/columns matching prop, return list of Table objects
         if not uri:
@@ -317,43 +398,52 @@ EXCEPTION WHEN unique_violation THEN RETURN; END; END LOOP; END $$ LANGUAGE plpg
         return None
 
 
+
     def addStatement(self, stmt):
         s, p, o, ot, c = stmt
+        argDict = {}
+        colName = None
         table = self._getTableFromResourceId(s)
-        pKeyName = self._getPropNameFromResourceId(s)
-        pKeyValue = self._getValueFromResourceId(s)
-        colName = self._getPropNameFromResourceId(p)
-        print "ADD: ", pKeyName, pKeyValue, colName, o, stmt
+        if table:
+            pKeyName = self._getPropNameFromResourceId(s)
+            pKeyValue = self._getValueFromResourceId(s)
+            colName = self._getPropNameFromResourceId(p)
+            if colName != "rdf:type":
+                argDict = {colName : o}
+        else:
+            table = self.vesper_stmts
+            pKeyName = "subject"
+            pKeyValue = s
+            argDict = {"predicate":p, "object":o, "objecttype":ot, "context":c}
 
         # try update first - if it fails we'll drop through to insert
         self._checkConnection()
         if colName != "rdf:type":
             upd = table.update().where(table.c[pKeyName] == pKeyValue)
-            result = self.conn.execute(upd, {colName : o})
+            print "UPDATE: ", table.name, pKeyName, pKeyValue, colName, o, ot, argDict
+            result = self.conn.execute(upd, argDict)
             if result.rowcount:
                 return result.rowcount
-        
-        if colName == "rdf:type":
-            # try creating brand new empty row in logical table
-            insArgs = {pKeyName : pKeyValue}
-        else:
-            # try creating brand new row with one populated cell
-            insArgs = {pKeyName : pKeyValue, colName : o}
 
+        # update failed - try inserting new row
+        argDict[pKeyName] = pKeyValue
+
+        print "ADD: ", table.name, pKeyName, pKeyValue, colName, o, ot, argDict
         if self.engine.name == 'postgresql':
             # XXXXX HACKERY TEMPORARY
             cmd = format("select insert_ignore_duplicates({0}, {1}, {3})", table.name, colName, o)
             t = text(cmd).execution_options(autocommit=self.autocommit)
-            result = self.conn.execute(t, insArgs)
+            result = self.conn.execute(t, argDict)
         else:
             ins = table.insert()
             if self.engine.name == "sqlite":
                 ins = ins.prefix_with("OR IGNORE")
             elif self.engine.name == "mysql":
                 ins = ins.prefix_with("IGNORE")
-            result = self.conn.execute(ins, insArgs)
+            result = self.conn.execute(ins, argDict)
         return result.rowcount
         
+
 
     def addStatements(self, stmts):
         # tragically due to the incremental-update nature of how the RDF model hands us row elements,
@@ -364,16 +454,25 @@ EXCEPTION WHEN unique_violation THEN RETURN; END; END LOOP; END $$ LANGUAGE plpg
         return rc
         
 
+
     def removeStatement(self, stmt):
         subject, predicate, object, ot, context = stmt
-        if context:
-            print "contexts not supported"
-
         table = cmd = pKeyName = pKeyValue = colName = None
         if subject:
             table = self._getTableFromResourceId(subject)
             pKeyName = self._getPropNameFromResourceId(subject)
             pKeyValue = self._getValueFromResourceId(subject)
+            if not table:
+                # vesperize it and make a quick exit
+                rmv = self.vesper_stmts.delete().where(
+                    (self.vesper_stmts.c.subject == stmt[0]) &
+                    (self.vesper_stmts.c.predicate == stmt[1]) &
+                    (self.vesper_stmts.c.object == stmt[2]) &
+                    (self.vesper_stmts.c.objecttype == stmt[3]) &
+                    (self.vesper_stmts.c.context == stmt[4]))
+                self._checkConnection()
+                result = self.conn.execute(rmv)
+                return result.rowcount
         if predicate:
             if predicate == "rdf:type":
                 for st in self.md.sorted_tables:
@@ -412,11 +511,27 @@ EXCEPTION WHEN unique_violation THEN RETURN; END; END LOOP; END $$ LANGUAGE plpg
         return result.rowcount
 
 
+
     def removeStatements(self, stmts=None):
+        if not self._getTableFromResourceId(stmts[0][0]):
+            # this seems to be a multiple vesperize it situation
+            wc = []
+            [wc.append((self.vesper_stmts.c.subject == stmt[0]) & 
+                       (self.vesper_stmts.c.predicate == stmt[1]) & 
+                       (self.vesper_stmts.c.object == stmt[2]) & 
+                       (self.vesper_stmts.c.objecttype == stmt[3]) & 
+                       (self.vesper_stmts.c.context == stmt[4])) for stmt in stmts]
+            rmv = self.vesper_stmts.delete()    
+            if stmts is not None:
+                rmv = self.vesper_stmts.delete().where(or_(*wc))
+            self._checkConnection()
+            result = self.conn.execute(rmv)
+            return result.rowcount
         rc = 0
         for stmt in stmts:
              rc += self.removeStatement(stmt)
         return rc
+
 
 
     def commit(self, **kw):
@@ -425,10 +540,12 @@ EXCEPTION WHEN unique_violation THEN RETURN; END; END LOOP; END $$ LANGUAGE plpg
                 self.trans.commit()
 
 
+
     def rollback(self):
         if self.conn is not None:
             if self.conn.in_transaction():
                 self.trans.rollback()
+
 
 
     def close(self):

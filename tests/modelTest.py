@@ -346,10 +346,10 @@ class SimpleModelTestCase(unittest.TestCase):
 
         model.close()
 
-
+'''
 RSRC_URI = "http://souzis.com/"
 class SqlMappingModelTestCase(unittest.TestCase):
-    '''Tests basic features of a JSON RDF SQL mapping store'''
+    # Tests basic features of a JSON RDF SQL mapping store
 
     persistentStore = True
 
@@ -543,8 +543,6 @@ class SqlMappingModelTestCase(unittest.TestCase):
         checkr = True
 
         tStmts = [
-            # this list is based upon 'private' knowledge - decoupled from this test scenario - of the
-            # active backend schema... 
             # each unique subject key/ID needs a set of Statements to denote all its properties - one
             # Statement per column, plus one to denote the logical table which contains it all...
             # in order to properly test addition or removal of any given property value to the backend store, 
@@ -556,8 +554,31 @@ class SqlMappingModelTestCase(unittest.TestCase):
             #   values for this resource as they are inserted)
             # - assign values to each property (insert into row cell) individually 
             # - remove each value from each property (null the row cell) individually
-            # - "delete" the subject key/ID (null out all row elements, but leave empty row in backend)
-            #  
+            # - "delete" the subject key/ID (null out all row elements, but leave empty row in backend DB)
+            #
+            # Remove stmt:                                                                                            
+            # - id : null row, keep pri key
+            # - id, prop :  null cell, keep pri key
+            # - prop : null this cell @ every row
+            # - prop, obj : null this cell iff cell =obj
+            # 
+            # Tests:                                                                                                               # - must be based on json map of logical tables/views property relationships
+            # - names are retrieved dynamically at getModel time by sqlmapping instance.
+            # - from test pov there is an 'arbitrary' number of logical tables w/arbitrary collections of 
+            #   properties, ie cols
+            # - current api implies shared knowledge of json map, which makes sense 
+            # - should we expose getColsofInterest & parsedMapping data structures to test/user api?
+            # - current test suite never refers to resource identifiers! Just context-free syntactic atoms.
+            # - this works because we have the vesperstmts tbl ready to use for underspecified rsrcs
+            # - preds are stored in generic "predicate" column cells rather than as columns
+            # - subjs should be allowed to be duplicated for unique preds! Currently constraining 
+            #   single pred ie property per subj ie+primary key/id!
+            # 
+            # Ideas:
+            # - always load vesperstmts schema
+            # - divert column name/tbl name to vsprstmts iff name not found in parsedMapping 
+            # - iff no rsrc uri && iff no recognized (parsed from json map) table/property name then use vesperstmts. 
+            #
             Statement(RSRC_URI + 'track/trackid{1}', 'rdf:type', 'track', 'en-1', None),
             Statement(RSRC_URI + 'track/trackid{1}', RSRC_URI + 'track/trackname', 'track 1', 'en-1', None),
             Statement(RSRC_URI + 'track/trackid{1}', RSRC_URI + 'track/trackartist', 1, 'en-1', None),
@@ -609,7 +630,7 @@ class SqlMappingModelTestCase(unittest.TestCase):
 
         model.commit()
         model.close()
-        
+'''        
 
 
 class BasicModelTestCase(SimpleModelTestCase):
