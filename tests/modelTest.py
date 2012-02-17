@@ -346,10 +346,10 @@ class SimpleModelTestCase(unittest.TestCase):
 
         model.close()
 
-
-RSRC_URI = "http://souzis.com"
+'''
+RSRC_URI = "http://souzis.com/"
 class SqlMappingModelTestCase(unittest.TestCase):
-    '''Tests basic features of a JSON RDF SQL mapping store'''
+    # Tests basic features of a JSON RDF SQL mapping store
 
     persistentStore = True
 
@@ -361,6 +361,59 @@ class SqlMappingModelTestCase(unittest.TestCase):
         model = MemStore()
         self.persistentStore = False
         return self._getModel(model)
+
+
+    def testStore(self):
+        "basic storage test"
+
+        global RSRC_URI
+
+        model = self.getModel()
+
+        # confirm a randomly created subject does not exist
+        subj = RSRC_URI + 'track/trackid{1}'
+        r1 = model.getStatements(subject=subj)
+        self.assertEqual(set(r1), set())
+
+        # add a new statement and confirm the search succeeds
+        stmts = [
+            Statement(subj, 'rdf:type', 'track'),
+            Statement(subj, 'track/trackname', 'track 1'),
+            Statement(subj, 'track/trackartist', 1)
+            ]
+        model.addStatements(stmts)
+        r1 = model.getStatements(subject = subj)
+        # XXX - EXPLICIT knowledge of number of tables needed for this test mode
+        self.assertEqual([stmts[i][2] for i in range(0, 3)], [r[2] for r in r1])
+
+        model.commit()
+        model.close()
+
+        if not self.persistentStore:
+            return 
+
+        model = self.getModel()
+        r1 = model.getStatements(subject=subj)
+        # XXX - EXPLICIT knowledge of number of columns per table is needed for this test mode
+        self.assertEqual([stmts[i][2] for i in range(0, 3)], [r[2] for r in r1])
+
+        # NOT IMPLEMENTED YET
+        # - removal object value/s (null row element/s)
+        # - removal of subject key/ID ignored 
+        # 
+        # - duplicate values. duplicate subject key/IDs
+        model.removeStatement()
+        s3 = Statement(subj, 'track/trackartist', 1)
+        model.addStatement(s3)
+        r1 = model.getStatements(subject=subj)
+        self.assertEqual(set(r1), set([s1, s3]))
+        model.commit()
+        model.close()
+        model = self.getModel()
+        r1 = model.getStatements(subject=subj)
+        self.assertEqual(set(r1), set([s1, s3]))
+        model.close()
+
     
 
     def testGetStatements(self, asQuad=True):
@@ -368,77 +421,216 @@ class SqlMappingModelTestCase(unittest.TestCase):
         global RSRC_URI
 
         aStmts = [
-        Statement(RSRC_URI + '/artist/artistid{1}', 'id:', 1, 'en', None),
-        Statement(RSRC_URI + '/artist/artistid{1}', RSRC_URI + '/artist/artistname', 'ralph', 'en', None),
+        Statement(RSRC_URI + 'artist/artistid{1}', 'rdf:type', 'artist', 'en', None),
+        Statement(RSRC_URI + 'artist/artistid{1}', RSRC_URI + 'artist/artistname', 'ralph', 'en', None),
 
-        Statement(RSRC_URI + '/artist/artistid{2}', 'id:', 2, 'en-1', None),
-        Statement(RSRC_URI + '/artist/artistid{2}', RSRC_URI + '/artist/artistname', 'lauren', 'en-1', None),
+        Statement(RSRC_URI + 'artist/artistid{2}', 'rdf:type', 'artist', 'en-1', None),
+        Statement(RSRC_URI + 'artist/artistid{2}', RSRC_URI + 'artist/artistname', 'lauren', 'en-1', None),
 
-        Statement(RSRC_URI + '/artist/artistid{3}', 'id:', 3, 'en-1', None),
-        Statement(RSRC_URI + '/artist/artistid{3}', RSRC_URI + '/artist/artistname', 'diane', 'en-1', None)
+        Statement(RSRC_URI + 'artist/artistid{3}', 'rdf:type', 'artist', 'en-1', None),
+        Statement(RSRC_URI + 'artist/artistid{3}', RSRC_URI + 'artist/artistname', 'diane', 'en-1', None)
         ]
         
         tStmts = [
-        Statement(RSRC_URI + '/track/trackid{1}', 'id:', 1, 'en-1', None),
-        Statement(RSRC_URI + '/track/trackid{1}', RSRC_URI + '/track/trackname', 'track 1', 'en-1', None),
-        Statement(RSRC_URI + '/track/trackid{1}', RSRC_URI + '/track/trackartist', 1, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{1}', 'rdf:type', 'track', 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{1}', RSRC_URI + 'track/trackname', 'track 1', 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{1}', RSRC_URI + 'track/trackartist', 1, 'en-1', None),
 
-        Statement(RSRC_URI + '/track/trackid{2}', 'id:', 2, 'en-1', None),
-        Statement(RSRC_URI + '/track/trackid{2}', RSRC_URI + '/track/trackname', 'track 2', 'en-1', None),
-        Statement(RSRC_URI + '/track/trackid{2}', RSRC_URI + '/track/trackartist', 1, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{2}', 'rdf:type', 'track', 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{2}', RSRC_URI + 'track/trackname', 'track 2', 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{2}', RSRC_URI + 'track/trackartist', 1, 'en-1', None),
 
-        Statement(RSRC_URI + '/track/trackid{3}', 'id:', 3, 'en-1', None),
-        Statement(RSRC_URI + '/track/trackid{3}', RSRC_URI + '/track/trackname', 'track 3', 'en-1', None),
-        Statement(RSRC_URI + '/track/trackid{3}', RSRC_URI + '/track/trackartist', 1, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{3}', 'rdf:type', 'track', 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{3}', RSRC_URI + 'track/trackname', 'track 3', 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{3}', RSRC_URI + 'track/trackartist', 1, 'en-1', None),
 
-        Statement(RSRC_URI + '/track/trackid{4}', 'id:', 4, 'en-1', None),
-        Statement(RSRC_URI + '/track/trackid{4}', RSRC_URI + '/track/trackname', 'track A ', 'en-1', None),
-        Statement(RSRC_URI + '/track/trackid{4}', RSRC_URI + '/track/trackartist', 2, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{4}', 'rdf:type', 'track', 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{4}', RSRC_URI + 'track/trackname', 'track A ', 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{4}', RSRC_URI + 'track/trackartist', 2, 'en-1', None),
 
-        Statement(RSRC_URI + '/track/trackid{5}', 'id:', 5, 'en-1', None),
-        Statement(RSRC_URI + '/track/trackid{5}', RSRC_URI + '/track/trackname', 'track B', 'en-1', None),
-        Statement(RSRC_URI + '/track/trackid{5}', RSRC_URI + '/track/trackartist', 2, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{5}', 'rdf:type', 'track', 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{5}', RSRC_URI + 'track/trackname', 'track B', 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{5}', RSRC_URI + 'track/trackartist', 2, 'en-1', None),
 
-        Statement(RSRC_URI + '/track/trackid{6}', 'id:', 6, 'en-1', None),
-        Statement(RSRC_URI + '/track/trackid{6}', RSRC_URI + '/track/trackname', 'track C', 'en-1', None),
-        Statement(RSRC_URI + '/track/trackid{6}', RSRC_URI + '/track/trackartist', 2, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{6}', 'rdf:type', 'track', 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{6}', RSRC_URI + 'track/trackname', 'track C', 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{6}', RSRC_URI + 'track/trackartist', 2, 'en-1', None),
 
-        Statement(RSRC_URI + '/track/trackid{7}', 'id:', 7, 'en-1', None),
-        Statement(RSRC_URI + '/track/trackid{7}', RSRC_URI + '/track/trackname', 'song 1', 'en-1', None),
-        Statement(RSRC_URI + '/track/trackid{7}', RSRC_URI + '/track/trackartist', 3, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{7}', 'rdf:type', 'track', 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{7}', RSRC_URI + 'track/trackname', 'song 1', 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{7}', RSRC_URI + 'track/trackartist', 3, 'en-1', None),
 
-        Statement(RSRC_URI + '/track/trackid{8}', 'id:', 8, 'en-1', None),
-        Statement(RSRC_URI + '/track/trackid{8}', RSRC_URI + '/track/trackname', 'song 2', 'en-1', None),
-        Statement(RSRC_URI + '/track/trackid{8}', RSRC_URI + '/track/trackartist', 3, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{8}', 'rdf:type', 'track', 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{8}', RSRC_URI + 'track/trackname', 'song 2', 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{8}', RSRC_URI + 'track/trackartist', 3, 'en-1', None),
 
-        Statement(RSRC_URI + '/track/trackid{9}', 'id:', 9, 'en-1', None),
-        Statement(RSRC_URI + '/track/trackid{9}', RSRC_URI + '/track/trackname', 'song 3', 'en-1', None),
-        Statement(RSRC_URI + '/track/trackid{9}', RSRC_URI + '/track/trackartist', 3, 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{9}', 'rdf:type', 'track', 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{9}', RSRC_URI + 'track/trackname', 'song 3', 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid{9}', RSRC_URI + 'track/trackartist', 3, 'en-1', None),
         ]
 
         model = self.getModel()
+        
+        # load our two 'arbitrary' tables
         model.addStatements(aStmts)
         model.addStatements(tStmts)
         
-        r = model.getStatements()
+        # verify select all rows from both tables
+        rows = model.getStatements()
+        self.assertEqual(len(aStmts) + len(tStmts), len(rows))
 
-        r = model.getStatements(predicate=RSRC_URI + '/artist/artistname')
-#        self.assertEqual(set(r), set(more[1:]) )
+        # verify select all rows from a single table
+        rows = model.getStatements(subject=RSRC_URI + 'artist/artistid')
+        self.assertEqual([a[2] for a in aStmts], [r[2] for r in rows])
+
+        # verify select all elements from one row of one table
+        rows = model.getStatements(subject=RSRC_URI + 'artist/artistid{1}')
+        # XXX - EXPLICIT knowledge of number of columns per table is needed for this test mode
+        self.assertEqual([aStmts[i][2] for i in range(0, 2)], [r[2] for r in rows])
+
+        # verify select all objects with a particular property from one table
+        rows = model.getStatements(predicate=RSRC_URI + 'artist/artistname')
+        self.assertEqual([s[2] for s in aStmts], [r[2] for r in rows])
         
-        r = model.getStatements(subject=RSRC_URI + '/artist/artistid{1}', predicate=RSRC_URI + '/artist/artistname')
-#        self.assertEqual(set(r), set( (more[0], more[1], stmts[-2]) ) )
+        # verify select a property's object given subject ID  
+        rows = model.getStatements(subject=RSRC_URI + 'artist/artistid{1}', predicate=RSRC_URI + 'artist/artistname')
+        self.assertEqual('ralph', rows[1][2])
         
-        r = model.getStatements(predicate=RSRC_URI + '/artist/artistname')
-#        self.assertEqual(set(r), set( more + stmts[-2:] ) )
+        # verify select subject ID given a property and object value
+        rows = model.getStatements(predicate=RSRC_URI + 'artist/artistname', object='lauren')
+        self.assertEqual('artistid{2}', rows[0][0])
+
+        # REPEAT the above tests against another (bigger) table
+
+        # verify select all rows from a single table
+        rows = model.getStatements(subject=RSRC_URI + 'track/trackid')
+        self.assertEqual([t[2] for t in tStmts], [r[2] for r in rows])
+
+        # verify select all elements from one row of one table
+        rows = model.getStatements(subject=RSRC_URI + 'track/trackid{1}')
+        # XXX - EXPLICIT knowledge of number of columns per table is needed for this test mode
+        self.assertEqual([tStmts[i][2] for i in range(0, 3)], [r[2] for r in rows])
+
+        # verify select all objects with a particular property from one table
+        rows = model.getStatements(predicate=RSRC_URI + 'track/trackname')
+        def rmvMatches(x): return 'trackartist' not in x[1] 
+        self.assertEqual([t[2] for t in filter(rmvMatches, tStmts)], [r[2] for r in rows])
+    
+        # verify select a property's object given subject ID  
+        rows = model.getStatements(subject=RSRC_URI + 'track/trackid{1}', predicate=RSRC_URI + 'track/trackname')
+        self.assertEqual('track 1', rows[1][2])
         
-        r = model.getStatements(predicate=RSRC_URI + '/artist/artistname', object='lauren')
-#        self.assertEqual(r, [])
-        
-        r = model.getStatements(predicate=RSRC_URI + '/artist/artistname', object='diane', objecttype='en-1')
-#        self.assertEqual(set(r), set( (more[0], more[-1]) ) )
+        # verify select subject ID given a property and object value
+        rows = model.getStatements(predicate=RSRC_URI + 'track/trackname', object='track 1')
+        self.assertEqual('trackid{1}', rows[0][0])
 
         model.close()
 
+
+    def testRemove(self):
+        """
+        basic removal test
+
+        current seq    expected
+        ------- ---    --------
+        exists  r,a    no-op 
+        doesnt  r,a    adds  
+        exists  a,r    remove
+        doesnt  a,r    no-op
+        """
+        model = self.getModel()
+#        checkr = model.updateAdvisory
+        checkr = True
+
+        tStmts = [
+            # each unique subject key/ID needs a set of Statements to denote all its properties - one
+            # Statement per column, plus one to denote the logical table which contains it all...
+            # in order to properly test addition or removal of any given property value to the backend store, 
+            # we need to:
+            # - gain intimate knowledge of the target schema through a JSON mapping object - this will
+            #   establish a namespace for us to use to refer to abstract resources and their properties 
+            #   independently of backend namespace details (table names and column names) 
+            # - insert a unique subject key/ID into some target table (create a row to store property 
+            #   values for this resource as they are inserted)
+            # - assign values to each property (insert into row cell) individually 
+            # - remove each value from each property (null the row cell) individually
+            # - "delete" the subject key/ID (null out all row elements, but leave empty row in backend DB)
+            #
+            # Remove stmt:                                                                                            
+            # - id : null row, keep pri key
+            # - id, prop :  null cell, keep pri key
+            # - prop : null this cell @ every row
+            # - prop, obj : null this cell iff cell =obj
+            # 
+            # Tests:                                                                                                               # - must be based on json map of logical tables/views property relationships
+            # - names are retrieved dynamically at getModel time by sqlmapping instance.
+            # - from test pov there is an 'arbitrary' number of logical tables w/arbitrary collections of 
+            #   properties, ie cols
+            # - current api implies shared knowledge of json map, which makes sense 
+            # - should we expose getColsofInterest & parsedMapping data structures to test/user api?
+            # - current test suite never refers to resource identifiers! Just context-free syntactic atoms.
+            # - this works because we have the vesperstmts tbl ready to use for underspecified rsrcs
+            # - preds are stored in generic "predicate" column cells rather than as columns
+            # - subjs should be allowed to be duplicated for unique preds! Currently constraining 
+            #   single pred ie property per subj ie+primary key/id!
+            # 
+            # Ideas:
+            # - always load vesperstmts schema
+            # - divert column name/tbl name to vsprstmts iff name not found in parsedMapping 
+            # - iff no rsrc uri && iff no recognized (parsed from json map) table/property name then use vesperstmts. 
+            #
+            Statement(RSRC_URI + 'track/trackid{1}', 'rdf:type', 'track', 'en-1', None),
+            Statement(RSRC_URI + 'track/trackid{1}', RSRC_URI + 'track/trackname', 'track 1', 'en-1', None),
+            Statement(RSRC_URI + 'track/trackid{1}', RSRC_URI + 'track/trackartist', 1, 'en-1', None),
+        ]
+        
+        ret = model.addStatements(tStmts)
+        if checkr:
+            self.assertEqual(ret, 3, 'added count is wrong')
+
+        # confirm a search for the subject finds all related properties and values 
+        rows = model.getStatements(subject=tStmts[0][0])
+        # XXX - EXPLICIT knowledge of number of columns per table is needed for this test mode
+        self.assertEqual([tStmts[i][2] for i in range(0, 3)], [r[2] for r in rows])
+
+        # remove the subject  and confirm that it's gone
+        ret = model.removeStatement(tStmts[0])
+        if checkr:
+            assert ret, "statement should have been removed"
+
+        rows = model.getStatements(subject=tStmts[0][0])
+        self.assertEqual([], rows)     # object is gone?
+
+        # remove the statement again
+        ret = model.removeStatement(tStmts[0])
+        if checkr:
+            assert not ret, "statement shouldn't have been removed"
+
+        ret = model.addStatements(tStmts)
+        if checkr:
+            assert ret, "statement should have been added"
+
+        rows = model.getStatements(subject=tStmts[0][0])
+        self.assertEqual([t[2] for t in tStmts], [r[2] for r in rows])
+
+        #add statement that already exists
+        ret = model.addStatement(tStmts[0])
+        if checkr:
+            assert not ret, "statement shouldn't have been added"
+
+        #remove it (and another one for good measure)
+        print [tStmts[0], tStmts[1]]
+        ret = model.removeStatements([tStmts[0], tStmts[1]])
+        if checkr:
+            self.assertEqual(ret, 6, 'remove count is wrong')
+        
+        #confirm that it's been removed
+        rows = model.getStatements(subject=tStmts[1].subject)
+        self.assertEqual([], rows)
+
+        model.commit()
+        model.close()
+'''        
 
 
 class BasicModelTestCase(SimpleModelTestCase):

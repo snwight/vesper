@@ -16,7 +16,7 @@ import vesper.app
 from vesper import utils
 from vesper.data.store.sqlmapping import SqlMappingStore
 
-class SqlMappingModelTestCase(modelTest.SqlMappingModelTestCase):
+class SqlMappingModelTestCase(modelTest.BasicModelTestCase):             # SqlMappingModelTestCase):
     
     # initialize our json-to-sql mapping engine w/ coordinated SQL and JSON mapthingies
     sqlSchemaPath = os.path.join(os.getcwd(), 'map_file_1.sql')
@@ -40,8 +40,8 @@ class SqlMappingModelTestCase(modelTest.SqlMappingModelTestCase):
         self.tmpfilename = "sqlite:///{0}".format(fname)
        
         # create our sqlite test db and schema 
-        cmd = "sqlite {0} < {1}".format(fname, self.sqlSchemaPath)
-        call(cmd, shell=True)
+#        cmd = "sqlite {0} < {1}".format(fname, self.sqlSchemaPath)
+#        call(cmd, shell=True)
 
 
     def tearDown(self):
@@ -60,8 +60,8 @@ if os.getenv("SQLA_TEST_POSTGRESQL"):
             call("psql -q -c \"create database jsonmap_db\" postgres", shell=True)
 
             # then load test schema FROM FILE
-            cmd = "psql -q -U vesper -d jsonmap_db < {0}".format(self.sqlSchemaPath)
-            call(cmd, shell=True)
+#            cmd = "psql -q -U vesper -d jsonmap_db < {0}".format(self.sqlSchemaPath)
+#            call(cmd, shell=True)
 
 
         def tearDown(self):
@@ -83,8 +83,8 @@ if os.getenv("SQLA_TEST_MYSQL"):
             call("mysqladmin -pve\$per -u vesper create jsonmap_db", shell=True)
 
             # then load test schema FROM FILE
-            cmd = "mysql -p've$per' -u vesper jsonmap_db < {0}".format(self.sqlSchemaPath)
-            call(cmd, shell=True)
+#            cmd = "mysql -p've$per' -u vesper jsonmap_db < {0}".format(self.sqlSchemaPath)
+#            call(cmd, shell=True)
 
             
         def tearDown(self):
