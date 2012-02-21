@@ -86,7 +86,7 @@ class SqlMappingStore(Model):
             # create a list of {tbl,pkey,cols[]} dicts for efficient internal use
             self._getColumnsOfInterest(self.insp.get_table_names())
 
-        print "LOADING VESPER TABLE: "
+        print "LOADING VESPER TABLE"
         self.vesper_stmts = Table('vesper_stmts', self.md, 
                                   Column('subject', String(255)),
                                   Column('predicate', String(255)),
@@ -228,7 +228,13 @@ class SqlMappingStore(Model):
 
 
     def _generateStatementAssignments(self, fetchedRows=None, tableName=None, colName=None, pattern=None):
+        '''
+        prepare returned rows from getStatements() query as sets of Statement tuples, using designated
+        'pattern' flag to guide us wrt what the returned rows actually contain, which is dependent upon 
+        the nature of the query
+        '''
         if pattern != 'vespercols':
+            # derive the primary key column name, i.e. subject ID property name, for this table
             for td in self.parsedTables:
                 if td['tableName'] == tableName:
                     pKeyName = td['pKeyName']
@@ -237,14 +243,18 @@ class SqlMappingStore(Model):
         for r in fetchedRows:
             print "r: ", r
             if pattern == 'vespercols':
+                # special case for our private table, returned values are always packed the same way
                 stmts.append(Statement(r['subject'], r['predicate'], r['object'], r['objecttype'], r['context']) )
             else:
                 subj = pKeyName + '{' + str(r[pKeyName]) + '}'
                 if pattern == 'id':
+                    # return one subject/ID (e.g. "find rowids for rows where prop == x")
                     stmts.append(Statement(subj, None, None, None, None))
                 elif pattern == 'unicol':
+                    # return a triple representing one subject/ID, one property name, and one object value
                     stmts.append(Statement(subj, colName, r[colName], None, None))
                 elif pattern == 'multicol':
+                    # return a set of triples representing all properties and values for one subject/ID
                     [stmts.append(Statement(subj, c, r[c], None, None)) for c in td['colNames']]
         for s in stmts:
             print s, '\n'
@@ -252,6 +262,14 @@ class SqlMappingStore(Model):
 
                             
     def _getColumnsOfInterest(self, tableNames):
+        '''
+        using our json mapping object (possibly derived by we ourselves based on inspection of the 
+        active backend schema), collate and store basic information about the tables that we are to
+        use into a list of simple dicts: 
+        {table name, primary key column name, [list of all relevant columns]}.
+        this allows us to ignore all other backend tables, and even unused columns in active tables 
+        that we are using
+        '''
         self.parsedTables = []
         for tbl in tableNames:
             # if our private secret table is passed in here, politely decline to parse it 
@@ -294,6 +312,10 @@ class SqlMappingStore(Model):
 
     def _buildVesperQuery(self, subject=None, predicate=None, object=None,
                           objecttype=None, context=None, asQuad=True, hints=None):
+        '''
+        this implements queries against the single-purpose private table that we use to store 
+        non-URI-resource statements in
+        '''
         hints = hints or {}
         limit = hints.get('limit')
         offset = hints.get('offset')
@@ -331,7 +353,10 @@ class SqlMappingStore(Model):
 
 
     def _getTableFromResourceId(self, uri):
-        # extract table name from URI and return corresponding SQLA object
+        '''
+        extract table name from (possibly non-URI) resource string and return 
+        corresponding Table object
+        '''
         if not uri:
             return None
         if self.baseUri in uri:
@@ -342,13 +367,14 @@ class SqlMappingStore(Model):
             if td['tableName'] == tName:
                 for t in self.md.sorted_tables:
                     if t.name == tName:
-                        # print "tName, uri: ", tName, uri
                         return t
         return None
 
 
     def _getPropNameFromResourceId(self, uri):
-        # generic tool to extract primary key or property name from uri
+        '''
+        generic tool to extract property name from (possibly non-URI) resource string
+        '''
         if not uri:
             return None
         pName = uri
@@ -363,7 +389,9 @@ class SqlMappingStore(Model):
 
 
     def _getValueFromResourceId(self, uri):
-        # extract "{value}" from resource string
+        '''
+        extract "{value}" from (possibly non-URI) resource string
+        '''
         if not uri:
             return None
         val = uri
@@ -373,16 +401,17 @@ class SqlMappingStore(Model):
             val = uri.split(VAL_OPEN_DELIM)[1].rstrip(VAL_CLOSE_DELIM)
         else:
             val = None                
-        # print "val, uri: ", val, uri
         return val
 
 
     def _getTableWithProperty(self, uri):
-        # search our db for tables w/columns matching prop, return list of Table objects
+        '''
+        search our db for tables w/columns matching property name, return 
+        corresponding Table object
+        '''
         if not uri:
             return None
         pName = self._getPropNameFromResourceId(uri)
-        # print "pName, uri: ", pName, uri
         for t in self.md.sorted_tables:
             for c in t.c:
                 if c.name == pName:
@@ -409,9 +438,6 @@ class SqlMappingStore(Model):
             if result.rowcount:
                 return result.rowcount
         else:
-            # XXX rules are different here - subject MUST be non-UNIQUE, because we're creating a
-            # row for each subject:predicate:object triple in this special-purpose table
-            # resultantly, duplicate insert of entire row is only disallowed insert op
             table = self.vesper_stmts
             pKeyName = "subject"
             pKeyValue = s
@@ -437,8 +463,6 @@ class SqlMappingStore(Model):
 
 
     def addStatements(self, stmts):
-        # tragically due to the incremental-update nature of how the RDF model hands us row elements,
-        # we are forced to use a generic UPSERT algorithm 
         rc = 0
         for stmt in stmts:
              rc += self.addStatement(stmt)
@@ -446,13 +470,13 @@ class SqlMappingStore(Model):
         
 
     def removeStatement(self, stmt):
-        subject, predicate, object, ot, context = stmt
         '''
         subj/id none none ==> delete row where subj == id
         subj/id pred none ==> null pred where subj == id
         subj/id pred obj ==> null pred where subj == id and pred == obj
         subj pred none ==> null pred
         '''
+        subject, predicate, object, ot, context = stmt
         table = cmd = pKeyName = pKeyValue = colName = None
         table = self._getTableFromResourceId(subject)
         if table is None:

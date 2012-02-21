@@ -24,8 +24,7 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
     # initialize our json-to-sql mapping engine w/ coordinated SQL and JSON mapthingies
     sqlSchemaPath = os.path.join(os.getcwd(), 'map_file_1.sql')
     jsonMapPath = os.path.join(os.getcwd(), 'map_file_1.json')
-    mapping = None
-#    mapping = json.loads(open(jsonMapPath).read())
+    mapping = json.loads(open(jsonMapPath).read())
 
     persistentStore = True
 
