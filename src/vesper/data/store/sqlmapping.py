@@ -27,12 +27,9 @@ class SqlMappingStore(Model):
     '''
     JSON-SQL mapping engine 
     '''
-    def __init__(self, source=None, mapping=None, autocommit=False, **kw):
+    def __init__(self, source=None, mapping=None, autocommit=False, loadVesperTable=True, **kw):
         '''
-        Create an instance of a json-to-sql mapping class for the schema defined by the
-        vesper.data.DataStore.BasicStore dict 'store' - a matching schema must exist in
-        the current backend database, whatever that might be, and all tables and columns
-        and datatypes must precisely match the contents of the input mapping description json file.
+        Create an instance of a json-to-sql mapping class - 
         '''
         # instantiate SqlAlchemy DB connection based upon uri passed to this method 
         self.engine = create_engine(source, echo=False)
@@ -41,8 +38,64 @@ class SqlMappingStore(Model):
         self.md = MetaData(self.engine, reflect=True)
         self.insp = reflection.Inspector.from_engine(self.engine)
 
-        self.mapping = mapping
+        # is a JSON mapping is supplied, use it otherwise infer our best guess at one
+        self.mapping = {}
+        if mapping:
+            self.mapping = mapping
+        else:
+            self._generateMapFromSchema()
 
+        # output readable json map and sql schema as diagnostic
+        self._printSchemata()
+        
+        # divine our resource format strings here, now
+        self.baseUri = ""
+        if 'idpattern' in self.mapping:
+            self.baseUri = self.mapping['idpattern']
+
+        # create a list of {tbl,pkey,cols[]} dicts for efficient internal use
+        self.parsedTables = []
+        self._getColumnsOfInterest(self.insp.get_table_names())
+
+        self.vesper_stmts = None
+        if loadVesperTable:
+            print "LOADING VESPER TABLE"
+            self.vesper_stmts = Table('vesper_stmts', self.md, 
+                                      Column('subject', String(255)),
+                                      Column('predicate', String(255)),
+                                      Column('object', String(255)),
+                                      Column('objecttype', String(8)),
+                                      Column('context', String(8)),
+                                      UniqueConstraint('subject', 'predicate', 'object', 'objecttype', 'context'),
+                                      mysql_engine='InnoDB', 
+                                      keep_existing = True)
+            Index('idx_vs', self.vesper_stmts.c.subject, self.vesper_stmts.c.predicate, self.vesper_stmts.c.object) 
+            self.md.create_all(self.engine)
+            
+            # create our duplicate-insert-exception-ignoring stored procedure for postgresql backend
+            if self.engine.name == 'postgresql':
+                self.engine.execute("""
+                CREATE OR REPLACE FUNCTION 
+                insert_ignore_duplicates (s text, p text, o text, ot text, c text)
+                RETURNS void AS $$ 
+                BEGIN 
+                    LOOP
+                        BEGIN 
+                            INSERT INTO vesper_stmts VALUES (s, p, o, ot, c); 
+                                RETURN; 
+                            EXCEPTION WHEN unique_violation THEN RETURN; 
+                        END; 
+                    END LOOP; 
+                END $$ LANGUAGE plpgsql
+                """)
+
+        # private matters
+        self.conn = None
+        self.trans = None
+        self.autocommit = autocommit
+
+
+    def _printSchemata(self):        
         print '===BEGIN SCHEMA INFO==========================================================='
         print 'SQL schema::'
         for tbl in self.insp.get_table_names():
@@ -70,56 +123,9 @@ class SqlMappingStore(Model):
             print 'VIEW DEFINITION:'
             print '\t', q
         print '===END SCHEMA INFO============================================================='
-        if not self.mapping:
-            self._generateMapFromSchema()
-
-        self.parsedTables = []
-        self.vesper_stmts = None
-        self.baseUri = ""
-        if self.mapping:
-            print '===BEGIN JSON MAP=============================================================='
-            print json.dumps(self.mapping, sort_keys=True, indent=4)
-            print '===END JSON MAP================================================================'
-            # divine our resource format strings here, now
-            if 'idpattern' in self.mapping:
-                self.baseUri = self.mapping['idpattern']
-            # create a list of {tbl,pkey,cols[]} dicts for efficient internal use
-            self._getColumnsOfInterest(self.insp.get_table_names())
-
-        print "LOADING VESPER TABLE"
-        self.vesper_stmts = Table('vesper_stmts', self.md, 
-                                  Column('subject', String(255)),
-                                  Column('predicate', String(255)),
-                                  Column('object', String(255)),
-                                  Column('objecttype', String(8)),
-                                  Column('context', String(8)),
-                                  UniqueConstraint('subject', 'predicate', 'object', 'objecttype', 'context'),
-                                  mysql_engine='InnoDB', 
-                                  keep_existing = True)
-        Index('idx_vs', self.vesper_stmts.c.subject, self.vesper_stmts.c.predicate, self.vesper_stmts.c.object) 
-        self.md.create_all(self.engine)
-
-        # create our duplicate-insert-exception-ignoring stored procedure for postgresql backend
-        if self.engine.name == 'postgresql':
-            self.engine.execute("""
-                CREATE OR REPLACE FUNCTION 
-                insert_ignore_duplicates (s text, p text, o text, ot text, c text)
-                RETURNS void AS $$ 
-                BEGIN 
-                    LOOP
-                        BEGIN 
-                            INSERT INTO vesper_stmts VALUES (s, p, o, ot, c); 
-                                RETURN; 
-                            EXCEPTION WHEN unique_violation THEN RETURN; 
-                        END; 
-                    END LOOP; 
-                END $$ LANGUAGE plpgsql
-             """)
-
-        # private matters
-        self.conn = None
-        self.trans = None
-        self.autocommit = autocommit
+        print '===BEGIN JSON MAP=============================================================='
+        print json.dumps(self.mapping, sort_keys=True, indent=4)
+        print '===END JSON MAP================================================================'
 
 
     def _generateMapFromSchema(self):
