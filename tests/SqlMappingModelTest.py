@@ -82,13 +82,17 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         self.assertEqual(set(r1), set())
 
         # add a new statement and confirm the search succeeds
-        stmts = [
+        aStmts = [
+            Statement(RSRC_URI + 'artist/artistid{1}', RSRC_URI + 'artist/artistname', 'ralph', 'en', None)
+        ]
+        tStmts = [
             Statement(subj, 'track/trackname', 'track 1'),
             Statement(subj, 'track/trackartist', 1)
             ]
-        model.addStatements(stmts)
+        model.addStatements(aStmts)
+        model.addStatements(tStmts)
         r1 = model.getStatements(subject = subj)
-        self.assertEqual([s[2] for s in stmts], [r[2] for r in r1])
+        self.assertEqual([s[2] for s in tStmts], [r[2] for r in r1])
 
         model.commit()
         model.close()
@@ -98,7 +102,7 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
 
         model = self.getModel()
         r1 = model.getStatements(subject=subj)
-        self.assertEqual([s[2] for s in stmts], [r[2] for r in r1])
+        self.assertEqual([s[2] for s in tStmts], [r[2] for r in r1])
 
         # NOT IMPLEMENTED YET
         # - removal object value/s (null row element/s)
@@ -220,6 +224,9 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
 #        checkr = model.updateAdvisory
         checkr = True
 
+        aStmts = [
+            Statement(RSRC_URI + 'artist/artistid{1}', RSRC_URI + 'artist/artistname', 'ralph', 'en', None)
+        ]
         tStmts = [
             Statement(RSRC_URI + 'track/trackid{1}', RSRC_URI + 'track/trackname', 'track 1', 'en-1', None),
             Statement(RSRC_URI + 'track/trackid{1}', RSRC_URI + 'track/trackartist', 1, 'en-1', None),
@@ -227,6 +234,7 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
             Statement(RSRC_URI + 'track/trackid{2}', RSRC_URI + 'track/trackartist', 1, 'en-1', None),
         ]
         
+        ret = model.addStatements(aStmts)
         ret = model.addStatements(tStmts)
         if checkr:
             self.assertEqual(ret, len(tStmts), 'added count is wrong')

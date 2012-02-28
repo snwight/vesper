@@ -453,18 +453,18 @@ class SqlMappingStore(Model):
 
         # update failed - try inserting new row 
         argDict[pKeyName] = pKeyValue
+        ins = table.insert()
         if self.engine.name == 'postgresql':
-            # XXXXX HACKERY TEMPORARY
-            cmd = format("select insert_ignore_duplicates({0}, {1}, {3})", table.name, colName, o)
-            t = text(cmd).execution_options(autocommit=self.autocommit)
-            result = self.conn.execute(t, argDict)
+            if table == self.vesper_stmts:
+                ins = text('''
+                    select insert_ignore_duplicates(:subject, :predicate, :object, :objecttype, :context)
+                    ''').execution_options(autocommit=self.autocommit)
         else:
-            ins = table.insert()
             if self.engine.name == "sqlite":
                 ins = ins.prefix_with("OR IGNORE")
             elif self.engine.name == "mysql":
                 ins = ins.prefix_with("IGNORE")
-            result = self.conn.execute(ins, argDict)
+        result = self.conn.execute(ins, argDict)
         return result.rowcount
 
 
