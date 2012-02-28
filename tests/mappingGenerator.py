@@ -28,22 +28,19 @@ def mapit(argv):
     driver = None
     dbConfiguration = None
     if db == 'sqlite':
-        driver = os.getenv("SQLA_SQLITE_DRIVER")
-        dbConfiguration = "{0}:///{1}".format(driver, dbName)
+        dbConfiguration = "sqlite+sqlite3:///{1}".format(driver, dbName)
     elif db == 'mysql':
-        driver = os.getenv("SQLA_MYSQL_DRIVER")
         if argc > 5:
             port = int(argv[6])
         else:
             port = 3306
-        dbConfiguration = "{0}://{1}:{2}@{3}:{4}/{5}".format(driver, user, pwd, host, port, dbName)
+        dbConfiguration = "mysql+mysqldb://{1}:{2}@{3}:{4}/{5}".format(driver, user, pwd, host, port, dbName)
     elif db == 'pgsql':
-        driver = os.getenv("SQLA_PGSQL_DRIVER")
         if argc > 5:
             port = int(argv[5])
         else:
             port = 5432
-        dbConfiguration = "{0}://{1}:{2}@{3}:{4}/{5}".format(driver, user, pwd, host, port, dbName)
+        dbConfiguration = "postgresql+psycopg2://{1}:{2}@{3}:{4}/{5}".format(driver, user, pwd, host, port, dbName)
 
     # creation of this model will generate the desired mapping into self.mapping
     print dbConfiguration
