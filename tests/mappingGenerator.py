@@ -8,25 +8,41 @@ import os, sys
 from vesper.data.store.sqlmapping import SqlMappingStore
 
 
-def mapit(self, db=None, user=None, pwd=None, host=None, port=None, dbName=None):
+def mapit(argv):
+    print [argv[i] for i in range(len(argv))]
+    argc = len(argv)
+    print argc
+    if argc < 5:
+        print "usage: mappingGenerator <'mysql'|'pgsql'|'sqlite'> <user_name> <password> <schema_name> ['localhost'|<hostname>] [<port_number>]"
+        return
+    db = argv[1]
+    user = argv[2]
+    pwd = argv[3]
+    dbName = argv[4]
+    if argc > 5:
+        host = argv[5]
+    else:
+        host = 'localhost'
+
     # format arguments as SQLAlchemy configuration string
-    print db, user, pwd, host, port, dbName
     driver = None
     dbConfiguration = None
-    if db is None:
+    if db == 'sqlite':
         driver = os.getenv("SQLA_SQLITE_DRIVER")
         dbConfiguration = "{0}:///{1}".format(driver, dbName)
-    else:
-        if host is None:
-            host = 'localhost'
-        if db == 'mysql':
-            driver = os.getenv("SQLA_MYSQL_DRIVER")
-            if port is None:
-                port = 3306
-        elif db == 'pgsql':
-            driver = os.getenv("SQLA_PGSQL_DRIVER")
-            if port is None:
-                port = 5432
+    elif db == 'mysql':
+        driver = os.getenv("SQLA_MYSQL_DRIVER")
+        if argc > 5:
+            port = int(argv[6])
+        else:
+            port = 3306
+        dbConfiguration = "{0}://{1}:{2}@{3}:{4}/{5}".format(driver, user, pwd, host, port, dbName)
+    elif db == 'pgsql':
+        driver = os.getenv("SQLA_PGSQL_DRIVER")
+        if argc > 5:
+            port = int(argv[5])
+        else:
+            port = 5432
         dbConfiguration = "{0}://{1}:{2}@{3}:{4}/{5}".format(driver, user, pwd, host, port, dbName)
 
     # creation of this model will generate the desired mapping into self.mapping
@@ -35,4 +51,4 @@ def mapit(self, db=None, user=None, pwd=None, host=None, port=None, dbName=None)
 
 
 if __name__ == "__main__":
-    mapit(sys.argv[0], sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], int(sys.argv[5]), sys.argv[6]) 
+    mapit(sys.argv)
