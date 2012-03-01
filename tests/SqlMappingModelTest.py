@@ -87,7 +87,6 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         ]
         tStmts = [
             Statement(subj, 'track/trackname', 'track 1'),
-            Statement(subj, 'track/trackartist', 1)
             ]
         model.addStatements(aStmts)
         model.addStatements(tStmts)
@@ -137,23 +136,14 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         
         tStmts = [
         Statement(RSRC_URI + 'track/trackid{1}', RSRC_URI + 'track/trackname', 'track 1', 'en-1', None),
-        Statement(RSRC_URI + 'track/trackid{1}', RSRC_URI + 'track/trackartist', 1, 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{2}', RSRC_URI + 'track/trackname', 'track 2', 'en-1', None),
-        Statement(RSRC_URI + 'track/trackid{2}', RSRC_URI + 'track/trackartist', 1, 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{3}', RSRC_URI + 'track/trackname', 'track 3', 'en-1', None),
-        Statement(RSRC_URI + 'track/trackid{3}', RSRC_URI + 'track/trackartist', 1, 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{4}', RSRC_URI + 'track/trackname', 'track A ', 'en-1', None),
-        Statement(RSRC_URI + 'track/trackid{4}', RSRC_URI + 'track/trackartist', 2, 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{5}', RSRC_URI + 'track/trackname', 'track B', 'en-1', None),
-        Statement(RSRC_URI + 'track/trackid{5}', RSRC_URI + 'track/trackartist', 2, 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{6}', RSRC_URI + 'track/trackname', 'track C', 'en-1', None),
-        Statement(RSRC_URI + 'track/trackid{6}', RSRC_URI + 'track/trackartist', 2, 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{7}', RSRC_URI + 'track/trackname', 'song 1', 'en-1', None),
-        Statement(RSRC_URI + 'track/trackid{7}', RSRC_URI + 'track/trackartist', 3, 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{8}', RSRC_URI + 'track/trackname', 'song 2', 'en-1', None),
-        Statement(RSRC_URI + 'track/trackid{8}', RSRC_URI + 'track/trackartist', 3, 'en-1', None),
         Statement(RSRC_URI + 'track/trackid{9}', RSRC_URI + 'track/trackname', 'song 3', 'en-1', None),
-        Statement(RSRC_URI + 'track/trackid{9}', RSRC_URI + 'track/trackartist', 3, 'en-1', None)
         ]
 
         model = self.getModel()
@@ -190,12 +180,11 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
 
         # verify select all elements from one row of one table
         rows = model.getStatements(subject=RSRC_URI + 'track/trackid{1}')
-        self.assertEqual([tStmts[i][2] for i in range(0,2)], [r[2] for r in rows])
+        self.assertEqual(tStmts[0][2], rows[0][2])
 
         # verify select all objects with a particular property from one table
         rows = model.getStatements(predicate=RSRC_URI + 'track/trackname')
-        def rmvMatches(x): return 'trackartist' not in x[1] 
-        self.assertEqual([t[2] for t in filter(rmvMatches, tStmts)], [r[2] for r in rows])
+        self.assertEqual([t[2] for t in tStmts], [r[2] for r in rows])
 
     
         # verify select a property's object given subject ID  
@@ -229,9 +218,7 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         ]
         tStmts = [
             Statement(RSRC_URI + 'track/trackid{1}', RSRC_URI + 'track/trackname', 'track 1', 'en-1', None),
-            Statement(RSRC_URI + 'track/trackid{1}', RSRC_URI + 'track/trackartist', 1, 'en-1', None),
             Statement(RSRC_URI + 'track/trackid{2}', RSRC_URI + 'track/trackname', 'track 2', 'en-1', None),
-            Statement(RSRC_URI + 'track/trackid{2}', RSRC_URI + 'track/trackartist', 1, 'en-1', None),
         ]
         
         ret = model.addStatements(aStmts)
@@ -241,7 +228,7 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
 
         # confirm a search for the subject finds all related properties and values 
         rows = model.getStatements(subject=tStmts[0].subject)
-        self.assertEqual([tStmts[i][2] for i in range(0,2)], [r[2] for r in rows])
+        self.assertEqual(tStmts[0][2], rows[0][2])
 
         # remove the subject and confirm that all objects are gone
         ret = model.removeStatement(Statement(tStmts[0].subject, None, None, None, None))
@@ -264,7 +251,7 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         
         # clear entire  table
         ts = [Statement(tStmts[0].subject, None, None, None, None), 
-              Statement(tStmts[2].subject, None, None, None, None)]
+              Statement(tStmts[1].subject, None, None, None, None)]
         ret = model.removeStatements(ts)
         rows = model.getStatements()
         self.assertEqual([], rows)
