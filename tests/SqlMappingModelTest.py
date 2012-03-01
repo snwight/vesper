@@ -19,39 +19,44 @@ from vesper.data.store.basic import *
 from vesper.data.store.sqlmapping import SqlMappingStore
 
 RSRC_URI = "http://souzis.com/"
+
 class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
     
     # initialize our json-to-sql mapping engine w/ coordinated SQL and JSON mapthingies
     sqlSchemaPath = os.path.join(os.getcwd(), 'map_file_1.sql')
     jsonMapPath = os.path.join(os.getcwd(), 'map_file_1.json')
     mapping = json.loads(open(jsonMapPath).read())
+    
+    # XXX TESTING 
+    mapping = None
+    # XXX
 
+    sqlaConfiguration = None
     persistentStore = True
-
-    def getModel(self):
-        model = SqlMappingStore(source=self.tmpfilename, mapping=self.mapping, autocommit=True)
-        return self._getModel(model)
-
-
-    def getTransactionModel(self):
-        model = SqlMappingStore(source=self.tmpfilename, mapping=self.mapping, autocommit=False)
-        return self._getModel(model)
-
 
     def setUp(self):
         # sqlite via sqlite3/pysql - (default python driver)
         self.tmpdir = tempfile.mkdtemp(prefix="rhizometest")
         fname = os.path.abspath(os.path.join(self.tmpdir, 'jsonmap_db'))
-        self.tmpfilename = "sqlite:///{0}".format(fname)
-       
+        self.sqlaConfiguration = '/'.join([os.getenv("SQLA_TEST_SQLITE"), fname])
+      
         # create our sqlite test db and schema 
         cmd = "sqlite {0} < {1}".format(fname, self.sqlSchemaPath)
         call(cmd, shell=True)
-
+                
 
     def tearDown(self):
         shutil.rmtree(self.tmpdir)
-        pass
+
+
+    def getModel(self):
+        model = SqlMappingStore(source=self.sqlaConfiguration, mapping=self.mapping, autocommit=True)
+        return self._getModel(model)
+
+
+    def getTransactionModel(self):
+        model = SqlMappingStore(source=self.sqlaConfiguration, mapping=self.mapping, autocommit=False)
+        return self._getModel(model)
 
 
     def _getModel(self, model):
@@ -77,13 +82,17 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         self.assertEqual(set(r1), set())
 
         # add a new statement and confirm the search succeeds
-        stmts = [
+        aStmts = [
+            Statement(RSRC_URI + 'artist/artistid{1}', RSRC_URI + 'artist/artistname', 'ralph', 'en', None)
+        ]
+        tStmts = [
             Statement(subj, 'track/trackname', 'track 1'),
             Statement(subj, 'track/trackartist', 1)
             ]
-        model.addStatements(stmts)
+        model.addStatements(aStmts)
+        model.addStatements(tStmts)
         r1 = model.getStatements(subject = subj)
-        self.assertEqual([s[2] for s in stmts], [r[2] for r in r1])
+        self.assertEqual([s[2] for s in tStmts], [r[2] for r in r1])
 
         model.commit()
         model.close()
@@ -93,7 +102,7 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
 
         model = self.getModel()
         r1 = model.getStatements(subject=subj)
-        self.assertEqual([s[2] for s in stmts], [r[2] for r in r1])
+        self.assertEqual([s[2] for s in tStmts], [r[2] for r in r1])
 
         # NOT IMPLEMENTED YET
         # - removal object value/s (null row element/s)
@@ -215,6 +224,9 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
 #        checkr = model.updateAdvisory
         checkr = True
 
+        aStmts = [
+            Statement(RSRC_URI + 'artist/artistid{1}', RSRC_URI + 'artist/artistname', 'ralph', 'en', None)
+        ]
         tStmts = [
             Statement(RSRC_URI + 'track/trackid{1}', RSRC_URI + 'track/trackname', 'track 1', 'en-1', None),
             Statement(RSRC_URI + 'track/trackid{1}', RSRC_URI + 'track/trackartist', 1, 'en-1', None),
@@ -222,6 +234,7 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
             Statement(RSRC_URI + 'track/trackid{2}', RSRC_URI + 'track/trackartist', 1, 'en-1', None),
         ]
         
+        ret = model.addStatements(aStmts)
         ret = model.addStatements(tStmts)
         if checkr:
             self.assertEqual(ret, len(tStmts), 'added count is wrong')
@@ -281,11 +294,11 @@ if os.getenv("SQLA_TEST_POSTGRESQL"):
            
         def setUp(self):
             # test against postgresql backend 
-            self.tmpfilename = '/'.join([os.getenv("SQLA_TEST_POSTGRESQL"), "jsonmap_db"])
+            self.sqlaConfiguration = '/'.join([os.getenv("SQLA_TEST_POSTGRESQL"), "jsonmap_db"])
 
             # create our postgresql test db 
             call("psql -q -c \"create database jsonmap_db\" postgres", shell=True)
-
+                
             # then load test schema FROM FILE
             cmd = "psql -q -U vesper -d jsonmap_db < {0}".format(self.sqlSchemaPath)
             call(cmd, shell=True)
@@ -304,8 +317,8 @@ if os.getenv("SQLA_TEST_MYSQL"):
 
         def setUp(self):
             # test against mysql backend 
-            self.tmpfilename = '/'.join([os.getenv("SQLA_TEST_MYSQL"), "jsonmap_db"])
-            
+            self.sqlaConfiguration = '/'.join([os.getenv("SQLA_TEST_MYSQL"), "jsonmap_db"])
+
             # create our mysql test db
             call("mysqladmin -pve\$per -u vesper create jsonmap_db", shell=True)
 
@@ -316,8 +329,6 @@ if os.getenv("SQLA_TEST_MYSQL"):
             
         def tearDown(self):
             call("mysqladmin -f -pve\$per -u vesper drop jsonmap_db >> /dev/null", shell=True)
-
-
 
 
 if __name__ == '__main__':
