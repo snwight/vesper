@@ -269,7 +269,7 @@ class SqlMappingStore(Model):
         '''
         recurse through possibly nested dictionary of properties, leave a popcorn trail
 
-    # get key (i.e. property name) and corresponding value
+        # get key (i.e. property name) and corresponding value
         [(pName, pVal)] = prop.items()
         if isinstance(pVal, dict):
             [(k, v)] = pVal.items()

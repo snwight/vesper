@@ -2,15 +2,15 @@
     "tablesprop" : "type",
     "idpattern" : "http://souzis.com/",
     "tables" : {
-        "artist" : { 
+        "artist" : {
             "id" : "artistid",
             "properties" : [
-                "*", 
+                "*",
 		{
 		    "tracks" : {
 			"references" : {
-	    		    "table" : "track_artist", 
-			    "key" : "artistid", 
+	    		    "table" : "track_artist",
+			    "key" : "artistid",
 			    "value" : {
 				"trackid" : {
 				    "references" : "track"
@@ -21,15 +21,15 @@
 		}
             ]
         },
-        "track" : { 
+        "track" : {
             "id" : "trackid",
             "properties" : [
-                "*", 
+                "*",
 		{
 		    "artists" : {
-     			"references" : { 
-			    "table" : "track_artist", 
-			    "key" : "trackid", 
+     			"references" : {
+			    "table" : "track_artist",
+			    "key" : "trackid",
 			    "value" : {
 				"artistid" : {
 				    "references" : "artist"
@@ -40,8 +40,53 @@
 		}
             ]
         },
-	"track_artist" : {
-	    "relationship" : true
-	}
+        "album": {
+            "id": "albumid", 
+            "properties": [
+                "*"
+            ]
+        },
+	"track_artist": {
+	    "relationship" : true,
+            "properties": [
+                "*",
+                {
+                    "trackid": {
+                        "key": "trackid",
+                        "references": "track"
+                    }
+                },
+                {
+                    "artistid": {
+                        "key": "artistid",
+                        "references": "artist"
+                    }
+                }
+            ]
+        },
+        "album_tracks": {
+	    "relationship" : true,
+            "properties": [
+                "*",
+                {
+                    "trackid": {
+                        "key": "trackid",
+                        "references": "track"
+                    }
+                },
+                {
+                    "albumid": {
+                        "key": "albumid",
+                        "references": "album"
+                    }
+                }
+            ]
+        },
+	"artist_discography": {
+            "properties": [
+                "*"
+            ],
+            "readonly": "true"
+       }
     }
 }
