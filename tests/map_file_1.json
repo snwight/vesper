@@ -49,44 +49,20 @@
 	"track_artist": {
 	    "relationship" : true,
             "properties": [
-                "*",
-                {
-                    "trackid": {
-                        "key": "trackid",
-                        "references": "track"
-                    }
-                },
-                {
-                    "artistid": {
-                        "key": "artistid",
-                        "references": "artist"
-                    }
-                }
+                "*"
             ]
         },
         "album_tracks": {
 	    "relationship" : true,
             "properties": [
-                "*",
-                {
-                    "trackid": {
-                        "key": "trackid",
-                        "references": "track"
-                    }
-                },
-                {
-                    "albumid": {
-                        "key": "albumid",
-                        "references": "album"
-                    }
-                }
+                "*"
             ]
         },
 	"artist_discography": {
+            "readonly": "true",
             "properties": [
                 "*"
-            ],
-            "readonly": "true"
+            ]
        }
     }
 }

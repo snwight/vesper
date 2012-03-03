@@ -332,13 +332,17 @@ class SqlMappingStore(Model):
             if tbl == 'vesper_stmts':
                 continue
             # use json map and sql schema to determine columns of interest, make a list
+            readonly = False
+            pKeyName = None
             tableDesc = self.mapping["tables"][tbl]
             if 'id' in tableDesc:
                 pKeyName = tableDesc['id']
+            if 'readonly' in tableDesc:
+                readonly = tableDesc['readonly']
             if 'relationship' in tableDesc:
-                if tableDesc['relationship'] == True:
-                    # this is a correlation definition
-                    pass
+                # under our regime, 'correlation' tables are pointed TO in json map from foreign key subjects,
+                # and updated when subjects are modified, so we don't need them in canonical storage
+                pass
             colNames = []
             if 'properties' in tableDesc:
                 for prop in tableDesc['properties']:
@@ -353,8 +357,8 @@ class SqlMappingStore(Model):
                         # a [single] specific column name - add to list
                         colNames.append(p)
 
-                # add this dict to our list
-                self.parsedTables.append({'tableName':tbl, 'pKeyName':pKeyName, 'colNames':colNames})
+            # add this dict to our list
+            self.parsedTables.append({'tableName':tbl, 'pKeyName':pKeyName, 'readOnly':readonly, 'colNames':colNames})
 
 
     def _buildVesperQuery(self, subject=None, predicate=None, object=None,
