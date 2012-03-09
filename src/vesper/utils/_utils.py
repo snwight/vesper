@@ -458,15 +458,29 @@ def shaDigestString(line):
 class Bitset(object):
     '''
 >>> bs = Bitset()
+>>> len(bs)
+0
+>>> bool(bs)
+False
+>>> bs[3]
+False
 >>> bs[3] = 1
+>>> bs[3]
+True
+>>> len(bs)
+4
+>>> bool(bs)
+True
 >>> [i for i in bs]
 [False, False, False, True]
+>>> bs[4]
+False
     '''
-    
+
     def __init__(self):
         self.bits = 0
         self._size = 0
-                
+
     def __setitem__(self, i, v):
         if v:
             self.bits |= (1<<i)
