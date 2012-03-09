@@ -138,22 +138,20 @@ class SqlMappingStore(Model):
         for tbl in self.insp.get_table_names():
             if tbl == 'vesper_stmts':
                 continue
-            mDict['tables'][tbl] = {
-                'id' : self.insp.get_primary_keys(tbl)[0], 'properties' : ['*'] 
-                }
+            mDict['tables'][tbl] = {'properties': ['*']}
+            if self.insp.get_primary_keys(tbl):
+                mDict['tables'][tbl]['id'] = self.insp.get_primary_keys(tbl)[0]
             for fk in self.insp.get_foreign_keys(tbl):
                 for cc in fk['constrained_columns']:
                     (mDict['tables'][tbl]['properties']).append({
                             cc.encode('ascii') : {
                                 'key': fk['referred_columns'][0].encode('ascii'),
                                 'references' : fk['referred_table']}})
+        for vw in self.insp.get_view_names():
+            mDict['tables'][vw] = {'properties': ['*'], 'readonly': 'true'}
+
         if mDict['tables']:
             self.mapping = mDict
-
-#    for vw in self.insp.get_view_names():
-#    q = self.insp.get_view_definition(vw)
-#    for c in self.insp.get_columns(vw):
-#    print '\t', c['name'], c['type']
 
 
     def _checkConnection(self):
@@ -266,6 +264,58 @@ class SqlMappingStore(Model):
             print s, '\n'
         return stmts
 
+
+    def _parsePropertyDict(self, prop, i=0):
+        '''
+        recurse through possibly nested dictionary of properties, leave a popcorn trail
+
+        # get key (i.e. property name) and corresponding value
+        [(pName, pVal)] = prop.items()
+        if isinstance(pVal, dict):
+            [(k, v)] = pVal.items()
+            print "property:", k, ":", v
+            if k == 'key':
+                pass
+            elif k == 'id':
+                pass
+            elif k == 'references':
+                if isinstance(v, dict):
+                    for (rk, rv) in v.items():
+                        print "\t", rk, ":", rv
+                        if rk == 'key':
+                            pass
+                        elif rk == 'table':
+                            pass
+                        elif rk == 'value':
+                            if isinstance(rv, dict):
+                                for (rvk, rvv) in rv.items():
+                                    if isinstance(rvv, dict):
+                                        [(rvkk, rvvv)] = rvv.items()
+                                        print "\t\t", rvkk, ":", rvvv
+                        elif k == 'view':
+                            pass
+                        else:
+                            pass
+        '''
+        for (k, v) in prop.items():
+            print "property: iter =", i, "k =", k, "v =", v
+            if k == 'key':
+                pass
+            elif k == 'id':
+                pass
+            elif k == 'table':
+                pass
+            elif k == 'value':
+                pass
+            elif k == 'view':
+                pass
+            elif k == 'references':
+                pass
+            else:
+                pass
+            if isinstance(v, dict):
+                self._parsePropertyDict(v, i+1)
+
                             
     def _getColumnsOfInterest(self, tableNames):
         '''
@@ -282,27 +332,22 @@ class SqlMappingStore(Model):
             if tbl == 'vesper_stmts':
                 continue
             # use json map and sql schema to determine columns of interest, make a list
+            readonly = False
+            pKeyName = None
             tableDesc = self.mapping["tables"][tbl]
             if 'id' in tableDesc:
                 pKeyName = tableDesc['id']
+            if 'readonly' in tableDesc:
+                readonly = tableDesc['readonly']
             if 'relationship' in tableDesc:
-                if tableDesc['relationship'] == True:
-                    # this is a correlation definition
-                    pass
+                # under our regime, 'correlation' tables are pointed TO in json map from foreign key subjects,
+                # and updated when subjects are modified, so we don't need them in canonical storage
+                pass
             colNames = []
             if 'properties' in tableDesc:
                 for prop in tableDesc['properties']:
                     if isinstance(prop, dict):
-                        if 'id' in prop:
-                            print "property: id", prop['id'], "for", tbl
-                        if 'key' in prop:
-                            print "property: key", prop['key'], "for", tbl  
-                        if 'references' in prop:
-                            print "property: references", prop['references'], "for", tbl
-                        if 'view' in prop:
-                            print "property: view", prop['view'], "for", tbl
-                        else:
-                            print "column name/s: ", prop, "for", tbl
+                        self._parsePropertyDict(prop)
                     elif prop == "*":
                         # turn to sql schema to compile list of all (non-pkey) column names
                         for c in self.insp.get_columns(tbl):
@@ -312,8 +357,8 @@ class SqlMappingStore(Model):
                         # a [single] specific column name - add to list
                         colNames.append(p)
 
-                # add this dict to our list
-                self.parsedTables.append({'tableName':tbl, 'pKeyName':pKeyName, 'colNames':colNames})
+            # add this dict to our list
+            self.parsedTables.append({'tableName':tbl, 'pKeyName':pKeyName, 'readOnly':readonly, 'colNames':colNames})
 
 
     def _buildVesperQuery(self, subject=None, predicate=None, object=None,

@@ -1,19 +1,68 @@
 {
-    "tablesprop": "type",
-    "idpattern": "http://souzis.com/",
-    "tables": {
-        "artist": { 
-            "id": "artistid",
+    "tablesprop" : "type",
+    "idpattern" : "http://souzis.com/",
+    "tables" : {
+        "artist" : {
+            "id" : "artistid",
+            "properties" : [
+                "*",
+		{
+		    "tracks" : {
+			"references" : {
+	    		    "table" : "track_artist",
+			    "key" : "artistid",
+			    "value" : {
+				"trackid" : {
+				    "references" : "track"
+				}
+			    }
+			}
+		    }
+		}
+            ]
+        },
+        "track" : {
+            "id" : "trackid",
+            "properties" : [
+                "*",
+		{
+		    "artists" : {
+     			"references" : {
+			    "table" : "track_artist",
+			    "key" : "trackid",
+			    "value" : {
+				"artistid" : {
+				    "references" : "artist"
+				}
+			    }
+			}
+		    }
+		}
+            ]
+        },
+        "album": {
+            "id": "albumid", 
             "properties": [
-		"*"
-	    ] 
-	},
-        "track": { 
-            "id": "trackid",
-	    "properties": [
-		"*", 
-		{"trackartist": {"references": "artist", "key": "artistid"}}
-	    ]
-	}
+                "*"
+            ]
+        },
+	"track_artist": {
+	    "relationship" : true,
+            "properties": [
+                "*"
+            ]
+        },
+        "album_tracks": {
+	    "relationship" : true,
+            "properties": [
+                "*"
+            ]
+        },
+	"artist_discography": {
+            "readonly": "true",
+            "properties": [
+                "*"
+            ]
+       }
     }
 }
