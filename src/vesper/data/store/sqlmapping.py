@@ -181,17 +181,14 @@ class SqlMappingStore(Model):
                 table = self.vesper_stmts
 
         if predicate:
-            colName = self._getPropNameFromResourceId(predicate)
             if not subject:
                 table = self._getTableFromResourceId(predicate)
-                if table is not None:
-                    for td in self.parsedTables:
-                        if td['tableName'] == table.name:
-                            pKeyName = td['pKeyName']
-                            break
-                else:
-                    # we have a predicate to match but no table has a col of this name - vesperize it
-                    table = self.vesper_stmts
+            if table is not None:
+                colName = self._getColName(table.name, self._getPropNameFromResourceId(predicate))
+                for td in self.parsedTables:
+                    if td['tableName'] == table.name:
+                        pKeyName = td['pKeyName']
+                        break
 
         if table is None:
             # if no URI is specified we cannot infer the target table!
@@ -259,7 +256,7 @@ class SqlMappingStore(Model):
                     stmts.append(Statement(subj, colName, r[colName], None, None))
                 elif pattern == 'multicol':
                     # return a set of triples representing all properties and values for one subject/ID
-                    [stmts.append(Statement(subj, c, r[c], None, None)) for c in td['colNames']]
+                    [stmts.append(Statement(subj, k, r[v], None, None)) for k,v in td['colNames'].items()]
         for s in stmts:
             print s, '\n'
         return stmts
@@ -267,54 +264,42 @@ class SqlMappingStore(Model):
 
     def _parsePropertyDict(self, prop, i=0):
         '''
-        recurse through possibly nested dictionary of properties, leave a popcorn trail
-
-        # get key (i.e. property name) and corresponding value
-        [(pName, pVal)] = prop.items()
-        if isinstance(pVal, dict):
-            [(k, v)] = pVal.items()
-            print "property:", k, ":", v
-            if k == 'key':
-                pass
-            elif k == 'id':
-                pass
-            elif k == 'references':
-                if isinstance(v, dict):
-                    for (rk, rv) in v.items():
-                        print "\t", rk, ":", rv
-                        if rk == 'key':
-                            pass
-                        elif rk == 'table':
-                            pass
-                        elif rk == 'value':
-                            if isinstance(rv, dict):
-                                for (rvk, rvv) in rv.items():
-                                    if isinstance(rvv, dict):
-                                        [(rvkk, rvvv)] = rvv.items()
-                                        print "\t\t", rvkk, ":", rvvv
-                        elif k == 'view':
-                            pass
-                        else:
-                            pass
+        walk through possibly nested dictionary of properties, leave a popcorn trail
         '''
         for (k, v) in prop.items():
-            print "property: iter =", i, "k =", k, "v =", v
-            if k == 'key':
-                pass
-            elif k == 'id':
-                pass
-            elif k == 'table':
-                pass
-            elif k == 'value':
-                pass
-            elif k == 'view':
-                pass
-            elif k == 'references':
-                pass
+            t = ''
+            for x in range(0, i):
+                t = '\t' + t
+            print t, "iter =", i, "k =", k, "v =", v
+
+            if k == 'references':
+                '''
+                "references" : { 
+                "table" : <<tablename>>
+                "key"...
+                "value"...
+                '''
+                if isinstance(v, dict):
+                    tbl = v['table']
+                    col = v['key']
+                    if col == "id":
+                        col = self.insp.get_primary_keys(tbl)
+                    refTbl, refCol = None
+                    val = v['value']
+                    if val == "id":
+                        val = self.insp.get_primary_keys(tbl)
+                    elif isinstance(val, dict):
+                        refCol, v1 = val.items()
+                        refTbl = v1['references']
+                    (tbl, col, refTbl, refCol)
+                else:
+                    '''
+                    "references" : <<tablename>> ||
+                    '''
+                    pass
             else:
-                pass
-            if isinstance(v, dict):
-                self._parsePropertyDict(v, i+1)
+                # we have a json property name for a column - store both for lookup
+                pass       #  colNames[k] = v
 
                             
     def _getColumnsOfInterest(self, tableNames):
@@ -327,38 +312,47 @@ class SqlMappingStore(Model):
         that we are using
         '''
         self.parsedTables = []
-        for tbl in tableNames:
+        for tableName in tableNames:
             # if our private secret table is passed in here, politely decline to parse it 
-            if tbl == 'vesper_stmts':
+            if tableName == 'vesper_stmts':
                 continue
             # use json map and sql schema to determine columns of interest, make a list
             readonly = False
             pKeyName = None
-            tableDesc = self.mapping["tables"][tbl]
+            tableDesc = self.mapping["tables"][tableName]
             if 'id' in tableDesc:
                 pKeyName = tableDesc['id']
             if 'readonly' in tableDesc:
+                # this table is in fact an immutable SQL view - query but don't update
                 readonly = tableDesc['readonly']
             if 'relationship' in tableDesc:
                 # under our regime, 'correlation' tables are pointed TO in json map from foreign key subjects,
                 # and updated when subjects are modified, so we don't need them in canonical storage
                 pass
-            colNames = []
             if 'properties' in tableDesc:
+                colNames = {}
                 for prop in tableDesc['properties']:
+                    if isinstance(prop, str):
+                        if prop == "*":
+                            for c in self.insp.get_columns(tableName):
+                                if c['name'] not in self.insp.get_primary_keys(tableName):
+                                    colNames[c['name']] = c['name']
+                        else:
+                            if prop not in colNames.keys() and prop not in self.insp.get_primary_keys(tableName):
+                                colNames[prop] = prop
                     if isinstance(prop, dict):
                         self._parsePropertyDict(prop)
-                    elif prop == "*":
-                        # turn to sql schema to compile list of all (non-pkey) column names
-                        for c in self.insp.get_columns(tbl):
-                            if c['name'] not in self.insp.get_primary_keys(tbl):
-                                colNames.append(c['name'])
-                    else:
-                        # a [single] specific column name - add to list
-                        colNames.append(p)
 
-            # add this dict to our list
-            self.parsedTables.append({'tableName':tbl, 'pKeyName':pKeyName, 'readOnly':readonly, 'colNames':colNames})
+            self.parsedTables.append({'tableName':tableName, 'pKeyName':pKeyName, 'readOnly':readonly, 'colNames':colNames})
+
+
+    def _getColName(self, tableName, pName):
+        for t in self.parsedTables:
+            if t['tableName'] == tableName:
+                for k, v in t['colNames'].items():
+                    if k == pName:
+                        return v
+        return pName
 
 
     def _buildVesperQuery(self, subject=None, predicate=None, object=None,
@@ -415,6 +409,7 @@ class SqlMappingStore(Model):
         tName = uri.split(RSRC_DELIM)[0]
         for td in self.parsedTables:
             # only interested here in known, 'json-mapped' tables
+            # XXXX CHECK FOR JSON NAME
             if td['tableName'] == tName:
                 for t in self.md.sorted_tables:
                     if t.name == tName:
@@ -463,10 +458,12 @@ class SqlMappingStore(Model):
         if not uri:
             return None
         pName = self._getPropNameFromResourceId(uri)
-        for t in self.md.sorted_tables:
-            for c in t.c:
-                if c.name == pName:
-                    return t
+        for t in self.parsedTables:
+            for k, v in t['colNames'].items():
+                if k == pName:
+                    for st in self.md.sorted_tables:
+                        if st.name == t['tableName']:
+                            return st
         return None
 
 
@@ -480,7 +477,7 @@ class SqlMappingStore(Model):
         if table is not None:
             pKeyName = self._getPropNameFromResourceId(s)
             pKeyValue = self._getValueFromResourceId(s)
-            colName = self._getPropNameFromResourceId(p)
+            colName = self._getColName(table.name, self._getPropNameFromResourceId(p))
             argDict = {colName : o}
             # try update first - if it fails we'll drop through to insert
             upd = table.update().where(table.c[pKeyName] == pKeyValue)
@@ -543,7 +540,7 @@ class SqlMappingStore(Model):
             pKeyName = self._getPropNameFromResourceId(subject)
             pKeyValue = self._getValueFromResourceId(subject)
             if predicate:
-                colName = self._getPropNameFromResourceId(predicate)
+                colName = self._getColName(table.name, self._getPropNameFromResourceId(predicate))
                 cmd = table.update().values({table.c[colName] : ''})
                 if object:
                     cmd = cmd.where(table.c[colName] == object)

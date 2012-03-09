@@ -37,13 +37,33 @@
 			    }
 			}
 		    }
-		}
+		},
+                {
+		    "albums" : {
+			"references" : {
+			    "table" : "album_tracks",
+			    "key" : "trackid",
+			    "value" : {
+				"albumid" : {
+				    "references": "album"
+				}
+			    }
+			}
+                    }
+                } 
+
             ]
         },
         "album": {
             "id": "albumid", 
             "properties": [
-                "*"
+                "*",
+                {
+                    "albumid": {
+                        "key": "albumid", 
+                        "references": "album"
+                    }
+                }
             ]
         },
 	"track_artist": {
