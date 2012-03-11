@@ -16,7 +16,7 @@ import vesper.app
 from vesper import utils
 from vesper.data import base
 from vesper.data.store.basic import *
-from vesper.data.store.sqlmapping import SqlMappingStore
+from vesper.data.store.jsonalchemy import JsonAlchemyStore
 
 RSRC_URI = "http://souzis.com/"
 
@@ -50,12 +50,12 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
 
 
     def getModel(self):
-        model = SqlMappingStore(source=self.sqlaConfiguration, mapping=self.mapping, autocommit=True)
+        model = JsonAlchemyStore(source=self.sqlaConfiguration, mapping=self.mapping, autocommit=True)
         return self._getModel(model)
 
 
     def getTransactionModel(self):
-        model = SqlMappingStore(source=self.sqlaConfiguration, mapping=self.mapping, autocommit=False)
+        model = JsonAlchemyStore(source=self.sqlaConfiguration, mapping=self.mapping, autocommit=False)
         return self._getModel(model)
 
 
