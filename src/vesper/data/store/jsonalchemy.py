@@ -30,9 +30,6 @@ class JsonAlchemyStore(Model):
         # create our mapper utility to encapsulate JSON-SQL-JSON translation
         self.jmap = JsonAlchemyMapper(mapping, self.engine)
 
-        # create a list of {tbl,pkey,cols[]} dicts for efficient internal use
-        self.parsedTables = self.jmap.getColumnsOfInterest()
-
         self.vesper_stmts = None
         if loadVesperTable:
             print "LOADING VESPER TABLE"
@@ -81,10 +78,16 @@ class JsonAlchemyStore(Model):
         self.conn.execution_options(autocommit=self.autocommit)
 
 
-    def _getTableObject(self, tableName):
-        for t in self.md.sorted_tables:
-            if t.name == tableName:
-                table = t
+    def _getTableObject(self, uri=None):
+        '''
+        extract tableName from URI, find in reflected SQL schema, return SQLA Table object
+        '''
+        tableName = self.jmap.getTableFromResourceId(uri)
+        if tableName:
+            for t in self.md.sorted_tables:
+                if t.name == tableName:
+                    return t
+        return None
 
 
     def getStatements(self, subject=None, predicate=None, object=None,
@@ -96,7 +99,7 @@ class JsonAlchemyStore(Model):
         '''
         table = pKeyName = pKeyValue = colName = None
         if subject:
-            table = self._getTableObject(self.jmap.getTableFromResourceId(subject))
+            table = self._getTableObject(subject)
             if table is not None:
                 pKeyName = self.jmap.getPropNameFromResourceId(subject)
                 pKeyValue = self.jmap.getValueFromResourceId(subject)
@@ -106,13 +109,10 @@ class JsonAlchemyStore(Model):
         if predicate:
             if not subject:
                 # we try to derive a table name from predicate URI, if present
-                tName = self.jmap.getTableFromResourceId(predicate)
-                if tName is not None:
-                    # we have a table name, now retrieve the more useful sqla Table object
-                    table = self._getTableObject(tName)
-                    if table is not None:
-                        colName = self.jmap.getColName(table.name, self.jmap.getPropNameFromResourceId(predicate))
-                        pKeyName = self.jmap.getPrimaryKeyName(table.name)
+                table = self._getTableObject(predicate)
+                if table is not None:
+                    colName = self.jmap.getColNameFromPredicate(table.name, predicate)
+                    pKeyName = self.jmap.getPrimaryKey(table.name)
         if table is None:
             # we finally believe this is a select * query on the vesper_stmts db
             table = self.vesper_stmts
@@ -227,13 +227,13 @@ class JsonAlchemyStore(Model):
         s, p, o, ot, c = stmt
         argDict = {}
         colName = None
-        table = self._getTableObject(self.jmap.getTableFromResourceId(s))
+        table = self._getTableObject(s)
 
         self._checkConnection()
         if table is not None:
             pKeyName = self.jmap.getPropNameFromResourceId(s)
             pKeyValue = self.jmap.getValueFromResourceId(s)
-            colName = self.jmap.getColName(table.name, self.jmap.getPropNameFromResourceId(p))
+            colName = self.jmap.getColNameFromPredicate(table.name, p)
             argDict = {colName : o}
             # try update first - if it fails we'll drop through to insert
             upd = table.update().where(table.c[pKeyName] == pKeyValue)
@@ -282,7 +282,7 @@ class JsonAlchemyStore(Model):
         '''
         subject, predicate, object, ot, context = stmt
         table = cmd = pKeyName = pKeyValue = colName = None
-        table = self._getTableObject(self.jmap.getTableFromResourceId(subject))
+        table = self._getTableObject(subject)
         if table is None:
             # vesperize it and fall through for quick exit
             cmd = self.vesper_stmts.delete().where(
@@ -296,7 +296,7 @@ class JsonAlchemyStore(Model):
             pKeyName = self.jmap.getPropNameFromResourceId(subject)
             pKeyValue = self.jmap.getValueFromResourceId(subject)
             if predicate:
-                colName = self.jmap.getColName(table.name, self.jmap.getPropNameFromResourceId(predicate))
+                colName = self.jmap.getColNameFromPredicate(table.name, predicate)
                 cmd = table.update().values({table.c[colName] : ''})
                 if object:
                     cmd = cmd.where(table.c[colName] == object)

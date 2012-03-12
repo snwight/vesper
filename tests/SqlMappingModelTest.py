@@ -28,7 +28,7 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
     mapping = json.loads(open(jsonMapPath).read())
     
     # XXX TESTING 
-#    mapping = None
+    mapping = None
     # XXX
 
     sqlaConfiguration = None

@@ -24,6 +24,9 @@ class JsonAlchemyMapper():
         else:
             self._generateMapFromSchema()
 
+        # create a compact list of relevant table info for efficient internal use
+        self._getColumnsOfInterest()
+
         # output readable json map and sql schema as diagnostic
         self._printSchemata()
         
@@ -106,7 +109,7 @@ class JsonAlchemyMapper():
                 pass       #  colNames[k] = v
 
 
-    def getColumnsOfInterest(self):
+    def _getColumnsOfInterest(self):
         '''
         using our json mapping object (possibly derived by we ourselves based on inspection of the 
         active backend schema), collate and store basic information about the tables that we are to
@@ -149,7 +152,8 @@ class JsonAlchemyMapper():
             self.parsedTables.append({'tableName':tableName, 'pKeyName':pKeyName, 'readOnly':readonly, 'colNames':colNames})
 
 
-    def getColName(self, tableName, pName):
+    def getColNameFromPredicate(self, tableName, predicate):
+        pName = self.getPropNameFromResourceId(predicate)
         for t in self.parsedTables:
             if t['tableName'] == tableName:
                 for k, v in t['colNames'].items():
@@ -214,18 +218,14 @@ class JsonAlchemyMapper():
 
     def getTableWithProperty(self, uri):
         '''
-        search our db for tables w/columns matching property name, return 
-        corresponding Table object
+        search our db for tables w/columns matching property name
         '''
-        if not uri:
-            return None
-        pName = self._getPropNameFromResourceId(uri)
-        for t in self.parsedTables:
-            for k, v in t['colNames'].items():
-                if k == pName:
-                    for st in self.md.sorted_tables:
-                        if st.name == t['tableName']:
-                            return st
+        if uri:
+            pName = self._getPropNameFromResourceId(uri)
+            for t in self.parsedTables:
+                for k, v in t['colNames'].items():
+                    if k == pName:
+                        return t['tableName']
         return None
 
 
