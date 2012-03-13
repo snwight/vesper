@@ -57,13 +57,7 @@
         "album": {
             "id": "albumid", 
             "properties": [
-                "*",
-                {
-                    "albumid": {
-                        "key": "albumid", 
-                        "references": "album"
-                    }
-                }
+                "*"
             ]
         },
 	"track_artist": {

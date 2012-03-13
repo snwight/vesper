@@ -22,6 +22,14 @@ CREATE TABLE album_tracks(
   FOREIGN KEY(albumid) REFERENCES album(albumid),
   FOREIGN KEY(trackid) REFERENCES track(trackid)
 );
+CREATE TABLE album_tracks_artists(
+  artistid    	INTEGER,
+  albumid 	INTEGER,
+  trackid    	INTEGER,
+  FOREIGN KEY(artistid) REFERENCES artist(artistid),
+  FOREIGN KEY(albumid) REFERENCES album(albumid),
+  FOREIGN KEY(trackid) REFERENCES track(trackid)
+);
 CREATE VIEW artist_discography AS 
 select artistname, trackname, albumname
 from artist, track, album, track_artist, album_tracks

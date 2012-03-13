@@ -1,6 +1,7 @@
 import json
 from sqlalchemy import engine
 from sqlalchemy.engine import reflection
+from collections import Counter
 
 RSRC_DELIM='/'
 VAL_OPEN_DELIM='{'
@@ -9,35 +10,18 @@ VAL_CLOSE_DELIM='}'
 class JsonAlchemyMapper():
 
     def __init__(self, mapping=None, engine=None):
-
         if engine is None:
             print "JsonAlchemyMapper requires a valid alchemy engine parameter"
             exit
-            
-        # create our SqlAlchemy 'fine-grained schema inspector'
         self.insp = reflection.Inspector.from_engine(engine)
-      
-        # is a JSON mapping is supplied, use it otherwise infer our best guess at one
-        self.mapping = {}
-        if mapping:
-            self.mapping = mapping
-        else:
-            self._generateMapFromSchema()
-
-        # create a compact list of relevant table info for efficient internal use
+        self._generateMapping(mapping)
         self._getColumnsOfInterest()
-
         # output readable json map and sql schema as diagnostic
         self._printSchemata()
         
-        # divine our resource format strings here, now
-        self.baseUri = ""
-        if 'idpattern' in self.mapping:
-            self.baseUri = self.mapping['idpattern']
-
 
     def _printSchemata(self):        
-        print '===BEGIN SCHEMA INFO==========================================================='
+        print '===BEGIN SCHEMA INFO==========================================='
         print 'SQL schema::'
         for tbl in self.insp.get_table_names():
             if tbl == 'vesper_stmts':
@@ -50,12 +34,14 @@ class JsonAlchemyMapper():
                 print '\t\t', pk
             for i in self.insp.get_indexes(tbl):
                 print '\tINDEX:' 
-                print '\t\t', i['name'], 'UNIQUE' if 'unique' in i else '', 'ON', \
-                    [ic.encode('ascii') for ic in i['column_names']]
+                print '\t\t', i['name'], 'UNIQUE' if 'unique' in i else '',\
+                    'ON', [ic.encode('ascii') for ic in i['column_names']]
             for fk in self.insp.get_foreign_keys(tbl):
                 print '\tFOREIGN KEY:'
-                print '\t\t', [cc.encode('ascii') for cc in fk['constrained_columns']], 'ON', \
-                    fk['referred_table'], [rc.encode('ascii') for rc in fk['referred_columns']]
+                print '\t\t',\
+                    [cc.encode('ascii') for cc in fk['constrained_columns']],\
+                    'ON', fk['referred_table'],\
+                    [rc.encode('ascii') for rc in fk['referred_columns']]
         for vw in self.insp.get_view_names():
             print 'VIEW:', vw
             q = self.insp.get_view_definition(vw)
@@ -63,15 +49,15 @@ class JsonAlchemyMapper():
                 print '\t', c['name'], c['type']
             print 'VIEW DEFINITION:'
             print '\t', q
-        print '===END SCHEMA INFO============================================================='
-        print '===BEGIN JSON MAP=============================================================='
+        print '===END SCHEMA INFO============================================'
+        print '===BEGIN JSON MAP============================================='
         print json.dumps(self.mapping, sort_keys=True, indent=4)
-        print '===END JSON MAP================================================================'
+        print '===END JSON MAP========================---===================='
 
 
     def _parsePropertyDict(self, prop, i=0):
         '''
-        walk through possibly nested dictionary of properties, leave a popcorn trail
+        walk through possibly nested dictionary of properties
         '''
         for (k, v) in prop.items():
             t = ''
@@ -105,61 +91,66 @@ class JsonAlchemyMapper():
                     '''
                     pass
             else:
-                # we have a json property name for a column - store both for lookup
-                pass       #  colNames[k] = v
+                # we have a json property name for a column, store both
+                #  colNames[k] = v
+                pass 
 
 
     def _getColumnsOfInterest(self):
         '''
-        using our json mapping object (possibly derived by we ourselves based on inspection of the 
-        active backend schema), collate and store basic information about the tables that we are to
-        use into a list of simple dicts: 
-        {table name, primary key column name, [list of all relevant columns]}.
-        this allows us to ignore all other backend tables, and even unused columns in active tables 
-        that we are using
+        using our json mapping object (possibly derived by we ourselves based 
+        on inspection of the active SQL schema), collate and store vital
+        information about the tables that we are to use into a list of simple 
+        dicts - this allows us to ignore all unused tables and columns
         '''
         self.parsedTables = []
         for tableName in self.insp.get_table_names():
-            # if our private secret table is passed in here, politely decline to parse it 
             if tableName == 'vesper_stmts':
+                # don't analyze our private special purpose table
                 continue
-            # use json map and sql schema to determine columns of interest, make a list
             readonly = False
             pKeyName = None
             tableDesc = self.mapping["tables"][tableName]
             if 'id' in tableDesc:
                 pKeyName = tableDesc['id']
             if 'readonly' in tableDesc:
-                # this table is in fact an immutable SQL view - query but don't update
+                # this table is an immutable SQL view - query but don't modify
                 readonly = tableDesc['readonly']
             if 'relationship' in tableDesc:
-                # under our regime, 'correlation' tables are pointed TO in json map from foreign key subjects,
-                # and updated when subjects are modified, so we don't need them in canonical storage
+                # we don't need to store info on 'correlation' tables, they're
+                # maintained implicitly when referents are updated
                 pass
             if 'properties' in tableDesc:
                 colNames = {}
-                for prop in tableDesc['properties']:
-                    if isinstance(prop, str):
-                        if prop == "*":
-                            for c in self.insp.get_columns(tableName):
-                                if c['name'] not in self.insp.get_primary_keys(tableName):
-                                    colNames[c['name']] = c['name']
-                        else:
-                            if prop not in colNames.keys() and prop not in self.insp.get_primary_keys(tableName):
-                                colNames[prop] = prop
-                    if isinstance(prop, dict):
-                        self._parsePropertyDict(prop)
-            self.parsedTables.append({'tableName':tableName, 'pKeyName':pKeyName, 'readOnly':readonly, 'colNames':colNames})
+                for p in tableDesc['properties']:
+                    if isinstance(p, dict):
+                        # descend into more complex property definition
+                        self._parsePropertyDict(p)
+                    elif p == "*":
+                        # collect all non-primary key column names
+                        for c in self.insp.get_columns(tableName):
+                            if not c['primary_key']:
+                                colNames[c['name']] = c['name']
+                    else:
+                        # add new column name to property:column pairs 
+                        if p not in colNames.keys() and not p['primary_key']:
+                            colNames[p] = p
+            self.parsedTables.append({'tableName':tableName, 
+                                      'pKeyName':pKeyName, 
+                                      'readOnly':readonly, 
+                                      'colNames':colNames})
 
 
-    def getColNameFromPredicate(self, tableName, predicate):
+    def getColFromPred(self, tableName, predicate):
+        if not tableName or not predicate:
+            return None
         pName = self.getPropNameFromResourceId(predicate)
         for t in self.parsedTables:
             if t['tableName'] == tableName:
                 for k, v in t['colNames'].items():
                     if k == pName:
                         return v
-        return pName
+        return None
 
 
     def getTableFromResourceId(self, uri):
@@ -168,8 +159,8 @@ class JsonAlchemyMapper():
         '''
         if not uri:
             return None
-        if self.baseUri in uri:
-            uri = uri[len(self.baseUri):]
+        if self.mapping['idpattern'] in uri:
+            uri = uri[len(self.mapping['idpattern']):]
         tName = uri.split(RSRC_DELIM)[0]
         if tName in self.parsedTables:
             return tName
@@ -177,6 +168,11 @@ class JsonAlchemyMapper():
 
     
     def getPrimaryKeyName(self, tableName):
+        '''
+        if tableName is in our 'active' list, return its primary key col name
+        '''
+        if not tableName:
+            return None
         for td in self.parsedTables:
             if td['tableName'] == tableName:
                 return td['pKeyName']
@@ -185,13 +181,13 @@ class JsonAlchemyMapper():
 
     def getPropNameFromResourceId(self, uri):
         '''
-        generic tool to extract property name from (possibly non-URI) resource string
+        extract property name from (possibly non-URI) resource string
         '''
         if not uri:
             return None
         pName = uri
-        if self.baseUri in uri:
-            uri = uri[len(self.baseUri):]
+        if self.mapping['idpattern'] in uri:
+            uri = uri[len(self.mapping['idpattern']):]
         if VAL_OPEN_DELIM in uri:
             uri = uri.split(VAL_OPEN_DELIM)[0]
             pName = uri.split(RSRC_DELIM, 2)[1]
@@ -206,13 +202,11 @@ class JsonAlchemyMapper():
         '''
         if not uri:
             return None
-        val = uri
-        if self.baseUri in uri:
-            uri = uri[len(self.baseUri):]
+        val = None                
+        if self.mapping['idpattern'] in uri:
+            uri = uri[len(self.mapping['idpattern']):]
         if VAL_OPEN_DELIM in uri:
             val = uri.split(VAL_OPEN_DELIM)[1].rstrip(VAL_CLOSE_DELIM)
-        else:
-            val = None                
         return val
 
 
@@ -220,35 +214,69 @@ class JsonAlchemyMapper():
         '''
         search our db for tables w/columns matching property name
         '''
-        if uri:
-            pName = self._getPropNameFromResourceId(uri)
-            for t in self.parsedTables:
-                for k, v in t['colNames'].items():
-                    if k == pName:
-                        return t['tableName']
+        if not uri:
+            return None
+        pName = self._getPropNameFromResourceId(uri)
+        for t in self.parsedTables:
+            for k, v in t['colNames'].items():
+                if k == pName:
+                    return t['tableName']
         return None
 
 
-    def _generateMapFromSchema(self):
-        # generate our best guess at a JSON-SQL mapping based entirely on SQL schema inspection
+    def _generateMapping(self, mapping=None):
+        if mapping:
+            # simple! user has passed us a json-sql mapping
+            self.mapping = mapping
+            return
+
+        # no map - derive a best guess based on SQLA schema inspection
         mDict = {
             "tablesprop": "HYPEtype",
             "idpattern": "http://souzis.com/",
-            "tables": { }
+            "tables": {}
             }
         for tbl in self.insp.get_table_names():
             if tbl == 'vesper_stmts':
+                # don't need to decipher our private Statement table
                 continue
+            # no way of ruling out any properties here, so always include '*'
             mDict['tables'][tbl] = {'properties': ['*']}
             if self.insp.get_primary_keys(tbl):
+                # primary key ==> 'id' property
                 mDict['tables'][tbl]['id'] = self.insp.get_primary_keys(tbl)[0]
-            for fk in self.insp.get_foreign_keys(tbl):
-                for cc in fk['constrained_columns']:
-                    (mDict['tables'][tbl]['properties']).append({
-                            cc.encode('ascii') : {
-                                'key': fk['referred_columns'][0].encode('ascii'),
-                                'references' : fk['referred_table']}})
+
+        # we've collected the list of all tables, now review it with an eye
+        # for relationships and foreign keys 
+        for tbl in mDict['tables']:
+            cNames = [c['name'] for c in self.insp.get_columns(tbl)]
+            fKeys = self.insp.get_foreign_keys(tbl)
+            fkNames = []
+            [fkNames.extend(f['constrained_columns']) for f in fKeys]
+            if Counter(cNames) == Counter(fkNames):
+                # looks like a correlation table, all foreign keys
+                mDict['tables'][tbl]['relationship'] = 'true'
+
+            # for each foreign key in this table, add a prop to referred table
+            for fk in fKeys:
+                # this preliminary nonsense prepares our 'value' property
+                cc = fk['constrained_columns'][0]
+                def f(x): return x['constrained_columns'][0] !=  cc
+                vDict = {}
+                for vKeys in filter(f, fKeys):
+                    vDict[vKeys['constrained_columns'][0]] = {
+                        'references': vKeys['referred_table']}
+                (mDict['tables'][fk['referred_table']]['properties']).append(
+                    {"{}_ref".format(tbl) : 
+                     {'references': 
+                      {'table': "{}".format(tbl),
+                       'key': "{}".format(cc),
+                       'value': vDict}}})
+
+        # SQL views are marked as "readonly" tables
         for vw in self.insp.get_view_names():
             mDict['tables'][vw] = {'properties': ['*'], 'readonly': 'true'}
+
+        # check that we found some relevant tables before moving on
         if mDict['tables']:
             self.mapping = mDict
