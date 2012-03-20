@@ -52,7 +52,7 @@ class JsonAlchemyMapper():
         print '===END SCHEMA INFO============================================'
         print '===BEGIN JSON MAP============================================='
         print json.dumps(self.mapping, sort_keys=True, indent=4)
-        print '===END JSON MAP========================---===================='
+        print '===END JSON MAP==============================================='
 
 
     def _parsePropertyDict(self, prop, i=0):
@@ -122,10 +122,10 @@ class JsonAlchemyMapper():
                 pass
             if 'properties' in tableDesc:
                 colNames = {}
+                referringKeys = {}
                 for p in tableDesc['properties']:
                     if isinstance(p, dict):
-                        # descend into more complex property definition
-                        self._parsePropertyDict(p)
+                        referringKeys = self._parseReferences(p)
                     elif p == "*":
                         # collect all non-primary key column names
                         for c in self.insp.get_columns(tableName):
@@ -135,11 +135,12 @@ class JsonAlchemyMapper():
                         # add new column name to property:column pairs 
                         if p not in colNames.keys() and not p['primary_key']:
                             colNames[p] = p
-            self.parsedTables.append({'tableName':tableName, 
-                                      'pKeyName':pKeyName, 
-                                      'readOnly':readonly, 
-                                      'colNames':colNames})
-
+            self.parsedTables.append({'tableName': tableName,
+                                      'readOnly': readonly,
+                                      'pKeyName': pKeyName,
+                                      'referringKeys': referringKeys,
+                                      'colNames': colNames})
+            
 
     def getColFromPred(self, tableName, predicate):
         if not tableName or not predicate:
@@ -151,6 +152,27 @@ class JsonAlchemyMapper():
                     if k == pName:
                         return v
         return None
+
+
+    def _parseReferences(self, refDict):
+        for k,v in refDict.items():
+            if 'references' in v:
+                r = v['references']
+                # a foreign key is looking at our primary key
+                if isinstance(v, dict):
+                    tbl = r['table']
+                    col = r['key']
+                    if col == "id":
+                        # primary key of referring tbl is fk
+                        col = self.insp.get_primary_keys(tbl)[0]
+                    referringKeys = {}
+                    if 'value' in r:
+                        vals = []
+                        [vals.append(k) for k in r['value'].keys()]
+                        referringKeys[tbl] = {col:vals}
+                    else:
+                        referringKeys[tbl] = {}
+                    print referringKeys
 
 
     def getTableFromResourceId(self, uri):
