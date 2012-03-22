@@ -19,11 +19,8 @@ class JsonAlchemyStore(Model):
         '''
         Create an instance of a json-to-sql store 
         '''
-        # instantiate SqlAlchemy DB connection using cmd string "source"
         self.engine = create_engine(source, echo=False)
-        # create our mapper utility to encapsulate JSON-SQL-JSON translation
         self.jmap = JsonAlchemyMapper(mapping, self.engine)
-        # if not specifically turned off, create a private Statement table
         self.vesper_stmts = None
         if loadVesperTable:
             print "...loading vesper table..."
@@ -42,8 +39,8 @@ class JsonAlchemyStore(Model):
             Index('idx_vs', self.vesper_stmts.c.subject, 
                   self.vesper_stmts.c.predicate, self.vesper_stmts.c.object) 
             self.md.create_all(self.engine)
-            # create our duplicate-insert-ignoring plpgsql stored proc
             if self.engine.name == 'postgresql':
+                # create our duplicate-insert-ignoring plpgsql stored proc
                 self.engine.execute("""
             CREATE OR REPLACE FUNCTION 
             insert_ignore_duplicates (s text, p text, o text, ot text, c text)
@@ -73,14 +70,13 @@ class JsonAlchemyStore(Model):
         self.conn.execution_options(autocommit=self.autocommit)
 
 
-    def _getTableObject(self, uri=None):
+    def _getTableObject(self, tName=None):
         '''
         extract table name, match in reflected schema, return SQLA Table object
         '''
-        tableName = self.jmap.getTableFromResourceId(uri)
-        if tableName:
+        if tName:
             for t in self.md.sorted_tables:
-                if t.name == tableName:
+                if t.name == tName:
                     return t
         return None
 
@@ -95,9 +91,10 @@ class JsonAlchemyStore(Model):
         SQL database with.
         '''
         stmts = []
-        table = pKeyName = pKeyValue = colName = None
+        table = tableName = pKeyName = pKeyValue = colName = None
         if subject:
-            table = self._getTableObject(subject)
+            tableName = self.jmap.getTableFromResourceId(subject)
+            table = self._getTableObject(tableName)
             if table is not None:
                 pKeyName = self.jmap.getPropNameFromResourceId(subject)
                 pKeyValue = self.jmap.getValueFromResourceId(subject)
@@ -107,7 +104,8 @@ class JsonAlchemyStore(Model):
         if predicate:
             if not subject:
                 # we try to derive a table name from predicate URI, if present
-                table = self._getTableObject(predicate)
+                tableName = self.jmap.getTableFromResourceId(predicate)
+                table = self._getTableObject(tableName)
                 if table is not None:
                     colName = self.jmap.getColFromPred(table.name, predicate)
                     pKeyName = self.jmap.getPrimaryKey(table.name)
@@ -239,7 +237,12 @@ class JsonAlchemyStore(Model):
         s, p, o, ot, c = stmt
         argDict = {}
         colName = None
-        table = self._getTableObject(s)
+        # first, verify this is write-worthy table
+        tableName = self.jmap.getTableFromResourceId(s)
+        if self.jmap.readOnly(tableName):
+            # raise an error
+            return
+        table = self._getTableObject(tableName)
         self._checkConnection()
         if table is None:
             # private table is under an insert/ignore duplicate regime
@@ -294,9 +297,13 @@ class JsonAlchemyStore(Model):
         subj/id pred obj ==> null pred where subj == id and pred == obj
         subj pred none ==> null pred
         '''
-        subject, predicate, object, ot, context = stmt
-        table = cmd = pKeyName = pKeyValue = colName = None
-        table = self._getTableObject(subject)
+        s, p, o, ot, c = stmt
+        cmd = pKeyName = pKeyValue = colName = None
+        tableName = self.jmap.getTableFromResourceId(s)
+        if self.jmap.readOnly(tableName):
+            # raise an error
+            return
+        table = self._getTableObject(tableName)
         if table is None:
             # vesperize it and fall through for quick exit
             cmd = self.vesper_stmts.delete().where(
@@ -307,13 +314,13 @@ class JsonAlchemyStore(Model):
                 (self.vesper_stmts.c.context == stmt[4]))
         else:
             # otherwise remove from client tables, selectively
-            pKeyName = self.jmap.getPropNameFromResourceId(subject)
-            pKeyValue = self.jmap.getValueFromResourceId(subject)
-            if predicate:
-                colName = self.jmap.getColFromPred(table.name, predicate)
+            pKeyName = self.jmap.getPropNameFromResourceId(s)
+            pKeyValue = self.jmap.getValueFromResourceId(s)
+            if p:
+                colName = self.jmap.getColFromPred(table.name, p)
                 cmd = table.update().values({table.c[colName] : ''})
-                if object:
-                    cmd = cmd.where(table.c[colName] == object)
+                if o:
+                    cmd = cmd.where(table.c[colName] == o)
             else:
                 # this is a row deletion at least, possibly table clear-out
                 cmd = table.delete()
@@ -321,7 +328,7 @@ class JsonAlchemyStore(Model):
                      # set controls for 'delete from table where id = subj'
                     cmd = cmd.where(table.c[pKeyName] == pKeyValue)
                 '''
-                prop = self.mapping[predicate]
+                prop = self.mapping[p]
                 if props['references']:
                     # this is a foreign key 
                     if key != "id":

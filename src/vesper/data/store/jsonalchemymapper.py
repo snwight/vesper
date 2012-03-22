@@ -151,13 +151,19 @@ class JsonAlchemyMapper():
         return (viewRef, joinCols, refFKeys)
 
 
+    def readOnly(self, tableName):
+        for td in self.parsedTables:
+            if td['tableName'] == tableName:
+                return td['readOnly'] == 'true'
+
+
     def getColFromPred(self, tableName, predicate):
         if not tableName or not predicate:
             return None
         pName = self.getPropNameFromResourceId(predicate)
-        for t in self.parsedTables:
-            if t['tableName'] == tableName:
-                for k, v in t['colNames'].items():
+        for td in self.parsedTables:
+            if td['tableName'] == tableName:
+                for k, v in td['colNames'].items():
                     if k == pName:
                         return v
         return None
@@ -172,8 +178,9 @@ class JsonAlchemyMapper():
         if self.mapping['idpattern'] in uri:
             uri = uri[len(self.mapping['idpattern']):]
         tName = uri.split(RSRC_DELIM)[0]
-        if tName in self.parsedTables:
-            return tName
+        for td in self.parsedTables:
+            if td['tableName'] == tName:
+                return tName
         return None
 
     
@@ -227,10 +234,10 @@ class JsonAlchemyMapper():
         if not uri:
             return None
         pName = self._getPropNameFromResourceId(uri)
-        for t in self.parsedTables:
-            for k, v in t['colNames'].items():
+        for td in self.parsedTables:
+            for k, v in td['colNames'].items():
                 if k == pName:
-                    return t['tableName']
+                    return td['tableName']
         return None
 
 
