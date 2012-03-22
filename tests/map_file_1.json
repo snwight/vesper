@@ -5,7 +5,16 @@
         "track": {
             "id": "trackid", 
             "properties": [
-                "*", 
+                "*",
+		{
+		    "view_ref": {
+			"view": {
+			    "name": "artist_discography",
+			    "column": "trackname",
+			    "key": "id"
+			}
+		    }
+		},
                 {
                     "track_artist_ref": {
                         "references": {
@@ -53,7 +62,16 @@
         "album": {
             "id": "albumid", 
             "properties": [
-                "*", 
+                "*",
+		{
+		    "view_ref": {
+			"view": {
+			    "name": "artist_discography",
+			    "column": "albumname",
+			    "key": "id"
+			}
+		    }
+		},
                 {
                     "album_tracks_ref": {
                         "references": {
@@ -89,6 +107,11 @@
             "id": "artistid", 
             "properties": [
                 "*", 
+		{
+		    "artistid": { 
+			"view": "artist_discography" 
+		    }
+		},
                 {
                     "track_artist_ref": {
                         "references": {
@@ -124,25 +147,25 @@
             "properties": [
                 "*"
             ], 
-            "relationship": "true"
+            "relationship": true
         }, 
         "track_artist": {
             "properties": [
                 "*"
-            ], 
-            "relationship": "true"
+            ],
+            "relationship": true
         },
         "album_tracks_artists": {
             "properties": [
                 "*"
             ], 
-            "relationship": "true"
+            "relationship": true
         },
  	"artist_discography": {
             "properties": [
                 "*"
             ], 
-            "readonly": "true"
+            "readonly": true
         }
     }
 }

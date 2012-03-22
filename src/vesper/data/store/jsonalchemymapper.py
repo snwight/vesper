@@ -1,4 +1,5 @@
 import json
+import pprint
 from sqlalchemy import engine
 from sqlalchemy.engine import reflection
 from collections import Counter
@@ -51,49 +52,8 @@ class JsonAlchemyMapper():
             print '\t', q
         print '===END SCHEMA INFO============================================'
         print '===BEGIN JSON MAP============================================='
-        print json.dumps(self.mapping, sort_keys=True, indent=4)
+        print json.dumps(self.mapping, indent=2)
         print '===END JSON MAP==============================================='
-
-
-    def _parsePropertyDict(self, prop, i=0):
-        '''
-        walk through possibly nested dictionary of properties
-        '''
-        for (k, v) in prop.items():
-            t = ''
-            for x in range(0, i):
-                t = '\t' + t
-            print t, "iter =", i, "k =", k, "v =", v
-
-            if k == 'references':
-                '''
-                "references" : { 
-                "table" : <<tablename>>
-                "key"...
-                "value"...
-                '''
-                if isinstance(v, dict):
-                    tbl = v['table']
-                    col = v['key']
-                    if col == "id":
-                        col = self.insp.get_primary_keys(tbl)
-                    refTbl, refCol = None
-                    val = v['value']
-                    if val == "id":
-                        val = self.insp.get_primary_keys(tbl)
-                    elif isinstance(val, dict):
-                        refCol, v1 = val.items()
-                        refTbl = v1['references']
-                    (tbl, col, refTbl, refCol)
-                else:
-                    '''
-                    "references" : <<tablename>> ||
-                    '''
-                    pass
-            else:
-                # we have a json property name for a column, store both
-                #  colNames[k] = v
-                pass 
 
 
     def _getColumnsOfInterest(self):
@@ -111,36 +71,85 @@ class JsonAlchemyMapper():
             readonly = False
             pKeyName = None
             tableDesc = self.mapping["tables"][tableName]
+            if 'relationship' in tableDesc:
+                # we don't need to store info on 'correlation' tables
+                #                continue
+                # but I'm experimenting with "view" reference parsing so...
+                pass
             if 'id' in tableDesc:
                 pKeyName = tableDesc['id']
             if 'readonly' in tableDesc:
-                # this table is an immutable SQL view - query but don't modify
                 readonly = tableDesc['readonly']
-            if 'relationship' in tableDesc:
-                # we don't need to store info on 'correlation' tables, they're
-                # maintained implicitly when referents are updated
-                pass
             if 'properties' in tableDesc:
                 colNames = {}
-                referringKeys = {}
+                viewRefs = []
+                joinCols = []
+                refFKeys = []
                 for p in tableDesc['properties']:
                     if isinstance(p, dict):
-                        referringKeys = self._parseReferences(p)
+                        (vr, jc, rfk) = self._parseRefDict(p)
+                        if vr:
+                            viewRefs.append(vr)
+                        if jc:
+                            joinCols.append(jc)
+                        if rfk:
+                            refFKeys.append(rfk)
                     elif p == "*":
-                        # collect all non-primary key column names
                         for c in self.insp.get_columns(tableName):
                             if not c['primary_key']:
                                 colNames[c['name']] = c['name']
                     else:
-                        # add new column name to property:column pairs 
                         if p not in colNames.keys() and not p['primary_key']:
                             colNames[p] = p
             self.parsedTables.append({'tableName': tableName,
                                       'readOnly': readonly,
                                       'pKeyName': pKeyName,
-                                      'referringKeys': referringKeys,
-                                      'colNames': colNames})
-            
+                                      'colNames': colNames,
+                                      'refFKeys': refFKeys,
+                                      'viewRefs': viewRefs, 
+                                      'joinCols': joinCols, 
+                                      'refFKeys': refFKeys})
+        self.pp = pprint.PrettyPrinter(indent=2)
+        self.pp.pprint(self.parsedTables)
+
+
+    def _parseRefDict(self, refDict):
+        '''
+        collect foreign key declarations that point into the current table
+        as described by JSON mapping 'references' properties, build a
+        compiled dictionary of relevant column names and relations - also
+        take note of left-side join columns and view membership properties
+        '''
+        viewRef = ()
+        joinCols = ()
+        refFKeys = ()
+        for k,v in refDict.items():
+            if "key" in v:
+                joinCols = (v)
+            if "view" in v:
+                r = v['view']
+                if isinstance(r, dict):
+                    vName = r['name']
+                    if 'column' in r:
+                        vCol = r['column']
+                    else:
+                        vCol = k
+                    if 'key' in r:
+                        vKey = r['key']
+                    viewRef = (vName, vCol, vKey)
+                else:
+                    viewRef = (r, k, "id")
+            if 'references' in v:
+                r = v['references']
+                if isinstance(r, dict):
+                    tbl = r['table']
+                    col = r['key']
+                    vals = []
+                    if 'value' in r:
+                        [vals.append(k) for k in r['value'].keys()]
+                    refFKeys = (tbl, col, vals)
+        return (viewRef, joinCols, refFKeys)
+
 
     def getColFromPred(self, tableName, predicate):
         if not tableName or not predicate:
@@ -152,27 +161,6 @@ class JsonAlchemyMapper():
                     if k == pName:
                         return v
         return None
-
-
-    def _parseReferences(self, refDict):
-        for k,v in refDict.items():
-            if 'references' in v:
-                r = v['references']
-                # a foreign key is looking at our primary key
-                if isinstance(v, dict):
-                    tbl = r['table']
-                    col = r['key']
-                    if col == "id":
-                        # primary key of referring tbl is fk
-                        col = self.insp.get_primary_keys(tbl)[0]
-                    referringKeys = {}
-                    if 'value' in r:
-                        vals = []
-                        [vals.append(k) for k in r['value'].keys()]
-                        referringKeys[tbl] = {col:vals}
-                    else:
-                        referringKeys[tbl] = {}
-                    print referringKeys
 
 
     def getTableFromResourceId(self, uri):

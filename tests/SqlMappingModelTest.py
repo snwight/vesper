@@ -98,11 +98,6 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         r1 = model.getStatements(subject=subj)
         self.assertEqual([s[2] for s in tStmts], [r[2] for r in r1])
 
-        # NOT IMPLEMENTED YET
-        # - removal object value/s (null row element/s)
-        # - removal of subject key/ID ignored 
-        # 
-        # - duplicate values. duplicate subject key/IDs
         '''
         model.removeStatement()
         s3 = Statement(subj, 'track/trackartist', 1)
