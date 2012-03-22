@@ -12,6 +12,7 @@ from sqlalchemy.engine import reflection
 from jsonalchemymapper import *
 import logging 
 log = logging.getLogger("jsonalchemy")
+SPEW = False
 
 class JsonAlchemyStore(Model):
     def __init__(self, source=None, mapping=None, autocommit=False, 
@@ -23,7 +24,7 @@ class JsonAlchemyStore(Model):
         self.jmap = JsonAlchemyMapper(mapping, self.engine)
         self.vesper_stmts = None
         if loadVesperTable:
-            print "...loading vesper table..."
+            #print "...loading vesper table..."
             self.md = MetaData(self.engine)
             self.vesper_stmts = Table(
                 'vesper_stmts', self.md, 
@@ -144,7 +145,8 @@ class JsonAlchemyStore(Model):
                 where(table.c[colName] == object)
             pattern = 'id'
 
-        print query
+        if SPEW:
+          print query
         self._checkConnection()
         result = self.conn.execute(query)
         stmts.extend(self._generateStatementAssignments(
@@ -208,7 +210,7 @@ class JsonAlchemyStore(Model):
             pKeyName = self.jmap.getPrimaryKeyName(tableName)
         stmts = []
         for r in fetchedRows:
-            print "r: ", r
+            if SPEW: print "r: ", r
             if pattern == 'vespercols':
                 # for our private table we know all column names
                 stmts.append(
@@ -228,8 +230,9 @@ class JsonAlchemyStore(Model):
                     [stmts.append(Statement(subj, k, r[v], None, None)) \
                          for k,v in td['colNames'].items()]
         # diagnostic
-        for s in stmts:
-            print s, '\n'
+        if SPEW:
+          for s in stmts:
+              print s, '\n'
         return stmts
 
 
@@ -257,7 +260,7 @@ class JsonAlchemyStore(Model):
             colName = self.jmap.getColFromPred(table.name, p)
             argDict = {colName : o}
             upd = table.update().where(table.c[pKeyName] == pKeyValue)
-            print "UPDATE: ", table.name, pKeyName, pKeyValue, \
+            if SPEW: print "UPDATE: ", table.name, pKeyName, pKeyValue, \
                 colName, o, ot, argDict
             result = self.conn.execute(upd, argDict)
             if result.rowcount:
@@ -265,7 +268,8 @@ class JsonAlchemyStore(Model):
 
         # update failed - try inserting new row, works for all table types
         argDict[pKeyName] = pKeyValue
-        print "ADD: ", table.name, pKeyName, pKeyValue, colName, o, argDict
+        if SPEW:
+          print "ADD: ", table.name, pKeyName, pKeyValue, colName, o, argDict
         ins = table.insert()
         if self.engine.name == 'postgresql':
             if table == self.vesper_stmts:

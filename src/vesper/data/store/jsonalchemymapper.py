@@ -8,17 +8,21 @@ RSRC_DELIM='/'
 VAL_OPEN_DELIM='{'
 VAL_CLOSE_DELIM='}'
 
+SPEW=False
+
 class JsonAlchemyMapper():
 
     def __init__(self, mapping=None, engine=None):
         if engine is None:
+            #XXX throw exception
             print "JsonAlchemyMapper requires a valid alchemy engine parameter"
             exit
         self.insp = reflection.Inspector.from_engine(engine)
         self._generateMapping(mapping)
         self._getColumnsOfInterest()
         # output readable json map and sql schema as diagnostic
-        self._printSchemata()
+        if SPEW:
+          self._printSchemata()
         
 
     def _printSchemata(self):        
@@ -109,8 +113,8 @@ class JsonAlchemyMapper():
                                       'viewRefs': viewRefs, 
                                       'joinCols': joinCols, 
                                       'refFKeys': refFKeys})
-        self.pp = pprint.PrettyPrinter(indent=2)
-        self.pp.pprint(self.parsedTables)
+
+        if SPEW: pprint.PrettyPrinter(indent=2).pprint(self.parsedTables)
 
 
     def _parseRefDict(self, refDict):

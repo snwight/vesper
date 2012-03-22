@@ -42,7 +42,7 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
             [os.getenv("SQLA_TEST_SQLITE"), fname])
       
         # create our sqlite test db and schema 
-        cmd = "sqlite {0} < {1}".format(fname, self.sqlSchemaPath)
+        cmd = "sqlite3 {0} < {1}".format(fname, self.sqlSchemaPath)
         call(cmd, shell=True)
                 
 
