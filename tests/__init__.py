@@ -68,7 +68,7 @@ if __name__ == '__main__':
     if '--browser' in sys.argv:
         __all__.append('browserTest')
     else:
-        if 'DISPLAY' in os.environ and which('Xvfb') and which('phantomjs'):
+        if 'DISPLAY' in os.environ and which('phantomjs'):
             os.environ['BROWSER'] = 'phantomjs browser/phantomjs.coffee %s'
             __all__.append('browserTest')
         else:
