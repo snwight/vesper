@@ -124,7 +124,9 @@ class RDFLibStore(Model):
         self.txnState = TxnState.DIRTY
 
 class RDFLibFileModel(RDFLibStore):
-    def __init__(self,source, defaultStatements=(), context='', **kw):    
+    autocommit = False
+
+    def __init__(self,source, defaultStatements=(), context='', **kw):
         stmts, format, fsize, mtime = loadFileStore(source, context)
         if stmts is None:
             stmts = defaultStatements
@@ -142,13 +144,28 @@ class RDFLibFileModel(RDFLibStore):
             base, ext = os.path.splitext(path)
             self.path = base + '.nt'
 
-        import rdflib        
+        import rdflib
         RDFLibStore.__init__(self, rdflib.ConjunctiveGraph())
-        self.addStatements( stmts )             
+        self.addStatements( stmts )
+
+    def addStatement(self, statement ):
+        super(RDFLibFileModel, self).addStatement(statement)
+        if self.autocommit:
+            self.commit()
+
+    def removeStatement(self, statement ):
+        super(RDFLibFileModel, self).removeStatement(statement)
+        if self.autocommit:
+            self.commit()
 
     def commit(self):
         if self.txnState == TxnState.DIRTY:
-            self.graph.serialize(self.path, self.format)
+            #as of rdflib 3.2 passing a file path here seems broken
+            f = open(self.path, "w")
+            try:
+                self.graph.serialize(f, self.format)
+            finally:
+                f.close()
         self.txnState = TxnState.BEGIN
 
 class TransactionalRDFLibFileModel(TransactionModel, RDFLibFileModel): pass
