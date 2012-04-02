@@ -518,6 +518,24 @@ class GraphModelTestCase(BasicModelTestCase):
         modelUri = base.generateBnode()
         return graphManagerClass(model, None, modelUri)
 
+    def testGetStatementsAtRevision(self):
+        model = self.getModel()
+        subj = random_name(12)
+        s1 = Statement(subj, 'pred', "obj")
+        model.addStatement(s1)
+        model.commit()
+        s2 = Statement(subj, 'pred', "obj2")
+        model.addStatement(s2)
+        model.commit()
+        model.removeStatement(s2)
+        model.commit()
+        history = model.getRevisionContextsForResource(subj)
+        self.assertEquals(len(history), 3)
+        expect1 = set([s1[:4] + ('context:add:'+history[0]+';;',)])
+        expect2 = expect1.union(set([s2[:4] + ('context:add:'+history[1]+';;',)]))
+        self.assertEquals(model.getStatementsForResourceVisibleAtRevision(subj, 0), expect1)
+        self.assertEquals(model.getStatementsForResourceVisibleAtRevision(subj, 1), expect2)
+
 class SplitGraphModelTestCase(BasicModelTestCase):
 
     def _getModel(self, model):
