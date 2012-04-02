@@ -531,12 +531,10 @@ class GraphModelTestCase(BasicModelTestCase):
         model.commit()
         history = model.getRevisionContextsForResource(subj)
         self.assertEquals(len(history), 3)
-        expect1 = set([s1[:4] + ('context:add:'+history[0]+';;',)])
-        expect2 = expect1.union(set([s2[:4] + ('context:add:'+history[1]+';;',)]))
-        self.assertEquals(model.getStatementsForResourceVisibleAtRevision(subj, 0), expect1)
-        self.assertEquals(model.getStatementsForResourceVisibleAtRevision(subj, 1), expect2)
+        self.assertEquals(model.getStatementsForResourceVisibleAtRevision(subj, 0), set([s1]))
+        self.assertEquals(model.getStatementsForResourceVisibleAtRevision(subj, 1), set([s1, s2]))
 
-class SplitGraphModelTestCase(BasicModelTestCase):
+class SplitGraphModelTestCase(GraphModelTestCase):
 
     def _getModel(self, model):
         modelUri = base.generateBnode()
