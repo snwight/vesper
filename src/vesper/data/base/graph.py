@@ -238,7 +238,7 @@ class NamedGraphManager(base.Model):
                 context=getTxnContextUri(self.modelUri, self.initialRevision))
             if oldLatest:
                 assert len(oldLatest) == 1, 'more than one latest found %r' % oldLatest
-                self.lastLatest = oldLatest[-1]                
+                self.lastLatest = oldLatest[-1]
                 latest = self.lastLatest.object
                 next = self._increment(latest)
                 assert not self.revisionModel.getStatements(
@@ -322,10 +322,10 @@ class NamedGraphManager(base.Model):
         primaryStoreStmt, added = self._addPrimaryStoreStatement(srcstmt)
         if not added and self.managedModel.updateAdvisory:
             return False
-        
+
         currentTxn = self.currentTxn
         txnCtxt = currentTxn.txnContext
-        addContext = ADDCTX + txnCtxt + ';;' + srcstmt.scope                    
+        addContext = ADDCTX + txnCtxt + ';;' + srcstmt.scope
         revStmt = Statement(scope=addContext, *srcstmt[:4])
         added = self.revisionModel.addStatement(revStmt)
 
@@ -645,6 +645,7 @@ class NamedGraphManager(base.Model):
         
         revision: 0-based revision number
         '''
+        assert isinstance(revision, int) or isinstance(revision, float), "revision must be number"
         stmts = self.revisionModel.getStatements(subject=subjectUri)
         contexts = self.getRevisionContextsForResource(subjectUri, stmts)
         rev2Context = dict([(x[1], x[0]) for x in enumerate(contexts)])
@@ -655,9 +656,9 @@ class NamedGraphManager(base.Model):
         revisionstmts = set()
         for s in stmts:
             if s.scope.startswith(DELCTX):
-                revisionstmts.discard(s)
+                revisionstmts.discard(Statement(scope=splitContext(s.scope)[EXTRACTCTX], *s[:4]))
             elif s.scope.startswith(ADDCTX):
-                revisionstmts.add(s)
+                revisionstmts.add(Statement(scope=splitContext(s.scope)[EXTRACTCTX], *s[:4]))
 
         return revisionstmts
     
