@@ -378,6 +378,40 @@ class AppTestCase(unittest.TestCase):
                             ('_:j:e:object:hello:1', 'foo', 'c', 'L', '')])
         self.assertEquals(added, expectedAdded)
 
+    def _testRevisionHistory(self, save_history):
+        store1 = vesper.app.createStore(save_history=save_history, branch_id='A',
+          model_uri = 'test:', 
+          #XXX merging needs to check for bnode equivalency
+          #it doesn't right now so set 'counter' so bnode names are deterministic
+          storage_template_options=dict(generateBnode='counter')
+          )
+
+        #add a property
+        store1.add({ 'id' : '1', 'prop' : 'A'})
+        #utils.debugp( list(store1.model.getRevisions()), store1.model.revisionModel.getStatements() )
+
+        #remove prop
+        store1.remove({ 'id' : '1', 'prop' : 'A'})
+        #utils.debugp( list(store1.model.getRevisions()), store1.model.revisionModel.getStatements() )
+
+        #add propery back
+        store1.add({ 'id' : '1', 'prop' : 'A'})
+        #utils.debugp( list(store1.model.getRevisions()), store1.model.revisionModel.getStatements() )
+
+        revisionids = list(store1.model.getRevisions())
+        self.assertEquals(revisionids, [u'0A00001', u'0A00002', u'0A00003'])
+
+        self.assertEquals(store1.model.getStatementsForResourceVisibleAtRevision('1', 0),
+            set([('1', 'prop', 'A', 'L', '')]))
+        self.assertEquals(store1.model.getStatementsForResourceVisibleAtRevision('1', 1),
+            set())
+        self.assertEquals(store1.model.getStatementsForResourceVisibleAtRevision('1', 2),
+            set([('1', 'prop', 'A', 'L', '')]))
+
+    def testRevisionHistory(self):
+        self._testRevisionHistory('split')
+        self._testRevisionHistory('combined')
+
     def _testMerge(self, save_history):
         store1 = vesper.app.createStore(save_history=save_history, branch_id='A',
           model_uri = 'test:', 
@@ -430,8 +464,7 @@ class AppTestCase(unittest.TestCase):
         self.assertEquals(
             store1.model.getStatementsForResourceVisibleAtRevision('1', 99)
             - store1.model.getStatementsForResourceVisibleAtRevision('1', 0),
-            set([('1', 'prop', u'1', 'http://www.w3.org/2001/XMLSchema#integer',
-                    'context:add:context:txn:test:;0A00002;;')])
+            set([('1', 'prop', u'1', 'http://www.w3.org/2001/XMLSchema#integer', '')])
         )
 
         #a_resource was modified in B1, '1' in A1 and B2
@@ -746,7 +779,7 @@ class AppTestCase(unittest.TestCase):
         event.set()
         time.sleep(.2) #keep the transaction open while the other thread runs
         store.requestProcessor.txnSvc.commit()
-          
+
       def thread2():
         event.wait()
         #readonly transactions don't block but
@@ -758,6 +791,8 @@ class AppTestCase(unittest.TestCase):
         "id": "b", 
         "prop" : 2
          })
+        time.sleep(.01) #give thread1 a chance to die
+        #XXX warning: if this fails, unittests won't actually fail because this happens in another thread
         self.failUnless(not t1.isAlive())
         self.assertEquals(store.query("(prop where id='b')"), [2])
 
