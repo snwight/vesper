@@ -4,11 +4,14 @@ from sqlalchemy import engine
 from sqlalchemy.engine import reflection
 from collections import Counter
 
+import vesper.data.base.utils
+
 RSRC_DELIM='/'
-VAL_OPEN_DELIM='{'
-VAL_CLOSE_DELIM='}'
+VAL_OPEN_DELIM='#'
 
 SPEW=False
+
+idkey = object()
 
 class JsonAlchemyMapper():
 
@@ -68,13 +71,9 @@ class JsonAlchemyMapper():
         dicts - this allows us to ignore all unused tables and columns
         '''
         self.parsedTables = []
-        for tableName in self.insp.get_table_names():
-            if tableName == 'vesper_stmts':
-                # don't analyze our private special purpose table
-                continue
+        for tableName, tableDesc in self.mapping["tables"].items():
             readonly = False
             pKeyName = None
-            tableDesc = self.mapping["tables"][tableName]
             if 'relationship' in tableDesc:
                 # we don't need to store info on 'correlation' tables
                 #                continue
@@ -86,24 +85,21 @@ class JsonAlchemyMapper():
                 readonly = tableDesc['readonly']
             if 'properties' in tableDesc:
                 colNames = {}
-                viewRefs = []
-                joinCols = []
-                refFKeys = []
+                viewRefs = joinCols = refFKeys = []
+                # XXX sort of conflicts with 'id' logic above!
+                pks =  self.insp.get_primary_keys(tableName)
                 for p in tableDesc['properties']:
                     if isinstance(p, dict):
                         (vr, jc, rfk) = self._parseRefDict(p)
-                        if vr:
-                            viewRefs.append(vr)
-                        if jc:
-                            joinCols.append(jc)
-                        if rfk:
-                            refFKeys.append(rfk)
+                        if vr: viewRefs.append(vr)
+                        if jc: joinCols.append(jc)
+                        if rfk: refFKeys.append(rfk)
                     elif p == "*":
                         for c in self.insp.get_columns(tableName):
-                            if not c['primary_key']:
+                            if c not in pks:
                                 colNames[c['name']] = c['name']
                     else:
-                        if p not in colNames.keys() and not p['primary_key']:
+                        if p not in colNames.keys() and p not in pks:
                             colNames[p] = p
             self.parsedTables.append({'tableName': tableName,
                                       'readOnly': readonly,
@@ -129,7 +125,10 @@ class JsonAlchemyMapper():
         refFKeys = ()
         for k,v in refDict.items():
             if "key" in v:
-                joinCols = (v)
+                if v['key'] == 'id':
+                    joinCols = (idkey,)
+                else:
+                    joinCols = (v,)
             if "view" in v:
                 r = v['view']
                 if isinstance(r, dict):
@@ -139,15 +138,21 @@ class JsonAlchemyMapper():
                     else:
                         vCol = k
                     if 'key' in r:
-                        vKey = r['key']
+                        if r['key'] == 'id':
+                            vKey = (idkey,)
+                        else:
+                            vKey = r['key']
                     viewRef = (vName, vCol, vKey)
                 else:
-                    viewRef = (r, k, "id")
+                    viewRef = (r, k, idkey)
             if 'references' in v:
                 r = v['references']
                 if isinstance(r, dict):
                     tbl = r['table']
-                    col = r['key']
+                    if r['key'] == 'id':
+                        col = (idkey,)
+                    else:
+                        col = r['key']
                     vals = []
                     if 'value' in r:
                         [vals.append(k) for k in r['value'].keys()]
@@ -227,7 +232,7 @@ class JsonAlchemyMapper():
         if self.mapping['idpattern'] in uri:
             uri = uri[len(self.mapping['idpattern']):]
         if VAL_OPEN_DELIM in uri:
-            val = uri.split(VAL_OPEN_DELIM)[1].rstrip(VAL_CLOSE_DELIM)
+            val = uri.split(VAL_OPEN_DELIM)[1]
         return val
 
 

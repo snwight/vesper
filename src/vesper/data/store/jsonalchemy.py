@@ -12,6 +12,7 @@ from sqlalchemy.engine import reflection
 from jsonalchemymapper import *
 import logging 
 log = logging.getLogger("jsonalchemy")
+
 SPEW = False
 
 class JsonAlchemyStore(Model):
@@ -103,13 +104,16 @@ class JsonAlchemyStore(Model):
                 # we have a subject but no table is named - vesperize it
                 table = self.vesper_stmts
         if predicate:
-            if not subject:
-                # we try to derive a table name from predicate URI, if present
+            # XXX this is funky but temporary - a system is needed
+            if predicate == "rdf:type":
+                tableName = object
+                predicate = None
+            elif not subject:
                 tableName = self.jmap.getTableFromResourceId(predicate)
-                table = self._getTableObject(tableName)
-                if table is not None:
-                    colName = self.jmap.getColFromPred(table.name, predicate)
-                    pKeyName = self.jmap.getPrimaryKey(table.name)
+            table = self._getTableObject(tableName)
+            if table is not None:
+                colName = self.jmap.getColFromPred(table.name, predicate)
+                pKeyName = self.jmap.getPrimaryKey(table.name)
         if table is None:
             # we finally believe this is a select * on vesper_stmts
             table = self.vesper_stmts
@@ -122,7 +126,6 @@ class JsonAlchemyStore(Model):
             pattern = 'vespercols'
         elif not pKeyValue and not predicate and not object:
             # * * * => select all rows from this table 
-            # (subject w/out ID ==> unique primary key col name ==> table)
             query = select([table])
             pattern = 'multicol'
         elif subject and pKeyValue and not predicate and not object:
