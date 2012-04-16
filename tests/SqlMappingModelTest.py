@@ -74,7 +74,7 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         r1 = model.getStatements(subject=subj)
         self.assertEqual(set(r1), set())
         # add a new statement and confirm the search succeeds
-        aStmts = [Statement(RSRC_URI + 'artist/artistid#1', 
+        aStmts = [Statement(RSRC_URI + 'artist/artistid#1',
                             RSRC_URI + 'artist/artistname', 'ralph', 
                             'en', None)
         ]
@@ -82,14 +82,15 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         model.addStatements(aStmts)
         model.addStatements(tStmts)
         r1 = model.getStatements(subject = subj)
-        self.assertEqual([s[2] for s in tStmts], [r[2] for r in r1])
+        self.assertEqual('track 1', r1[1][2])
         model.commit()
         model.close()
         if not self.persistentStore:
-            return 
+            return
+        # confirm persistent store
         model = self.getModel()
         r1 = model.getStatements(subject=subj)
-        self.assertEqual([s[2] for s in tStmts], [r[2] for r in r1])
+        self.assertEqual('track 1', r1[1][2])
 
         '''
         model.removeStatement()
@@ -145,10 +146,10 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         model.addStatements(tStmts)
         # verify select all rows from a single table
         rows = model.getStatements(predicate='rdf:type', object='artist')
-        self.assertEqual([a[2] for a in aStmts], [r[2] for r in rows])
+        self.assertEqual(len(rows), len(aStmts) * 2)
         # verify select all elements from one row of one table
         rows = model.getStatements(subject=RSRC_URI + 'artist/artistid#1')
-        self.assertEqual(aStmts[0][2], rows[0][2])
+        self.assertEqual(aStmts[0][2], rows[1][2])
         # verify select all objects with a particular property from one table
         rows = model.getStatements(predicate=RSRC_URI + 'artist/artistname')
         self.assertEqual([a[2] for a in aStmts], [r[2] for r in rows])
@@ -159,15 +160,15 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         # verify select subject ID given a property and object value
         rows = model.getStatements(predicate=RSRC_URI + 'artist/artistname', 
                                    object='lauren')
-        self.assertEqual('artistid{2}', rows[0][0])
+        self.assertEqual('artistid#2', rows[0][0])
 
         # REPEAT the above tests against another (bigger) table
         # verify select all rows from a single table
         rows = model.getStatements(predicate='rdf:type', object='track')
-        self.assertEqual([t[2] for t in tStmts], [r[2] for r in rows])
+        self.assertEqual(len(rows), len(tStmts) * 2)
         # verify select all elements from one row of one table
         rows = model.getStatements(subject=RSRC_URI + 'track/trackid#1')
-        self.assertEqual(tStmts[0][2], rows[0][2])
+        self.assertEqual(tStmts[0][2], rows[1][2])
         # verify select all objects with a particular property from one table
         rows = model.getStatements(predicate=RSRC_URI + 'track/trackname')
         self.assertEqual([t[2] for t in tStmts], [r[2] for r in rows])
@@ -198,7 +199,7 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         checkr = True
 
         aStmts = [
-            Statement(RSRC_URI + 'artist/artistid#', 
+            Statement(RSRC_URI + 'artist/artistid#1', 
                       RSRC_URI + 'artist/artistname', 'ralph', 'en', None)
         ]
         tStmts = [
@@ -213,7 +214,7 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
             self.assertEqual(ret, len(tStmts), 'added count is wrong')
         # confirm search for subject finds all related properties and values 
         rows = model.getStatements(subject=tStmts[0].subject)
-        self.assertEqual(tStmts[0][2], rows[0][2])
+        self.assertEqual(tStmts[0][2], rows[1][2])
         # remove the subject and confirm that all objects are gone
         ret = model.removeStatement(Statement(tStmts[0].subject, 
                                               None, None, None, None))

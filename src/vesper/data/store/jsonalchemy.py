@@ -22,11 +22,11 @@ class JsonAlchemyStore(Model):
         Create an instance of a json-to-sql store 
         '''
         self.engine = create_engine(source, echo=False)
+        self.md = MetaData(self.engine)
+        self.md.reflect()
         self.jmap = JsonAlchemyMapper(mapping, self.engine)
         self.vesper_stmts = None
         if loadVesperTable:
-            #print "...loading vesper table..."
-            self.md = MetaData(self.engine)
             self.vesper_stmts = Table(
                 'vesper_stmts', self.md, 
                 Column('subject', String(255)),
@@ -57,6 +57,7 @@ class JsonAlchemyStore(Model):
                 END LOOP; 
             END $$ LANGUAGE plpgsql
             """)
+
         # private matters
         self.conn = None
         self.trans = None
@@ -107,13 +108,14 @@ class JsonAlchemyStore(Model):
             # XXX this is funky but temporary - a system is needed
             if predicate == "rdf:type":
                 tableName = object
+                object = None
                 predicate = None
             elif not subject:
                 tableName = self.jmap.getTableFromResourceId(predicate)
             table = self._getTableObject(tableName)
             if table is not None:
                 colName = self.jmap.getColFromPred(table.name, predicate)
-                pKeyName = self.jmap.getPrimaryKey(table.name)
+                pKeyName = self.jmap.getPrimaryKeyName(table.name)
         if table is None:
             # we finally believe this is a select * on vesper_stmts
             table = self.vesper_stmts
@@ -220,7 +222,8 @@ class JsonAlchemyStore(Model):
                     Statement(r['subject'], r['predicate'], r['object'], 
                               r['objecttype'], r['context']) )
             else:
-                subj = pKeyName + '{' + str(r[pKeyName]) + '}'
+                # jsonalchemmapper.VAL_OPEN_DELIM='#'
+                subj = pKeyName + '#' + str(r[pKeyName])
                 if pattern == 'id':
                     # subject/ID (e.g. "find rowids for rows where prop == x")
                     stmts.append(Statement(subj, None, None, None, None))
@@ -229,10 +232,16 @@ class JsonAlchemyStore(Model):
                     stmts.append(
                         Statement(subj, colName, r[colName], None, None))
                 elif pattern == 'multicol':
-                    # all properties and values for one subject/ID
-                    [stmts.append(Statement(subj, k, r[v], None, None)) \
-                         for k,v in td['colNames'].items()]
-        # diagnostic
+                    # all properties and values for one or more rows 
+                    for td in self.jmap.parsedTables:
+                        if td['tableName'] != tableName:
+                            continue
+                        else:
+                            [stmts.append(
+                                    Statement(subj, k, r[v], None, None)) \
+                                 for k,v in td['colNames'].items()]
+                                    
+         # diagnostic
         if SPEW:
           for s in stmts:
               print s, '\n'
