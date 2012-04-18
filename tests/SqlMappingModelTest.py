@@ -75,10 +75,10 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         self.assertEqual(set(r1), set())
         # add a new statement and confirm the search succeeds
         aStmts = [Statement(RSRC_URI + 'artist/artistid#1',
-                            RSRC_URI + 'artist/artistname', 'ralph', 
+                            'artistname', 'ralph',
                             'en', None)
         ]
-        tStmts = [Statement(subj, 'track/trackname', 'track 1')]
+        tStmts = [Statement(subj, 'trackname', 'track 1')]
         model.addStatements(aStmts)
         model.addStatements(tStmts)
         r1 = model.getStatements(subject = subj)
@@ -113,39 +113,40 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
 
         aStmts = [
         Statement(RSRC_URI + 'artist/artistid#1', 
-                  RSRC_URI + 'artist/artistname', 'ralph', 'en', None),
+                  'artistname', 'ralph', 'en', None),
         Statement(RSRC_URI + 'artist/artistid#2', 
-                  RSRC_URI + 'artist/artistname', 'lauren', 'en-1', None),
+                  'artistname', 'lauren', 'en-1', None),
         Statement(RSRC_URI + 'artist/artistid#3', 
-                  RSRC_URI + 'artist/artistname', 'diane', 'en-1', None)
+                  'artistname', 'diane', 'en-1', None)
         ]
-        
+        # try a mix of predicate specification styles
         tStmts = [
-        Statement(RSRC_URI + 'track/trackid#1', 
-                  RSRC_URI + 'track/trackname', 'track 1', 'en-1', None),
-        Statement(RSRC_URI + 'track/trackid#2', 
-                  RSRC_URI + 'track/trackname', 'track 2', 'en-1', None),
-        Statement(RSRC_URI + 'track/trackid#3', 
-                  RSRC_URI + 'track/trackname', 'track 3', 'en-1', None),
-        Statement(RSRC_URI + 'track/trackid#4', 
-                  RSRC_URI + 'track/trackname', 'track A ', 'en-1', None),
-        Statement(RSRC_URI + 'track/trackid#5', 
-                  RSRC_URI + 'track/trackname', 'track B', 'en-1', None),
-        Statement(RSRC_URI + 'track/trackid#6', 
-                  RSRC_URI + 'track/trackname', 'track C', 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid#1',
+                  'trackname', 'track 1', 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid#2',
+                  'trackname', 'track 2', 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid#3',
+                  'trackname', 'track 3', 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid#4',
+                  'track/trackname', 'track A ', 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid#5',
+                  'track/trackname', 'track B', 'en-1', None),
+        Statement(RSRC_URI + 'track/trackid#6',
+                  'track/trackname', 'track C', 'en-1', None),
         Statement(RSRC_URI + 'track/trackid#7',
                   RSRC_URI + 'track/trackname', 'song 1', 'en-1', None),
         Statement(RSRC_URI + 'track/trackid#8',
                   RSRC_URI + 'track/trackname', 'song 2', 'en-1', None),
-        Statement(RSRC_URI + 'track/trackid#9', 
+        Statement(RSRC_URI + 'track/trackid#9',
                   RSRC_URI + 'track/trackname', 'song 3', 'en-1', None),
         ]
         model = self.getModel()
         # load our two 'arbitrary' tables
-        model.addStatements(aStmts)
-        model.addStatements(tStmts)
+        model.addStatements(aStmts + tStmts)
         # verify select all rows from a single table
-        rows = model.getStatements(predicate='rdf:type', object='artist')
+        rows = model.getStatements(subject=RSRC_URI, 
+                                   predicate='rdf:type',
+                                   object='artist')
         self.assertEqual(len(rows), len(aStmts) * 2)
         # verify select all elements from one row of one table
         rows = model.getStatements(subject=RSRC_URI + 'artist/artistid#1')
@@ -155,7 +156,7 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         self.assertEqual([a[2] for a in aStmts], [r[2] for r in rows])
         # verify select a property's object given subject ID  
         rows = model.getStatements(subject=RSRC_URI + 'artist/artistid#1', 
-                                   predicate=RSRC_URI + 'artist/artistname')
+                                   predicate='artistname')
         self.assertEqual('ralph', rows[0][2])
         # verify select subject ID given a property and object value
         rows = model.getStatements(predicate=RSRC_URI + 'artist/artistname', 
@@ -164,7 +165,9 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
 
         # REPEAT the above tests against another (bigger) table
         # verify select all rows from a single table
-        rows = model.getStatements(predicate='rdf:type', object='track')
+        rows = model.getStatements(subject=RSRC_URI,
+                                   predicate='rdf:type',
+                                   object='track')
         self.assertEqual(len(rows), len(tStmts) * 2)
         # verify select all elements from one row of one table
         rows = model.getStatements(subject=RSRC_URI + 'track/trackid#1')
@@ -174,7 +177,7 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         self.assertEqual([t[2] for t in tStmts], [r[2] for r in rows])
         # verify select a property's object given subject ID  
         rows = model.getStatements(subject=RSRC_URI + 'track/trackid#1', 
-                                   predicate=RSRC_URI + 'track/trackname')
+                                   predicate='trackname')
         self.assertEqual('track 1', rows[0][2])
         # verify select subject ID given a property and object value
         rows = model.getStatements(predicate=RSRC_URI + 'track/trackname', 
@@ -198,75 +201,72 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
 #        checkr = model.updateAdvisory
         checkr = True
 
-        aStmts = [
-            Statement(RSRC_URI + 'artist/artistid#1', 
-                      RSRC_URI + 'artist/artistname', 'ralph', 'en', None)
-        ]
         tStmts = [
-            Statement(RSRC_URI + 'track/trackid#1', 
-                      RSRC_URI + 'track/trackname', 'track 1', 'en-1', None),
-            Statement(RSRC_URI + 'track/trackid#2', 
-                      RSRC_URI + 'track/trackname', 'track 2', 'en-1', None),
+            Statement(RSRC_URI + 'track/trackid#1',
+                      'trackname', 'track 1', 'en-1', None),
+            Statement(RSRC_URI + 'track/trackid#2',
+                      'trackname', 'track 2', 'en-1', None),
         ]
-        ret = model.addStatements(aStmts)
         ret = model.addStatements(tStmts)
         if checkr:
-            self.assertEqual(ret, len(tStmts), 'added count is wrong')
+            self.assertEqual(ret,  len(tStmts), 'added count is wrong')
         # confirm search for subject finds all related properties and values 
         rows = model.getStatements(subject=tStmts[0].subject)
-        self.assertEqual(tStmts[0][2], rows[1][2])
-        # remove the subject and confirm that all objects are gone
-        ret = model.removeStatement(Statement(tStmts[0].subject, 
+        self.assertEqual(len(tStmts), len(rows))
+        # remove one subject and confirm that it's gone
+        ret = model.removeStatement(Statement(tStmts[0].subject,
                                               None, None, None, None))
-        if checkr:
-            assert ret, "statement should have been removed"
+        self.assertEqual(1, ret)
         rows = model.getStatements(subject=tStmts[0].subject)
-        self.assertEqual([], rows)
-        # remove the statement again
-        ret = model.removeStatement(Statement(tStmts[0].subject, 
+        self.assertEqual(0, len(rows))
+        # try to remove the deleted statement again
+        ret = model.removeStatement(Statement(tStmts[0].subject,
                                               None, None, None, None))
-        if checkr:
-            assert not ret, "statement shouldn't have been removed"
+        self.assertEqual(0, ret)
         # add statement twice without duplicate
         model.addStatement(tStmts[0])
         r1 = model.getStatements(subject=tStmts[0].subject)
         model.addStatement(tStmts[0])
         r2 = model.getStatements(subject=tStmts[0].subject)
         self.assertEqual(r1, r2)
-        # clear entire  table
+        # fill then clear entire  table
+        ret = model.addStatements(tStmts)
+        self.assertEqual(2, ret)
         ts = [Statement(tStmts[0].subject, None, None, None, None), 
               Statement(tStmts[1].subject, None, None, None, None)]
         ret = model.removeStatements(ts)
-        rows = model.getStatements()
-        self.assertEqual([], rows)
+        self.assertEqual(2, ret)
+        rows = model.getStatements("rdf:type", RSRC_URI + 'track')
+        self.assertEqual(0, len(rows))
         # reload table
         ret = model.addStatements(tStmts)
         if checkr:
             self.assertEqual(ret, len(tStmts), 'added count is wrong')
-        # remove object from specific rsrc
+        # remove row and verify it is gone
         ret = model.removeStatement(tStmts[0])
-        rows = model.getStatements(subject=tStmts[0].subject, 
-                                   predicate=tStmts[0].predicate)
-        self.assertEqual('', rows[0][2])
-        # remove all objects of one property type from all rsrcs
-        ts = Statement(RSRC_URI + 'track/trackid', tStmts[0].predicate, 
+        self.assertEqual(1, ret)
+        rows = model.getStatements(subject=tStmts[0].subject)
+        self.assertEqual(0, len(rows))
+        # remove all objects of one property type - clear this column?
+        ts = Statement(RSRC_URI + 'track', 
+                       tStmts[0].predicate,
                        None, None, None)
         ret = model.removeStatement(ts)
         rows = model.getStatements(predicate=tStmts[0].predicate)
+        self.assertEqual(0, len(rows))
         model.commit()
         model.close()
 
 
 if os.getenv("SQLA_TEST_POSTGRESQL"):
     class PgsqlMappingModelTestCase(SqlMappingModelTestCase):
-           
+
         def setUp(self):
             # test against postgresql backend 
             self.sqlaConfiguration = '/'.join(
                 [os.getenv("SQLA_TEST_POSTGRESQL"), "jsonmap_db"])
-            # create our postgresql test db 
-            call("psql -q -U vesper -c \"create database jsonmap_db\" postgres", 
-                 shell=True)
+            # create our postgresql test db
+            call("createdb -U vesper jsonmap_db", shell=True)
             # then load test schema FROM FILE
             cmd = "psql -q -U vesper -d jsonmap_db < {0}".format(
                 self.sqlSchemaPath)

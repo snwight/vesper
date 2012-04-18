@@ -105,7 +105,7 @@ class JsonAlchemyStore(Model):
                 # we have a subject but no table is named - vesperize it
                 table = self.vesper_stmts
         if predicate:
-            # XXX this is funky but temporary - a system is needed
+            # XXX subject should be required to be IRI for DB here!
             if predicate == "rdf:type":
                 tableName = object
                 object = None

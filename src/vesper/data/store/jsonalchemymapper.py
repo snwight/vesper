@@ -258,7 +258,7 @@ class JsonAlchemyMapper():
 
         # no map - derive a best guess based on SQLA schema inspection
         mDict = {
-            "tablesprop": "HYPEtype",
+            "tablesprop": "GENERATEDtype",
             "idpattern": "http://souzis.com/",
             "tables": {}
             }
