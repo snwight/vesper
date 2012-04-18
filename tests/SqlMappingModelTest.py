@@ -143,7 +143,7 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         model = self.getModel()
         # load our two 'arbitrary' tables
         model.addStatements(aStmts + tStmts)
-        # verify select all rows from a single table
+        # verify select all rows from a single table (x column count)
         rows = model.getStatements(subject=RSRC_URI, 
                                    predicate='rdf:type',
                                    object='artist')
@@ -212,16 +212,16 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
             self.assertEqual(ret,  len(tStmts), 'added count is wrong')
         # confirm search for subject finds all related properties and values 
         rows = model.getStatements(subject=tStmts[0].subject)
-        self.assertEqual(len(tStmts), len(rows))
+        self.assertEqual(2, len(rows))
         # remove one subject and confirm that it's gone
-        ret = model.removeStatement(Statement(tStmts[0].subject,
-                                              None, None, None, None))
+        ret = model.removeStatement(
+            Statement(tStmts[0].subject, None, None, None, None))
         self.assertEqual(1, ret)
         rows = model.getStatements(subject=tStmts[0].subject)
-        self.assertEqual(0, len(rows))
+        self.assertEqual(set(), set(rows))
         # try to remove the deleted statement again
-        ret = model.removeStatement(Statement(tStmts[0].subject,
-                                              None, None, None, None))
+        ret = model.removeStatement(
+            Statement(tStmts[0].subject, None, None, None, None))
         self.assertEqual(0, ret)
         # add statement twice without duplicate
         model.addStatement(tStmts[0])
@@ -229,31 +229,39 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         model.addStatement(tStmts[0])
         r2 = model.getStatements(subject=tStmts[0].subject)
         self.assertEqual(r1, r2)
-        # fill then clear entire  table
+        # fill then clear entire table
         ret = model.addStatements(tStmts)
         self.assertEqual(2, ret)
         ts = [Statement(tStmts[0].subject, None, None, None, None), 
               Statement(tStmts[1].subject, None, None, None, None)]
         ret = model.removeStatements(ts)
         self.assertEqual(2, ret)
-        rows = model.getStatements("rdf:type", RSRC_URI + 'track')
-        self.assertEqual(0, len(rows))
+        rows = model.getStatements(subject=RSRC_URI,
+                                   predicate="rdf:type",
+                                   object='track')
+        self.assertEqual(set(), set(rows))
         # reload table
         ret = model.addStatements(tStmts)
-        if checkr:
-            self.assertEqual(ret, len(tStmts), 'added count is wrong')
-        # remove row and verify it is gone
-        ret = model.removeStatement(tStmts[0])
+        self.assertEqual(2, ret)
+        # remove row by ID and verify it is gone
+        ret = model.removeStatement(ts[0])
         self.assertEqual(1, ret)
-        rows = model.getStatements(subject=tStmts[0].subject)
-        self.assertEqual(0, len(rows))
-        # remove all objects of one property type - clear this column?
+        rows = model.getStatements(subject=RSRC_URI,
+                                   predicate="rdf:type",
+                                   object='track')
+        self.assertEqual('trackid#2', rows[0][0])
+        # remove all objects of one property type - clear this column
+        ret = model.addStatements(tStmts)
+        self.assertEqual(2, ret)
         ts = Statement(RSRC_URI + 'track', 
-                       tStmts[0].predicate,
+                       'trackname',
                        None, None, None)
+        # semantics not quite right here!
         ret = model.removeStatement(ts)
-        rows = model.getStatements(predicate=tStmts[0].predicate)
-        self.assertEqual(0, len(rows))
+        self.assertEqual(2, ret)
+        rows = model.getStatements(subject=RSRC_URI + 'track',
+                                   predicate='trackname')
+        self.assertEqual(set([]), set([r[1] for r in rows]))
         model.commit()
         model.close()
 

@@ -307,15 +307,15 @@ class JsonAlchemyStore(Model):
 
 
     def removeStatement(self, stmt):
-        '''
-        subj/id none none ==> delete row where subj == id
-        subj/id pred none ==> null pred where subj == id
-        subj/id pred obj ==> null pred where subj == id and pred == obj
-        subj pred none ==> null pred
-        '''
         s, p, o, ot, c = stmt
         cmd = pKeyName = pKeyValue = colName = None
-        tableName = self.jmap.getTableFromResourceId(s)
+        if s:
+            tableName = self.jmap.getTableFromResourceId(s)
+            pKeyName = self.jmap.getPropNameFromResourceId(s)
+            pKeyValue = self.jmap.getValueFromResourceId(s)
+        if not tableName:
+            if p == 'rdf:type':
+                tableName = o
         if self.jmap.readOnly(tableName):
             # raise an error
             return
@@ -329,20 +329,31 @@ class JsonAlchemyStore(Model):
                 (self.vesper_stmts.c.objecttype == stmt[3]) &
                 (self.vesper_stmts.c.context == stmt[4]))
         else:
-            # otherwise remove from client tables, selectively
-            pKeyName = self.jmap.getPropNameFromResourceId(s)
-            pKeyValue = self.jmap.getValueFromResourceId(s)
-            if p:
-                colName = self.jmap.getColFromPred(table.name, p)
-                cmd = table.update().values({table.c[colName] : ''})
-                if o:
-                    cmd = cmd.where(table.c[colName] == o)
-            else:
-                # this is a row deletion at least, possibly table clear-out
+            if p == 'rdf:type':
+                # uri 'rdf:type' tbl ==> delete * from table <<uri/tbl>>
                 cmd = table.delete()
-                if pKeyValue:
-                     # set controls for 'delete from table where id = subj'
-                    cmd = cmd.where(table.c[pKeyName] == pKeyValue)
+            elif not p and pKeyValue:
+                # subj/id none none ==> delete row where subj == id
+                cmd = table.delete().\
+                    where(table.c[pKeyName] == pKeyValue)
+            elif p and pKeyValue and not o:
+                # subj/id pred none ==> null pred where subj == id
+                colName = self.jmap.getColFromPred(table.name, p)
+                cmd = table.update().values({colName : ''}).\
+                    where(table.c[pKeyName] == pKeyValue)
+            elif p and pKeyValue and o:
+                # subj/id pred obj ==> null pred where subj==id and pred==obj
+                colName = self.jmap.getColFromPred(table.name, p)
+                cmd = table.update().values({colName : ''}).\
+                    where((table.c[pKeyName] == pKeyValue) & \
+                              (table.c[colName] == o))
+            elif p and not pKeyValue and not o:
+                # uri/tbl col none ==> null pred
+                colName = self.jmap.getColFromPred(table.name, p)
+                cmd = table.update().values({colName : ''})
+            else:
+                pass
+
                 '''
                 prop = self.mapping[p]
                 if props['references']:
