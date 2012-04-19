@@ -5,7 +5,13 @@
         "track": {
             "id": "trackid", 
             "properties": [
-                "*",
+		"*",
+		{
+		    "title": "trackname"
+		},
+		{
+		    "date": "trackdate"
+		},
 		{
 		    "view_ref": {
 			"view": {
@@ -62,7 +68,13 @@
         "album": {
             "id": "albumid", 
             "properties": [
-                "*",
+		"*",
+ 		{
+		    "title": "albumname"
+		},
+ 		{
+		    "label": "albumlabel"
+		},
 		{
 		    "view_ref": {
 			"view": {
@@ -102,11 +114,20 @@
                     }
                 }
             ]
-        }, 
+        },
         "artist": {
             "id": "artistid", 
             "properties": [
-                "*", 
+                "*",
+		{
+		    "name": "artistname"
+		},
+		{
+		    "birthdate": "artistbday"
+		},
+		{
+		    "gender": "artistgender"
+		},
 		{
 		    "artistid": { 
 			"view": "artist_discography" 

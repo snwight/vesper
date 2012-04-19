@@ -1,14 +1,20 @@
 CREATE TABLE artist(
   artistid	INTEGER PRIMARY KEY,
-  artistname  	TEXT
+  artistname  	TEXT,
+  artistbday	TEXT,
+  artistgender	TEXT
 );
 CREATE TABLE track(
   trackid	INTEGER PRIMARY KEY,
-  trackname   	TEXT
+  trackname   	TEXT,
+  trackdate	INTEGER,
+  tracklength	INTEGER
 );
 CREATE TABLE album(
   albumid	INTEGER PRIMARY KEY,
-  albumname  	TEXT
+  albumname  	TEXT,
+  albumdate	INTEGER,
+  albumlabel	TEXT
 );
 CREATE TABLE track_artist(
   artistid    	INTEGER,

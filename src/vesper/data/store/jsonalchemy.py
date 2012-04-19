@@ -96,33 +96,35 @@ class JsonAlchemyStore(Model):
         stmts = []
         table = tableName = pKeyName = pKeyValue = colName = None
         if subject:
-            tableName = self.jmap.getTableFromResourceId(subject)
+            tableName = self.jmap.getTableNameFromResourceId(subject)
             table = self._getTableObject(tableName)
             if table is not None:
                 pKeyName = self.jmap.getPropNameFromResourceId(subject)
-                pKeyValue = self.jmap.getValueFromResourceId(subject)
+                if pKeyName:
+                    pKeyValue = self.jmap.getValueFromResourceId(subject)
             else:
                 # we have a subject but no table is named - vesperize it
                 table = self.vesper_stmts
         if predicate:
-            # XXX subject should be required to be IRI for DB here!
             if predicate == "rdf:type":
                 tableName = object
                 object = None
                 predicate = None
             elif not subject:
-                tableName = self.jmap.getTableFromResourceId(predicate)
+                tableName = self.jmap.getTableNameFromResourceId(predicate)
             table = self._getTableObject(tableName)
             if table is not None:
                 colName = self.jmap.getColFromPred(table.name, predicate)
-                pKeyName = self.jmap.getPrimaryKeyName(table.name)
+                if not pKeyName:
+                    subject = None
+                    pKeyName = self.jmap.getPrimaryKeyName(table.name)
         if table is None:
             # we finally believe this is a select * on vesper_stmts
             table = self.vesper_stmts
 
         # construct our query
         if table.name == 'vesper_stmts':
-            # special case, we are querying our private statment store
+            # special case, we are querying our private statement store
             query = self._buildVesperQuery(subject, predicate, object, 
                                            objecttype, context, asQuad, hints)
             pattern = 'vespercols'
@@ -253,7 +255,7 @@ class JsonAlchemyStore(Model):
         argDict = {}
         colName = None
         # first, verify this is write-worthy table
-        tableName = self.jmap.getTableFromResourceId(s)
+        tableName = self.jmap.getTableNameFromResourceId(s)
         if self.jmap.readOnly(tableName):
             # raise an error
             return
@@ -310,7 +312,7 @@ class JsonAlchemyStore(Model):
         s, p, o, ot, c = stmt
         cmd = pKeyName = pKeyValue = colName = None
         if s:
-            tableName = self.jmap.getTableFromResourceId(s)
+            tableName = self.jmap.getTableNameFromResourceId(s)
             pKeyName = self.jmap.getPropNameFromResourceId(s)
             pKeyValue = self.jmap.getValueFromResourceId(s)
         if not tableName:

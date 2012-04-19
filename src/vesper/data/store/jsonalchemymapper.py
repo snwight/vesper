@@ -10,6 +10,7 @@ RSRC_DELIM='/'
 VAL_OPEN_DELIM='#'
 
 SPEW=False
+SPEW_SCHEMA=False
 
 idkey = object()
 
@@ -24,7 +25,7 @@ class JsonAlchemyMapper():
         self._generateMapping(mapping)
         self._getColumnsOfInterest()
         # output readable json map and sql schema as diagnostic
-        if SPEW:
+        if SPEW_SCHEMA:
           self._printSchemata()
         
 
@@ -87,20 +88,28 @@ class JsonAlchemyMapper():
                 colNames = {}
                 viewRefs = joinCols = refFKeys = []
                 # XXX sort of conflicts with 'id' logic above!
-                pks =  self.insp.get_primary_keys(tableName)
+                pKeys =  self.insp.get_primary_keys(tableName)
                 for p in tableDesc['properties']:
                     if isinstance(p, dict):
-                        (vr, jc, rfk) = self._parseRefDict(p)
+                        (vr, jc, rfk, cn) = self._parsePropDict(p)
                         if vr: viewRefs.append(vr)
                         if jc: joinCols.append(jc)
                         if rfk: refFKeys.append(rfk)
+                        if cn: 
+                            [(propNm, colNm)] = cn.items()
+                            if colNm in colNames:
+                                # "*" parsed in previous pass - pop & replace!
+                                del(colNames[colNm])
+                            colNames[propNm] = colNm
                     elif p == "*":
                         for c in self.insp.get_columns(tableName):
-                            if c not in pks:
-                                colNames[c['name']] = c['name']
+                            if c['name'] not in pKeys:
+                                if c['name'] not in colNames.values():
+                                    colNames[c['name']] = c['name']
                     else:
-                        if p not in colNames.keys() and p not in pks:
-                            colNames[p] = p
+                        print "properties list contains unknown obj:", p
+
+            print "tbl:", tableName, "cns:", colNames
             self.parsedTables.append({'tableName': tableName,
                                       'readOnly': readonly,
                                       'pKeyName': pKeyName,
@@ -113,8 +122,9 @@ class JsonAlchemyMapper():
         if SPEW: pprint.PrettyPrinter(indent=2).pprint(self.parsedTables)
 
 
-    def _parseRefDict(self, refDict):
+    def _parsePropDict(self, refDict):
         '''
+        handle each dictionary found in json mapping 'properties' list 
         collect foreign key declarations that point into the current table
         as described by JSON mapping 'references' properties, build a
         compiled dictionary of relevant column names and relations - also
@@ -123,13 +133,14 @@ class JsonAlchemyMapper():
         viewRef = ()
         joinCols = ()
         refFKeys = ()
+        colName = {}
         for k,v in refDict.items():
             if "key" in v:
                 if v['key'] == 'id':
                     joinCols = (idkey,)
                 else:
                     joinCols = (v,)
-            if "view" in v:
+            elif "view" in v:
                 r = v['view']
                 if isinstance(r, dict):
                     vName = r['name']
@@ -145,7 +156,7 @@ class JsonAlchemyMapper():
                     viewRef = (vName, vCol, vKey)
                 else:
                     viewRef = (r, k, idkey)
-            if 'references' in v:
+            elif 'references' in v:
                 r = v['references']
                 if isinstance(r, dict):
                     tbl = r['table']
@@ -157,7 +168,10 @@ class JsonAlchemyMapper():
                     if 'value' in r:
                         [vals.append(k) for k in r['value'].keys()]
                     refFKeys = (tbl, col, vals)
-        return (viewRef, joinCols, refFKeys)
+            else:
+                colName[k] = v
+
+        return (viewRef, joinCols, refFKeys, colName)
 
 
     def readOnly(self, tableName):
@@ -178,7 +192,19 @@ class JsonAlchemyMapper():
         return None
 
 
-    def getTableFromResourceId(self, uri):
+    def getPrimaryKeyName(self, tableName):
+        '''
+        if tableName is in our 'active' list, return its primary key col name
+        '''
+        if not tableName:
+            return None
+        for td in self.parsedTables:
+            if td['tableName'] == tableName:
+                return td['pKeyName']
+        return None
+
+
+    def getTableNameFromResourceId(self, uri):
         '''
         extract table name from (possibly non-URI) resource string
         '''
@@ -193,18 +219,6 @@ class JsonAlchemyMapper():
         return None
 
     
-    def getPrimaryKeyName(self, tableName):
-        '''
-        if tableName is in our 'active' list, return its primary key col name
-        '''
-        if not tableName:
-            return None
-        for td in self.parsedTables:
-            if td['tableName'] == tableName:
-                return td['pKeyName']
-        return None
-
-
     def getPropNameFromResourceId(self, uri):
         '''
         extract property name from (possibly non-URI) resource string
@@ -214,11 +228,14 @@ class JsonAlchemyMapper():
         pName = uri
         if self.mapping['idpattern'] in uri:
             uri = uri[len(self.mapping['idpattern']):]
-        if VAL_OPEN_DELIM in uri:
-            uri = uri.split(VAL_OPEN_DELIM)[0]
-            pName = uri.split(RSRC_DELIM, 2)[1]
-        elif RSRC_DELIM in uri:
-            pName = uri.split(RSRC_DELIM)[1]
+            if VAL_OPEN_DELIM in uri:
+                uri = uri.split(VAL_OPEN_DELIM)[0]
+                pName = uri.split(RSRC_DELIM, 2)[1]
+            elif RSRC_DELIM in uri:
+                pName = uri.split(RSRC_DELIM)[1]
+            else:
+                # a URI w/no column name, perfectly legal, deal w/ it
+                pName = None
         return pName
 
 
