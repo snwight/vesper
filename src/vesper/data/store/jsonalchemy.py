@@ -10,6 +10,7 @@ from sqlalchemy.sql.expression import func
 from sqlalchemy.schema import Table, Column, MetaData, UniqueConstraint, Index
 from sqlalchemy.engine import reflection
 from jsonalchemymapper import *
+import string, random
 import logging 
 log = logging.getLogger("jsonalchemy")
 
@@ -228,7 +229,10 @@ class JsonAlchemyStore(Model):
                 if pKeyName:
                     subj = pKeyName + '#' + str(r[pKeyName])
                 else:
-                    subj = tableName + ':blank_node'
+                    uniqueBlankNode = ''.join(random.choice(
+                            string.ascii_uppercase + string.digits)
+                            for x in range(6))
+                    subj = tableName + ':blank_node#' + uniqueBlankNode
                 if pattern == 'id':
                     # subject/ID (e.g. "find rowids for rows where prop == x")
                     stmts.append(Statement(subj, None, None, None, None))
