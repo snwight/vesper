@@ -112,59 +112,102 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         # <HACK>...<COUGH>...
         global RSRC_URI
 
-        aStmts = [
-        Statement(RSRC_URI + 'artist/artistid#1', 
-                  'name', 'ralph', 'en', None),
-        Statement(RSRC_URI + 'artist/artistid#2', 
-                  'name', 'lauren', 'en-1', None),
-        Statement(RSRC_URI + 'artist/artistid#3', 
-                  'name', 'diane', 'en-1', None),
-        Statement(RSRC_URI + 'artist/artistid#1',
-                  'birthdate', '05151961', 'en', None),
-        Statement(RSRC_URI + 'artist/artistid#2',
-                  'birthdate', '07081960', 'en-1', None),
-        Statement(RSRC_URI + 'artist/artistid#3',
-                  'birthdate', '04151980', 'en-1', None),
-        Statement(RSRC_URI + 'artist/artistid#1', 
-                  'gender', 'M', 'en', None),
-        Statement(RSRC_URI + 'artist/artistid#2', 
-                  'gender', 'F', 'en-1', None),
-        Statement(RSRC_URI + 'artist/artistid#3', 
-                  'gender', 'TV', 'en-1', None)
+        artStmts = [
+            Statement(RSRC_URI + 'artist/artistid#1',
+                      'name', 'ralph', 'en', None),
+            Statement(RSRC_URI + 'artist/artistid#2',
+                      'name', 'lauren', 'en-1', None),
+            Statement(RSRC_URI + 'artist/artistid#3',
+                      'name', 'diane', 'en-1', None),
+            Statement(RSRC_URI + 'artist/artistid#1',
+                      'birthdate', '05151961', 'en', None),
+            Statement(RSRC_URI + 'artist/artistid#2',
+                      'birthdate', '07081960', 'en-1', None),
+            Statement(RSRC_URI + 'artist/artistid#3',
+                      'birthdate', '04151980', 'en-1', None),
+            Statement(RSRC_URI + 'artist/artistid#1',
+                      'gender', 'M', 'en', None),
+            Statement(RSRC_URI + 'artist/artistid#2',
+                      'gender', 'F', 'en-1', None),
+            Statement(RSRC_URI + 'artist/artistid#3',
+                      'gender', 'TV', 'en-1', None)
         ]
-        tStmts = [
-        Statement(RSRC_URI + 'track/trackid#1',
-                  'title', 'track 1', 'en-1', None),
-        Statement(RSRC_URI + 'track/trackid#2',
-                  'title', 'track 2', 'en-1', None),
-        Statement(RSRC_URI + 'track/trackid#3',
-                  'title', 'track 3', 'en-1', None),
-        Statement(RSRC_URI + 'track/trackid#1',
-                  'date', '09162011', 'en-1', None),
-        Statement(RSRC_URI + 'track/trackid#2',
-                  'date', '12252011', 'en-1', None),
-        Statement(RSRC_URI + 'track/trackid#3',
-                  'date', '04012012', 'en-1', None),
-        Statement(RSRC_URI + 'track/trackid#1',
-                  RSRC_URI + 'track/tracklength', 120, 'en-1', None),
-        Statement(RSRC_URI + 'track/trackid#2',
-                  RSRC_URI + 'track/tracklength', 360, 'en-1', None),
-        Statement(RSRC_URI + 'track/trackid#3',
-                  RSRC_URI + 'track/tracklength', 37, 'en-1', None)
+        trkStmts = [
+            Statement(RSRC_URI + 'track/trackid#1',
+                      'title', 'track 1', 'en-1', None),
+            Statement(RSRC_URI + 'track/trackid#2',
+                      'title', 'track 2', 'en-1', None),
+            Statement(RSRC_URI + 'track/trackid#3',
+                      'title', 'track 3', 'en-1', None),
+            Statement(RSRC_URI + 'track/trackid#1',
+                      'date', '09162011', 'en-1', None),
+            Statement(RSRC_URI + 'track/trackid#2',
+                      'date', '12252011', 'en-1', None),
+            Statement(RSRC_URI + 'track/trackid#3',
+                      'date', '04012012', 'en-1', None),
+            Statement(RSRC_URI + 'track/trackid#1',
+                      RSRC_URI + 'track/tracklength', 120, 'en-1', None),
+            Statement(RSRC_URI + 'track/trackid#2',
+                      RSRC_URI + 'track/tracklength', 360, 'en-1', None),
+            Statement(RSRC_URI + 'track/trackid#3',
+                      RSRC_URI + 'track/tracklength', 37, 'en-1', None)
         ]
+        albStmts = [
+            Statement(RSRC_URI + 'album/albumid#1',
+                      'title', 'Saucerful of Secrets', 'en-1', None),
+            Statement(RSRC_URI + 'album/albumid#1',
+                      'label', 'Polydor', 'en-1', None),
+            Statement(RSRC_URI + 'album/albumid#1',
+                      'albumdate', '060601968', 'en-1', None),
+            Statement(RSRC_URI + 'album/albumid#2',
+                      'title', 'Death Walks Behind You', 'en-1', None),
+            Statement(RSRC_URI + 'album/albumid#2',
+                      'label', 'London', 'en-1', None),
+            Statement(RSRC_URI + 'album/albumid#2',
+                      'albumdate', '070601967', 'en-1', None)
+            ]
+        alb_trk_Stmts = [
+            Statement(RSRC_URI + 'album_tracks/albumid#1',
+                      'trackid', 1, 'en-1', None),
+            Statement(RSRC_URI + 'album_tracks/albumid#1',
+                      'trackid', 2, 'en-1', None),
+            Statement(RSRC_URI + 'album_tracks/albumid#1',
+                      'trackid', 3, 'en-1', None),
+            Statement(RSRC_URI + 'album_tracks/trackid#1',
+                      'albumid', 2, 'en-1', None),
+            Statement(RSRC_URI + 'album_tracks/trackid#1',
+                      'albumid', 2, 'en-1', None),
+            Statement(RSRC_URI + 'album_tracks/trackid#3',
+                      'albumid', 2, 'en-1', None),
+            ]
+        trk_art_Stmts = [
+            Statement(RSRC_URI + 'track_artist/artistid#1',
+                      'trackid', 1, 'en-1', None),
+            Statement(RSRC_URI + 'track_artist/artistid#1',
+                      'trackid', 2, 'en-1', None),
+            Statement(RSRC_URI + 'track_artist/artistid#1',
+                      'trackid', 3, 'en-1', None),
+            Statement(RSRC_URI + 'track_artist/trackid#1',
+                      'artistid', 2, 'en-1', None),
+            Statement(RSRC_URI + 'track_artist/trackid#2',
+                      'artistid', 2, 'en-1', None),
+            Statement(RSRC_URI + 'track_artist/trackid#3',
+                      'artistid', 3, 'en-1', None),
+            ]
+
         model = self.getModel()
-        # load our two 'arbitrary' tables
-        model.addStatements(aStmts + tStmts)
+        model.addStatements(artStmts + trkStmts + albStmts)
+        model.addStatements(alb_trk_Stmts + trk_art_Stmts)
 
         # verify select all rows from a single table (x column count)
         rows = model.getStatements(subject=RSRC_URI, 
                                    predicate='rdf:type',
                                    object='artist')
-        self.assertEqual(len(rows), len(aStmts))
+        self.assertEqual(len(rows), len(artStmts))
 
         # verify select all elements from one row of one table
         rows = model.getStatements(subject=RSRC_URI + 'artist/artistid#1')
-        self.assertEqual(aStmts[0][2], rows[1][2])
+        self.assertEqual(artStmts[0][2], rows[1][2])
 
         # verify select all objects with a particular property from one table
         rows = model.getStatements(subject=RSRC_URI + 'artist',
@@ -187,7 +230,7 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         rows = model.getStatements(subject=RSRC_URI,
                                    predicate='rdf:type',
                                    object='track')
-        self.assertEqual(len(tStmts), len(rows))
+        self.assertEqual(len(trkStmts), len(rows))
 
         # verify select all elements from one row of one table
         rows = model.getStatements(subject=RSRC_URI + 'track/trackid#1')
@@ -208,6 +251,16 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
                                    predicate='tracklength', 
                                    object=360)
         self.assertEqual('trackid#2', rows[0][0])
+        
+        # verify retrieve rows from an SQL defined view 
+        #        rows = model.getStatements(subject=RSRC_URI + 'artist_discography')
+        rows = model.getStatements(subject=RSRC_URI, 
+                                   predicate='rdf:type',
+                                   object='artist_discography')
+        self.assertEqual(36, len(rows))
+        import pprint
+        pprint.PrettyPrinter(indent=2).pprint(rows)
+        
         model.close()
 
 
@@ -235,25 +288,30 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         ret = model.addStatements(tStmts)
         if checkr:
             self.assertEqual(ret,  len(tStmts), 'added count is wrong')
+
         # confirm search for subject finds all related properties and values 
         rows = model.getStatements(subject=tStmts[0].subject)
         self.assertEqual(3, len(rows))
+
         # remove one subject and confirm that it's gone
         ret = model.removeStatement(
             Statement(tStmts[0].subject, None, None, None, None))
         self.assertEqual(1, ret)
         rows = model.getStatements(subject=tStmts[0].subject)
         self.assertEqual(set(), set(rows))
+
         # try to remove the deleted statement again
         ret = model.removeStatement(
             Statement(tStmts[0].subject, None, None, None, None))
         self.assertEqual(0, ret)
+
         # add statement twice without duplicate
         model.addStatement(tStmts[0])
         r1 = model.getStatements(subject=tStmts[0].subject)
         model.addStatement(tStmts[0])
         r2 = model.getStatements(subject=tStmts[0].subject)
         self.assertEqual(r1, r2)
+
         # fill then clear entire table
         ret = model.addStatements(tStmts)
         self.assertEqual(2, ret)
@@ -265,27 +323,28 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
                                    predicate="rdf:type",
                                    object='track')
         self.assertEqual(set(), set(rows))
-        # reload table
+
+        # remove row by ID and verify it is gone
         ret = model.addStatements(tStmts)
         self.assertEqual(2, ret)
-        # remove row by ID and verify it is gone
         ret = model.removeStatement(ts[0])
         self.assertEqual(1, ret)
         rows = model.getStatements(subject=RSRC_URI,
                                    predicate="rdf:type",
                                    object='track')
         self.assertEqual('trackid#2', rows[0][0])
+
         # remove all objects of one property type - clear this column
         ret = model.addStatements(tStmts)
         self.assertEqual(2, ret)
         ts = Statement(RSRC_URI + 'track', 
                        'title', None, None, None)
-        # semantics not quite right here!
         ret = model.removeStatement(ts)
         self.assertEqual(2, ret)
         rows = model.getStatements(subject=RSRC_URI + 'track',
                                    predicate='title')
         self.assertEqual(['', ''], [r[2] for r in rows])
+
         model.commit()
         model.close()
 

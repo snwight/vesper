@@ -165,6 +165,7 @@
             ]
         }, 
         "album_tracks": {
+            "id": "albumid", 
             "properties": [
                 "*"
             ], 

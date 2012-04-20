@@ -73,13 +73,10 @@ class JsonAlchemyMapper():
         '''
         self.parsedTables = []
         for tableName, tableDesc in self.mapping["tables"].items():
-            readonly = False
+            readonly = relation = False
             pKeyName = None
             if 'relationship' in tableDesc:
-                # we don't need to store info on 'correlation' tables
-                #                continue
-                # but I'm experimenting with "view" reference parsing so...
-                pass
+                relation = tableDesc['relationship']
             if 'id' in tableDesc:
                 pKeyName = tableDesc['id']
             if 'readonly' in tableDesc:
@@ -109,9 +106,10 @@ class JsonAlchemyMapper():
                     else:
                         print "properties list contains unknown obj:", p
 
-            print "tbl:", tableName, "cns:", colNames
+            #            print "tbl:", tableName, "cns:", colNames
             self.parsedTables.append({'tableName': tableName,
                                       'readOnly': readonly,
+                                      'relation': relation,
                                       'pKeyName': pKeyName,
                                       'colNames': colNames,
                                       'refFKeys': refFKeys,
@@ -174,11 +172,17 @@ class JsonAlchemyMapper():
         return (viewRef, joinCols, refFKeys, colName)
 
 
-    def readOnly(self, tableName):
+    def isReadOnly(self, tableName):
         for td in self.parsedTables:
             if td['tableName'] == tableName:
-                return td['readOnly'] == 'true'
+                return td['readOnly']     # == 'true'
 
+
+    def isRelation(self, tableName):
+        for td in self.parsedTables:
+            if td['tableName'] == tableName:
+                return td['relation']     #  == 'true'
+            
 
     def getColFromPred(self, tableName, predicate):
         if not tableName or not predicate:

@@ -16,25 +16,25 @@ CREATE TABLE album(
   albumdate	INTEGER,
   albumlabel	TEXT
 );
-CREATE TABLE track_artist(
-  artistid    	INTEGER,
-  trackid	INTEGER,
-  FOREIGN KEY(artistid) REFERENCES artist(artistid),
-  FOREIGN KEY(trackid) REFERENCES track(trackid)
-);
 CREATE TABLE album_tracks(
   albumid 	INTEGER,
   trackid    	INTEGER,
   FOREIGN KEY(albumid) REFERENCES album(albumid),
   FOREIGN KEY(trackid) REFERENCES track(trackid)
 );
-CREATE TABLE album_tracks_artists(
+CREATE TABLE track_artist(
+  trackid	INTEGER,
   artistid    	INTEGER,
+  FOREIGN KEY(trackid) REFERENCES track(trackid),
+  FOREIGN KEY(artistid) REFERENCES artist(artistid)
+);
+CREATE TABLE album_tracks_artists(
   albumid 	INTEGER,
   trackid    	INTEGER,
-  FOREIGN KEY(artistid) REFERENCES artist(artistid),
+  artistid    	INTEGER,
   FOREIGN KEY(albumid) REFERENCES album(albumid),
-  FOREIGN KEY(trackid) REFERENCES track(trackid)
+  FOREIGN KEY(trackid) REFERENCES track(trackid),
+  FOREIGN KEY(artistid) REFERENCES artist(artistid)
 );
 CREATE VIEW artist_discography AS 
 select artistname, trackname, albumname

@@ -23,7 +23,7 @@ class JsonAlchemyStore(Model):
         '''
         self.engine = create_engine(source, echo=False)
         self.md = MetaData(self.engine)
-        self.md.reflect()
+        self.md.reflect(views=True)
         self.jmap = JsonAlchemyMapper(mapping, self.engine)
         self.vesper_stmts = None
         if loadVesperTable:
@@ -225,7 +225,10 @@ class JsonAlchemyStore(Model):
                               r['objecttype'], r['context']) )
             else:
                 # jsonalchemmapper.VAL_OPEN_DELIM='#'
-                subj = pKeyName + '#' + str(r[pKeyName])
+                if pKeyName:
+                    subj = pKeyName + '#' + str(r[pKeyName])
+                else:
+                    subj = tableName + ':blank_node'
                 if pattern == 'id':
                     # subject/ID (e.g. "find rowids for rows where prop == x")
                     stmts.append(Statement(subj, None, None, None, None))
@@ -256,7 +259,7 @@ class JsonAlchemyStore(Model):
         colName = None
         # first, verify this is write-worthy table
         tableName = self.jmap.getTableNameFromResourceId(s)
-        if self.jmap.readOnly(tableName):
+        if self.jmap.isReadOnly(tableName):
             # raise an error
             return
         table = self._getTableObject(tableName)
@@ -273,13 +276,13 @@ class JsonAlchemyStore(Model):
             pKeyValue = self.jmap.getValueFromResourceId(s)
             colName = self.jmap.getColFromPred(table.name, p)
             argDict = {colName : o}
-            upd = table.update().where(table.c[pKeyName] == pKeyValue)
-            if SPEW: print "UPDATE: ", table.name, pKeyName, pKeyValue, \
-                colName, o, ot, argDict
-            result = self.conn.execute(upd, argDict)
-            if result.rowcount:
-                return result.rowcount
-
+            if not self.jmap.isRelation(tableName):
+                upd = table.update().where(table.c[pKeyName] == pKeyValue)
+                if SPEW: print "UPDATE: ", table.name, pKeyName, pKeyValue, \
+                        colName, o, ot, argDict
+                result = self.conn.execute(upd, argDict)
+                if result.rowcount:
+                    return result.rowcount
         # update failed - try inserting new row, works for all table types
         argDict[pKeyName] = pKeyValue
         if SPEW:
@@ -318,7 +321,7 @@ class JsonAlchemyStore(Model):
         if not tableName:
             if p == 'rdf:type':
                 tableName = o
-        if self.jmap.readOnly(tableName):
+        if self.jmap.isReadOnly(tableName):
             # raise an error
             return
         table = self._getTableObject(tableName)
