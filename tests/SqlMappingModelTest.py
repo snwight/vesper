@@ -257,7 +257,7 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         rows = model.getStatements(subject=RSRC_URI, 
                                    predicate='rdf:type',
                                    object='artist_discography')
-        self.assertEqual(36, len(rows))
+        self.assertEqual(6, len(rows))
         import pprint
         pprint.PrettyPrinter(indent=2).pprint(rows)
         

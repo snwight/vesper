@@ -249,8 +249,6 @@ class JsonAlchemyStore(Model):
                             [stmts.append(
                                     Statement(subj, k, r[v], None, None)) \
                                  for k,v in td['colNames'].items()]
-                                    
-         # diagnostic
         if SPEW:
           for s in stmts:
               print s, '\n'
@@ -280,17 +278,17 @@ class JsonAlchemyStore(Model):
             pKeyValue = self.jmap.getValueFromResourceId(s)
             colName = self.jmap.getColFromPred(table.name, p)
             argDict = {colName : o}
-            if not self.jmap.isRelation(tableName):
-                upd = table.update().where(table.c[pKeyName] == pKeyValue)
-                if SPEW: print "UPDATE: ", table.name, pKeyName, pKeyValue, \
-                        colName, o, ot, argDict
-                result = self.conn.execute(upd, argDict)
-                if result.rowcount:
-                    return result.rowcount
-        # update failed - try inserting new row, works for all table types
+            upd = table.update().where(table.c[pKeyName] == pKeyValue)
+            if SPEW:
+                print "UPDATE:", table.name, pKeyName, pKeyValue, colName,\
+                    o, ot, argDict
+            result = self.conn.execute(upd, argDict)
+            if result.rowcount:
+                return result.rowcount
+        # update failed - try inserting new row
         argDict[pKeyName] = pKeyValue
         if SPEW:
-          print "ADD: ", table.name, pKeyName, pKeyValue, colName, o, argDict
+            print "ADD:", table.name, pKeyName, pKeyValue, colName, o, argDict
         ins = table.insert()
         if self.engine.name == 'postgresql':
             if table == self.vesper_stmts:
