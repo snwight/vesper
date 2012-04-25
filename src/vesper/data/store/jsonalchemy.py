@@ -306,10 +306,45 @@ class JsonAlchemyStore(Model):
         return result.rowcount
 
 
+    def _addCompoundStatement(self, compoundStmt):
+        '''
+        This is a stretch - compoundStmt is a pretty direct implementation 
+        of http://www.w3.org/TR/rdb-direct-mapping/#no-pk ...
+        e.g. list containing an rdf:type identifying the (non-primary-key)
+        table, followed by a set of blank node triples which, taken as a
+        whole, describe a complete row to be inserted into this table.
+        If the insert throws a duplicate error we should ignore and return. 
+        tuple compoundStmt:
+        (Statement(RSRC_path, "rdf:type", <table_name>), [Statement1,...N])
+        '''
+        argDict = {}
+        colNames = []
+        (tblID, tblData) = compoundStmt
+        tableName = tblID.object
+        table = self._getTableObject(tableName)
+        for stmt in tblData:
+            argDict[stmt.predicate] = stmt.object
+        self._checkConnection()
+        ins = table.insert()
+        if self.engine.name == 'postgresql':
+            print "postgres insert ignore function NOT defined!"
+        else:
+            if self.engine.name == "sqlite":
+                ins = ins.prefix_with("OR IGNORE")
+            elif self.engine.name == "mysql":
+                ins = ins.prefix_with("IGNORE")
+        result = self.conn.execute(ins, argDict)
+        return result.rowcount
+
+
     def addStatements(self, stmts):
         rc = 0
         for stmt in stmts:
-             rc += self.addStatement(stmt)
+            if isinstance(stmt[1], list):
+                print stmt
+                rc += self._addCompoundStatement(stmt)
+            else:
+                rc += self.addStatement(stmt)
         return rc
 
 

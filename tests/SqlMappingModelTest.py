@@ -167,32 +167,26 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
                       'albumdate', '070601967', 'en-1', None)
             ]
         alb_trk_Stmts = [
-            Statement(RSRC_URI + 'album_tracks/albumid#1',
-                      'trackid', 1, 'en-1', None),
-            Statement(RSRC_URI + 'album_tracks/albumid#1',
-                      'trackid', 2, 'en-1', None),
-            Statement(RSRC_URI + 'album_tracks/albumid#1',
-                      'trackid', 3, 'en-1', None),
-            Statement(RSRC_URI + 'album_tracks/trackid#1',
-                      'albumid', 2, 'en-1', None),
-            Statement(RSRC_URI + 'album_tracks/trackid#1',
-                      'albumid', 2, 'en-1', None),
-            Statement(RSRC_URI + 'album_tracks/trackid#3',
-                      'albumid', 2, 'en-1', None),
+            (Statement(RSRC_URI,'rdf:type', 'album_tracks', None, None),
+             [Statement(None, 'albumid', 1, None, None),
+              Statement(None, 'trackid', 1, None, None)]),
+            (Statement(RSRC_URI,'rdf:type', 'album_tracks', None, None),
+             [Statement(None, 'albumid', 1, None, None),
+              Statement(None, 'trackid', 2, None, None)]),
+            (Statement(RSRC_URI,'rdf:type', 'album_tracks', None, None),
+             [Statement(None, 'albumid', 2, None, None),
+              Statement(None, 'trackid', 3, None, None)]),
             ]
         trk_art_Stmts = [
-            Statement(RSRC_URI + 'track_artist/artistid#1',
-                      'trackid', 1, 'en-1', None),
-            Statement(RSRC_URI + 'track_artist/artistid#1',
-                      'trackid', 2, 'en-1', None),
-            Statement(RSRC_URI + 'track_artist/artistid#1',
-                      'trackid', 3, 'en-1', None),
-            Statement(RSRC_URI + 'track_artist/trackid#1',
-                      'artistid', 2, 'en-1', None),
-            Statement(RSRC_URI + 'track_artist/trackid#2',
-                      'artistid', 2, 'en-1', None),
-            Statement(RSRC_URI + 'track_artist/trackid#3',
-                      'artistid', 3, 'en-1', None),
+            (Statement(RSRC_URI,'rdf:type', 'track_artist', None, None),
+             [Statement(None, 'artistid', 1, None, None),
+              Statement(None, 'trackid', 1, None, None)]),
+            (Statement(RSRC_URI,'rdf:type', 'track_artist', None, None),
+             [Statement(None, 'artistid', 1, None, None),
+              Statement(None, 'trackid', 2, None, None)]),
+            (Statement(RSRC_URI,'rdf:type', 'track_artist', None, None),
+             [Statement(None, 'artistid', 2, None, None),
+              Statement(None, 'trackid', 3, None, None)]),
             ]
 
         model = self.getModel()
@@ -248,16 +242,15 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
 
         # verify select subject ID given a property and object value
         rows = model.getStatements(subject=RSRC_URI + 'track',
-                                   predicate='tracklength', 
+                                   predicate='tracklength',
                                    object=360)
         self.assertEqual('trackid#2', rows[0][0])
         
         # verify retrieve rows from an SQL defined view 
-        #        rows = model.getStatements(subject=RSRC_URI + 'artist_discography')
         rows = model.getStatements(subject=RSRC_URI, 
                                    predicate='rdf:type',
                                    object='artist_discography')
-        self.assertEqual(6, len(rows))
+        self.assertEqual(9, len(rows))
         import pprint
         pprint.PrettyPrinter(indent=2).pprint(rows)
         
