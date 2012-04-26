@@ -95,14 +95,14 @@ class JsonAlchemyStore(Model):
         SQL database with.
         '''
         stmts = []
-        table = tableName = pKeyName = pKeyValue = colName = None
+        table = tableName =  colName = None
+        pKeyNames = []
+        pKeyDict = {}
         if subject:
-            tableName = self.jmap.getTableNameFromResourceId(subject)
+            tableName = self.jmap.getTableNameFromResource(subject)
             table = self._getTableObject(tableName)
             if table is not None:
-                pKeyName = self.jmap.getPropNameFromResourceId(subject)
-                if pKeyName:
-                    pKeyValue = self.jmap.getValueFromResourceId(subject)
+                pKeyDict = self.jmap.getPKeyDictFromResource(subject)
             else:
                 # we have a subject but no table is named - vesperize it
                 table = self.vesper_stmts
@@ -112,13 +112,13 @@ class JsonAlchemyStore(Model):
                 object = None
                 predicate = None
             elif not subject:
-                tableName = self.jmap.getTableNameFromResourceId(predicate)
+                tableName = self.jmap.getTableNameFromResource(predicate)
             table = self._getTableObject(tableName)
             if table is not None:
                 colName = self.jmap.getColFromPred(table.name, predicate)
-                if not pKeyName:
+                if not pKeyDict:
                     subject = None
-                    pKeyName = self.jmap.getPrimaryKeyName(table.name)
+                    pKeyNames = self.jmap.getPKeyNamesFromTable(table.name)
         if table is None:
             # we finally believe this is a select * on vesper_stmts
             table = self.vesper_stmts
@@ -129,36 +129,44 @@ class JsonAlchemyStore(Model):
             query = self._buildVesperQuery(subject, predicate, object, 
                                            objecttype, context, asQuad, hints)
             pattern = 'vespercols'
-        elif not pKeyValue and not predicate and not object:
+        elif not pKeyDict and not predicate and not object:
             # * * * => select all rows from this table 
             query = select([table])
             pattern = 'multicol'
-        elif subject and pKeyValue and not predicate and not object:
-            # s * * => select row from table where id = s
-            query = select([table]).\
-                where(table.c[pKeyName] == pKeyValue)
+        elif subject and pKeyDict and not predicate and not object:
+            # s * * => select row from table where id[...] = s[...]
+            query = select([table])
+            for pk, pv in pKeyDict.items():
+                query = query.where(table.c[pk] == pv)
             pattern = 'multicol'
         elif not subject and predicate and not object:
-            # * p * => select id, p from table
-            query = select([table.c[pKeyName], table.c[colName]])
+            # * p * => select id[...], p from table
+            sList = [table.c[colName]]
+            [sList.append(table.c[pkn]) for pkn in pKeyNames]
+            query = select(sList)
             pattern = 'unicol'
         elif subject and predicate and not object:
-            # s p * => select p from table where id = s
-            query = select([table.c[pKeyName], table.c[colName]]).\
-                where(table.c[pKeyName] == pKeyValue)
+            # s p * => select p from table where id[...] = s[...]
+            sList = [table.c[colName]]
+            [sList.append(table.c[pkn]) for pkn in pKeyDict.keys()]
+            query = select(sList)
+            for pk, pv in pKeyDict.items():
+                query = query.where(table.c[pk] == pv)
             pattern = 'unicol'
         elif not subject and predicate and object:
-            # * p o => select id from table where p = object
-            query = select([table.c[pKeyName]]).\
-                where(table.c[colName] == object)
+            # * p o => select id[...] from table where p = object
+            sList = []
+            [sList.append(table.c[pkn]) for pkn in pKeyNames]
+            query = select(sList).where(table.c[colName] == object)
             pattern = 'id'
-
         if SPEW:
-          print query
+            print query
         self._checkConnection()
         result = self.conn.execute(query)
-        stmts.extend(self._generateStatementAssignments(
-                result, table.name, colName, pattern))
+        stmts.extend(self._generateStatementAssignments(result,
+                                                        table.name,
+                                                        colName,
+                                                        pattern))
         return stmts
 
 
@@ -215,7 +223,7 @@ class JsonAlchemyStore(Model):
         the query
         '''
         if pattern != 'vespercols':
-            pKeyName = self.jmap.getPrimaryKeyName(tableName)
+            pKeyNames = self.jmap.getPKeyNamesFromTable(tableName)
         stmts = []
         for r in fetchedRows:
             if SPEW: print "r: ", r
@@ -225,14 +233,20 @@ class JsonAlchemyStore(Model):
                     Statement(r['subject'], r['predicate'], r['object'], 
                               r['objecttype'], r['context']) )
             else:
-                # jsonalchemmapper.VAL_OPEN_DELIM='#'
-                if pKeyName:
-                    subj = pKeyName + '#' + str(r[pKeyName])
+                if pKeyNames:
+                    subj = tableName
+                    i = len(pKeyNames)
+                    for pkn in pKeyNames:
+                        i = i - 1
+                        subj = subj + '/' + pkn + '#' + str(r[pkn])
+                        if i:
+                            subj = subj + '.'
                 else:
                     uniqueBlankNode = ''.join(random.choice(
                             string.ascii_uppercase + string.digits)
-                            for x in range(6))
+                                              for x in range(6))
                     subj = tableName + ':blank_node#' + uniqueBlankNode
+
                 if pattern == 'id':
                     # subject/ID (e.g. "find rowids for rows where prop == x")
                     stmts.append(Statement(subj, None, None, None, None))
@@ -257,10 +271,11 @@ class JsonAlchemyStore(Model):
 
     def addStatement(self, stmt):
         s, p, o, ot, c = stmt
-        argDict = {}
         colName = None
+        argDict = {}
+        pKeyDict = {}
         # first, verify this is write-worthy table
-        tableName = self.jmap.getTableNameFromResourceId(s)
+        tableName = self.jmap.getTableNameFromResource(s)
         if self.jmap.isReadOnly(tableName):
             # raise an error
             return
@@ -269,26 +284,26 @@ class JsonAlchemyStore(Model):
         if table is None:
             # private table is under an insert/ignore duplicate regime
             table = self.vesper_stmts
-            pKeyName = "subject"
-            pKeyValue = s
+            pKeyDict["subject"] = s
             argDict = {"predicate":p, "object":o, "objecttype":ot, "context":c}
         else:
             # try update first - if it fails we'll drop through to insert
-            pKeyName = self.jmap.getPropNameFromResourceId(s)
-            pKeyValue = self.jmap.getValueFromResourceId(s)
             colName = self.jmap.getColFromPred(table.name, p)
             argDict = {colName : o}
-            upd = table.update().where(table.c[pKeyName] == pKeyValue)
+            pKeyDict = self.jmap.getPKeyDictFromResource(s)
+            upd = table.update()
+            for k, v in pKeyDict.items():
+                upd = upd.where(table.c[k] == v)
             if SPEW:
-                print "UPDATE:", table.name, pKeyName, pKeyValue, colName,\
-                    o, ot, argDict
+                print "UPDATE:", table.name, pKeyDict, colName, o, ot, argDict
             result = self.conn.execute(upd, argDict)
             if result.rowcount:
                 return result.rowcount
         # update failed - try inserting new row
-        argDict[pKeyName] = pKeyValue
+        for k, v in pKeyDict.items():
+            argDict[k] = v
         if SPEW:
-            print "ADD:", table.name, pKeyName, pKeyValue, colName, o, argDict
+            print "ADD:", table.name, pKeyName, pKeyValues, colName, o, argDict
         ins = table.insert()
         if self.engine.name == 'postgresql':
             if table == self.vesper_stmts:
@@ -341,7 +356,7 @@ class JsonAlchemyStore(Model):
         rc = 0
         for stmt in stmts:
             if isinstance(stmt[1], list):
-                print stmt
+                if SPEW: print stmt
                 rc += self._addCompoundStatement(stmt)
             else:
                 rc += self.addStatement(stmt)
@@ -350,11 +365,10 @@ class JsonAlchemyStore(Model):
 
     def removeStatement(self, stmt):
         s, p, o, ot, c = stmt
-        cmd = pKeyName = pKeyValue = colName = None
+        cmd = pKeyNames = pKeyValues = colName = None
         if s:
-            tableName = self.jmap.getTableNameFromResourceId(s)
-            pKeyName = self.jmap.getPropNameFromResourceId(s)
-            pKeyValue = self.jmap.getValueFromResourceId(s)
+            tableName = self.jmap.getTableNameFromResource(s)
+            pKeyDict = self.jmap.getPKeyDictFromResource(s)
         if not tableName:
             if p == 'rdf:type':
                 tableName = o
@@ -374,22 +388,26 @@ class JsonAlchemyStore(Model):
             if p == 'rdf:type':
                 # uri 'rdf:type' tbl ==> delete * from table <<uri/tbl>>
                 cmd = table.delete()
-            elif not p and pKeyValue:
+            elif not p and pKeyDict:
                 # subj/id none none ==> delete row where subj == id
-                cmd = table.delete().\
-                    where(table.c[pKeyName] == pKeyValue)
-            elif p and pKeyValue and not o:
+                cmd = table.delete()
+                for k, v in pKeyDict.items():
+                    cmd = cmd.where(table.c[k] == v)
+            elif p and pKeyDict and not o:
                 # subj/id pred none ==> null pred where subj == id
                 colName = self.jmap.getColFromPred(table.name, p)
-                cmd = table.update().values({colName : ''}).\
-                    where(table.c[pKeyName] == pKeyValue)
-            elif p and pKeyValue and o:
+                cmd = table.update().values({colName : ''})
+                for k, v in pKeyDict.items():
+                    cmd = cmd.where(table.c[k] == v)
+            elif p and pKeyValues and o:
                 # subj/id pred obj ==> null pred where subj==id and pred==obj
                 colName = self.jmap.getColFromPred(table.name, p)
-                cmd = table.update().values({colName : ''}).\
-                    where((table.c[pKeyName] == pKeyValue) & \
-                              (table.c[colName] == o))
-            elif p and not pKeyValue and not o:
+                cmd = table.update().values({colName : ''})
+                cmd = cmd.where(table.c[colName] == o)
+                for k, v in pKeyDict.items():
+                    cmd = cmd.where(table.c[k] == v)
+                              
+            elif p and not pKeyValues and not o:
                 # uri/tbl col none ==> null pred
                 colName = self.jmap.getColFromPred(table.name, p)
                 cmd = table.update().values({colName : ''})

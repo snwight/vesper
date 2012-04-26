@@ -3,7 +3,7 @@
     "idpattern" : "http://souzis.com/",
     "tables": {
         "track": {
-            "id": "trackid", 
+            "id": ["trackid"],
             "properties": [
 		"*",
 		{
@@ -66,7 +66,7 @@
             ]
         },
         "album": {
-            "id": "albumid", 
+            "id": ["albumid"],
             "properties": [
 		"*",
  		{
@@ -116,7 +116,7 @@
             ]
         },
         "artist": {
-            "id": "artistid", 
+            "id": ["artistid"],
             "properties": [
                 "*",
 		{
@@ -165,7 +165,7 @@
             ]
         }, 
         "album_tracks": {
-            "id": "albumid", 
+            "id": ["albumid"],
             "properties": [
                 "*"
             ], 

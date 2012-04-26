@@ -7,7 +7,8 @@ from collections import Counter
 import vesper.data.base.utils
 
 RSRC_DELIM='/'
-VAL_OPEN_DELIM='#'
+PKEY_VAL_DELIM='#'
+PKEY_DELIM = '.'
 
 SPEW=False
 SPEW_SCHEMA=False
@@ -74,11 +75,11 @@ class JsonAlchemyMapper():
         self.parsedTables = []
         for tableName, tableDesc in self.mapping["tables"].items():
             readonly = relation = False
-            pKeyName = None
+            pKeyNames = []
             if 'relationship' in tableDesc:
                 relation = tableDesc['relationship']
             if 'id' in tableDesc:
-                pKeyName = tableDesc['id']
+                pKeyNames = tableDesc['id']
             if 'readonly' in tableDesc:
                 readonly = tableDesc['readonly']
             if 'properties' in tableDesc:
@@ -110,7 +111,7 @@ class JsonAlchemyMapper():
             self.parsedTables.append({'tableName': tableName,
                                       'readOnly': readonly,
                                       'relation': relation,
-                                      'pKeyName': pKeyName,
+                                      'pKeyNames': pKeyNames,
                                       'colNames': colNames,
                                       'refFKeys': refFKeys,
                                       'viewRefs': viewRefs, 
@@ -185,30 +186,22 @@ class JsonAlchemyMapper():
             
 
     def getColFromPred(self, tableName, predicate):
+        '''
+        retrieve SQL column name from json mapping 
+        '''
         if not tableName or not predicate:
             return None
-        pName = self.getPropNameFromResourceId(predicate)
+        pName = self._getPropNameFromResource(predicate)
         for td in self.parsedTables:
             if td['tableName'] == tableName:
                 for k, v in td['colNames'].items():
                     if k == pName:
                         return v
+                break
         return None
 
 
-    def getPrimaryKeyName(self, tableName):
-        '''
-        if tableName is in our 'active' list, return its primary key col name
-        '''
-        if not tableName:
-            return None
-        for td in self.parsedTables:
-            if td['tableName'] == tableName:
-                return td['pKeyName']
-        return None
-
-
-    def getTableNameFromResourceId(self, uri):
+    def getTableNameFromResource(self, uri):
         '''
         extract table name from (possibly non-URI) resource string
         '''
@@ -223,27 +216,49 @@ class JsonAlchemyMapper():
         return None
 
     
-    def getPropNameFromResourceId(self, uri):
+    def _getPropNameFromResource(self, uri):
         '''
-        extract property name from (possibly non-URI) resource string
+        extract property name from (possibly URI-prefixed) resource string
         '''
         if not uri:
             return None
         pName = uri
         if self.mapping['idpattern'] in uri:
             uri = uri[len(self.mapping['idpattern']):]
-            if VAL_OPEN_DELIM in uri:
-                uri = uri.split(VAL_OPEN_DELIM)[0]
-                pName = uri.split(RSRC_DELIM, 2)[1]
-            elif RSRC_DELIM in uri:
+            if RSRC_DELIM in uri:
                 pName = uri.split(RSRC_DELIM)[1]
-            else:
-                # a URI w/no column name, perfectly legal, deal w/ it
-                pName = None
         return pName
 
 
-    def getValueFromResourceId(self, uri):
+    def getPKeyNamesFromTable(self, tableName):
+        '''
+        if tableName is in our 'active' list, return its primary key col names
+        '''
+        if not tableName:
+            return None
+        for td in self.parsedTables:
+            if td['tableName'] == tableName:
+                return td['pKeyNames']
+        return None
+
+
+    def getPKeyDictFromResource(self, uri):
+        '''
+        extract (possibly multiple) primary key names from resource string
+        i.e. "RSRC_URI:/tablename/pkey1#pkval1.pkey2#pkval2"
+        '''
+        if not uri:
+            return None
+        pk = pv = None
+        pkDict = {}
+        for pkv in (uri.rsplit(RSRC_DELIM, 1)[1]).split(PKEY_DELIM):
+            if pkv.find(PKEY_VAL_DELIM) > 0:
+                pk, pv = pkv.split(PKEY_VAL_DELIM)
+                pkDict[pk] = pv
+        return pkDict
+
+
+    def getPKeyValuesFromResource(self, uri):
         '''
         extract "{value}" from (possibly non-URI) resource string
         '''
@@ -263,7 +278,7 @@ class JsonAlchemyMapper():
         '''
         if not uri:
             return None
-        pName = self._getPropNameFromResourceId(uri)
+        pName = self._getPropNameFromResource(uri)
         for td in self.parsedTables:
             for k, v in td['colNames'].items():
                 if k == pName:
@@ -290,8 +305,8 @@ class JsonAlchemyMapper():
             # no way of ruling out any properties here, so always include '*'
             mDict['tables'][tbl] = {'properties': ['*']}
             if self.insp.get_primary_keys(tbl):
-                # primary key ==> 'id' property
-                mDict['tables'][tbl]['id'] = self.insp.get_primary_keys(tbl)[0]
+                # primary keys ==> 'id' property list
+                mDict['tables'][tbl]['id'] = self.insp.get_primary_keys(tbl)
 
         # we've collected the list of all tables, now review it with an eye
         # for relationships and foreign keys 

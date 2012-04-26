@@ -28,7 +28,7 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
     jsonMapPath = os.path.join(os.getcwd(), 'map_file_1.json')
     mapping = json.loads(open(jsonMapPath).read())
     
-    # XXX TESTING 
+    # XXX TESTING
     # mapping = None
     # XXX
 
@@ -217,7 +217,7 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         rows = model.getStatements(subject=RSRC_URI + 'artist',
                                    predicate='birthdate',
                                    object='07081960')
-        self.assertEqual('artistid#2', rows[0][0])
+        self.assertEqual('artist/artistid#2', rows[0][0])
 
         # REPEAT the above tests against another (bigger) table
         # verify select all rows from a single table
@@ -244,15 +244,15 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         rows = model.getStatements(subject=RSRC_URI + 'track',
                                    predicate='tracklength',
                                    object=360)
-        self.assertEqual('trackid#2', rows[0][0])
+        self.assertEqual('track/trackid#2', rows[0][0])
         
         # verify retrieve rows from an SQL defined view 
         rows = model.getStatements(subject=RSRC_URI, 
                                    predicate='rdf:type',
                                    object='artist_discography')
         self.assertEqual(9, len(rows))
-        import pprint
-        pprint.PrettyPrinter(indent=2).pprint(rows)
+        #        import pprint
+        #        pprint.PrettyPrinter(indent=2).pprint(rows)
         
         model.close()
 
@@ -325,7 +325,7 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         rows = model.getStatements(subject=RSRC_URI,
                                    predicate="rdf:type",
                                    object='track')
-        self.assertEqual('trackid#2', rows[0][0])
+        self.assertEqual('track/trackid#2', rows[0][0])
 
         # remove all objects of one property type - clear this column
         ret = model.addStatements(tStmts)
