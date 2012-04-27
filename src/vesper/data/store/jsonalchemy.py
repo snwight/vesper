@@ -234,18 +234,18 @@ class JsonAlchemyStore(Model):
                               r['objecttype'], r['context']) )
             else:
                 if pKeyNames:
-                    subj = tableName
+                    subj = tableName + '/'
                     i = len(pKeyNames)
                     for pkn in pKeyNames:
                         i = i - 1
-                        subj = subj + '/' + pkn + '#' + str(r[pkn])
+                        subj = subj + pkn + '#' + str(r[pkn])
                         if i:
                             subj = subj + '.'
                 else:
                     uniqueBlankNode = ''.join(random.choice(
                             string.ascii_uppercase + string.digits)
                                               for x in range(6))
-                    subj = tableName + ':blank_node#' + uniqueBlankNode
+                    subj = tableName + '/' + 'blank_node:#' + uniqueBlankNode
 
                 if pattern == 'id':
                     # subject/ID (e.g. "find rowids for rows where prop == x")
@@ -257,9 +257,7 @@ class JsonAlchemyStore(Model):
                 elif pattern == 'multicol':
                     # all properties and values for one or more rows 
                     for td in self.jmap.parsedTables:
-                        if td['tableName'] != tableName:
-                            continue
-                        else:
+                        if td['tableName'] == tableName:
                             [stmts.append(
                                     Statement(subj, k, r[v], None, None)) \
                                  for k,v in td['colNames'].items()]
@@ -288,17 +286,18 @@ class JsonAlchemyStore(Model):
             argDict = {"predicate":p, "object":o, "objecttype":ot, "context":c}
         else:
             # try update first - if it fails we'll drop through to insert
-            colName = self.jmap.getColFromPred(table.name, p)
-            argDict = {colName : o}
             pKeyDict = self.jmap.getPKeyDictFromResource(s)
-            upd = table.update()
-            for k, v in pKeyDict.items():
-                upd = upd.where(table.c[k] == v)
-            if SPEW:
-                print "UPDATE:", table.name, pKeyDict, colName, o, ot, argDict
-            result = self.conn.execute(upd, argDict)
-            if result.rowcount:
-                return result.rowcount
+            colName = self.jmap.getColFromPred(table.name, p)
+            if colName:
+                argDict = {colName : o}
+                upd = table.update()
+                for k, v in pKeyDict.items():
+                    upd = upd.where(table.c[k] == v)
+                if SPEW:
+                    print "UPDATE:", table.name, pKeyDict, colName, o, ot, argDict
+                result = self.conn.execute(upd, argDict)
+                if result.rowcount:
+                    return result.rowcount
         # update failed - try inserting new row
         for k, v in pKeyDict.items():
             argDict[k] = v

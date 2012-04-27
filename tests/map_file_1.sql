@@ -19,6 +19,7 @@ CREATE TABLE album(
 CREATE TABLE album_tracks(
   albumid 	INTEGER,
   trackid    	INTEGER,
+  PRIMARY KEY(albumid, trackid),
   FOREIGN KEY(albumid) REFERENCES album(albumid),
   FOREIGN KEY(trackid) REFERENCES track(trackid)
 );
@@ -32,6 +33,7 @@ CREATE TABLE album_tracks_artists(
   albumid 	INTEGER,
   trackid    	INTEGER,
   artistid    	INTEGER,
+  PRIMARY KEY(albumid, trackid, artistid),
   FOREIGN KEY(albumid) REFERENCES album(albumid),
   FOREIGN KEY(trackid) REFERENCES track(trackid),
   FOREIGN KEY(artistid) REFERENCES artist(artistid)

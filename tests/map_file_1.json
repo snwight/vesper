@@ -165,7 +165,7 @@
             ]
         }, 
         "album_tracks": {
-            "id": ["albumid"],
+            "id": ["albumid", "trackid"],
             "properties": [
                 "*"
             ], 
@@ -178,6 +178,7 @@
             "relationship": true
         },
         "album_tracks_artists": {
+            "id": ["albumid", "trackid", "artistid"],
             "properties": [
                 "*"
             ], 

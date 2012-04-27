@@ -8,6 +8,7 @@ import json
 import subprocess, tempfile, os, signal, sys
 from subprocess import check_call, call
 import string, random, shutil, time
+import pprint
 import logging
 
 import modelTest
@@ -83,7 +84,7 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         ]
         model.addStatements(aStmts)
         rows = model.getStatements(subject = subj)
-        self.assertEqual(3, len(rows))
+        self.assertEqual(4, len(rows))
         model.commit()
         model.close()
         if not self.persistentStore:
@@ -91,7 +92,7 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         # confirm persistent store
         model = self.getModel()
         rows = model.getStatements(subject=subj)
-        self.assertEqual(3, len(rows))
+        self.assertEqual(4, len(rows))
 
         '''
         model.removeStatement()
@@ -166,17 +167,16 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
             Statement(RSRC_URI + 'album/albumid#2',
                       'albumdate', '070601967', 'en-1', None)
             ]
+        # compound primary key
         alb_trk_Stmts = [
-            (Statement(RSRC_URI,'rdf:type', 'album_tracks', None, None),
-             [Statement(None, 'albumid', 1, None, None),
-              Statement(None, 'trackid', 1, None, None)]),
-            (Statement(RSRC_URI,'rdf:type', 'album_tracks', None, None),
-             [Statement(None, 'albumid', 1, None, None),
-              Statement(None, 'trackid', 2, None, None)]),
-            (Statement(RSRC_URI,'rdf:type', 'album_tracks', None, None),
-             [Statement(None, 'albumid', 2, None, None),
-              Statement(None, 'trackid', 3, None, None)]),
+            Statement(RSRC_URI + 'album_tracks/albumid#1.trackid#1',
+                      None, None),
+            Statement(RSRC_URI + 'album_tracks/albumid#1.trackid#2',
+                      None, None),
+            Statement(RSRC_URI + 'album_tracks/albumid#2.trackid#3',
+                      None, None)
             ]
+        # no primary key
         trk_art_Stmts = [
             (Statement(RSRC_URI,'rdf:type', 'track_artist', None, None),
              [Statement(None, 'artistid', 1, None, None),
@@ -191,17 +191,18 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
 
         model = self.getModel()
         model.addStatements(artStmts + trkStmts + albStmts)
-        model.addStatements(alb_trk_Stmts + trk_art_Stmts)
+        model.addStatements(alb_trk_Stmts)
+        model.addStatements(trk_art_Stmts)
 
         # verify select all rows from a single table (x column count)
         rows = model.getStatements(subject=RSRC_URI, 
                                    predicate='rdf:type',
                                    object='artist')
-        self.assertEqual(len(rows), len(artStmts))
+        self.assertEqual(12, len(rows))
 
         # verify select all elements from one row of one table
         rows = model.getStatements(subject=RSRC_URI + 'artist/artistid#1')
-        self.assertEqual(artStmts[0][2], rows[1][2])
+        self.assertEqual(4, len(rows))
 
         # verify select all objects with a particular property from one table
         rows = model.getStatements(subject=RSRC_URI + 'artist',
@@ -224,11 +225,11 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         rows = model.getStatements(subject=RSRC_URI,
                                    predicate='rdf:type',
                                    object='track')
-        self.assertEqual(len(trkStmts), len(rows))
+        self.assertEqual(12, len(rows))
 
         # verify select all elements from one row of one table
         rows = model.getStatements(subject=RSRC_URI + 'track/trackid#1')
-        self.assertEqual(3, len(rows))
+        self.assertEqual(4, len(rows))
 
         # verify select all objects with a particular property from one table
         rows = model.getStatements(subject=RSRC_URI + 'track',
@@ -246,14 +247,30 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
                                    object=360)
         self.assertEqual('track/trackid#2', rows[0][0])
         
-        # verify retrieve rows from an SQL defined view 
+        # retrieve another non-primary key
+        print "no primary key"
+        rows = model.getStatements(subject=RSRC_URI, 
+                                   predicate='rdf:type',
+                                   object='track_artist')
+        self.assertEqual(6, len(rows))
+        pprint.PrettyPrinter(indent=2).pprint(rows)
+
+        # retrieve compound primary key table
+        print "compound primary key"
+        rows = model.getStatements(subject=RSRC_URI, 
+                                   predicate='rdf:type',
+                                   object='album_tracks')
+        self.assertEqual(6, len(rows))
+        pprint.PrettyPrinter(indent=2).pprint(rows)
+
+        # verify retrieve rows from an SQL defined view (no primary key)
+        print "no primary key, SQL view"
         rows = model.getStatements(subject=RSRC_URI, 
                                    predicate='rdf:type',
                                    object='artist_discography')
         self.assertEqual(9, len(rows))
-        #        import pprint
-        #        pprint.PrettyPrinter(indent=2).pprint(rows)
-        
+        pprint.PrettyPrinter(indent=2).pprint(rows)
+
         model.close()
 
 
@@ -284,7 +301,7 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
 
         # confirm search for subject finds all related properties and values 
         rows = model.getStatements(subject=tStmts[0].subject)
-        self.assertEqual(3, len(rows))
+        self.assertEqual(4, len(rows))
 
         # remove one subject and confirm that it's gone
         ret = model.removeStatement(

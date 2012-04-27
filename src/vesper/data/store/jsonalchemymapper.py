@@ -85,8 +85,6 @@ class JsonAlchemyMapper():
             if 'properties' in tableDesc:
                 colNames = {}
                 viewRefs = joinCols = refFKeys = []
-                # XXX sort of conflicts with 'id' logic above!
-                pKeys =  self.insp.get_primary_keys(tableName)
                 for p in tableDesc['properties']:
                     if isinstance(p, dict):
                         (vr, jc, rfk, cn) = self._parsePropDict(p)
@@ -101,9 +99,9 @@ class JsonAlchemyMapper():
                             colNames[propNm] = colNm
                     elif p == "*":
                         for c in self.insp.get_columns(tableName):
-                            if c['name'] not in pKeys:
-                                if c['name'] not in colNames.values():
-                                    colNames[c['name']] = c['name']
+                            # if c['name'] not in pKeyNames:
+                            if c['name'] not in colNames.values():
+                                colNames[c['name']] = c['name']
                     else:
                         print "properties list contains unknown obj:", p
 
