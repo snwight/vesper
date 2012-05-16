@@ -99,23 +99,18 @@ class JsonAlchemyMapper():
                             colNames[propNm] = colNm
                     elif p == "*":
                         for c in self.insp.get_columns(tableName):
-                            # if c['name'] not in pKeyNames:
                             if c['name'] not in colNames.values():
                                 colNames[c['name']] = c['name']
                     else:
                         print "properties list contains unknown obj:", p
-
-            #            print "tbl:", tableName, "cns:", colNames
             self.parsedTables.append({'tableName': tableName,
                                       'readOnly': readonly,
                                       'relation': relation,
                                       'pKeyNames': pKeyNames,
                                       'colNames': colNames,
-                                      'refFKeys': refFKeys,
                                       'viewRefs': viewRefs, 
                                       'joinCols': joinCols, 
                                       'refFKeys': refFKeys})
-
         if SPEW: pprint.PrettyPrinter(indent=2).pprint(self.parsedTables)
 
 
@@ -147,7 +142,7 @@ class JsonAlchemyMapper():
                         vCol = k
                     if 'key' in r:
                         if r['key'] == 'id':
-                            vKey = (idkey,)
+                            vKey = idkey
                         else:
                             vKey = r['key']
                     viewRef = (vName, vCol, vKey)
@@ -158,7 +153,7 @@ class JsonAlchemyMapper():
                 if isinstance(r, dict):
                     tbl = r['table']
                     if r['key'] == 'id':
-                        col = (idkey,)
+                        col = idkey
                     else:
                         col = r['key']
                     vals = []
@@ -167,7 +162,6 @@ class JsonAlchemyMapper():
                     refFKeys = (tbl, col, vals)
             else:
                 colName[k] = v
-
         return (viewRef, joinCols, refFKeys, colName)
 
 
@@ -213,7 +207,7 @@ class JsonAlchemyMapper():
                 return tName
         return None
 
-    
+
     def _getPropNameFromResource(self, uri):
         '''
         extract property name from (possibly URI-prefixed) resource string
@@ -228,16 +222,32 @@ class JsonAlchemyMapper():
         return pName
 
 
-    def getPKeyNamesFromTable(self, tableName):
+    def _getParsedValueFromTable(self, tableName, key):
         '''
-        if tableName is in our 'active' list, return its primary key col names
+        if tableName is in our 'active' list, return parsedTables element value
         '''
         if not tableName:
             return None
         for td in self.parsedTables:
             if td['tableName'] == tableName:
-                return td['pKeyNames']
+                return td[key]
         return None
+
+
+    def getPKeyNamesFromTable(self, tableName):
+        return self._getParsedValueFromTable(tableName, 'pKeyNames')
+
+
+    def getRefFKeysFromTable(self, tableName):
+        return self._getParsedValueFromTable(tableName, 'refFKeys')
+
+
+    def getJoinColsFromTable(self, tableName):
+        return self._getParsedValueFromTable(tableName, 'joinCols')
+
+
+    def getViewRefsFromTable(self, tableName):
+        return self._getParsedValueFromTable(tableName, 'viewRefs')
 
 
     def getPKeyDictFromResource(self, uri):

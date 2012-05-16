@@ -164,26 +164,6 @@
                 }
             ]
         }, 
-        "album_tracks": {
-            "id": ["albumid", "trackid"],
-            "properties": [
-                "*"
-            ], 
-            "relationship": true
-        }, 
-        "track_artist": {
-            "properties": [
-                "*"
-            ],
-            "relationship": true
-        },
-        "album_tracks_artists": {
-            "id": ["albumid", "trackid", "artistid"],
-            "properties": [
-                "*"
-            ], 
-            "relationship": true
-        },
  	"artist_discography": {
             "properties": [
                 "*"

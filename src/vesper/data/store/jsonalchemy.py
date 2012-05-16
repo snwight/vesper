@@ -242,11 +242,10 @@ class JsonAlchemyStore(Model):
                         if i:
                             subj = subj + '.'
                 else:
-                    uniqueBlankNode = ''.join(random.choice(
-                            string.ascii_uppercase + string.digits)
-                                              for x in range(6))
+                    uniqueBlankNode = ''.join(
+                        random.choice(string.ascii_uppercase + string.digits)
+                        for x in range(6))
                     subj = tableName + '/' + 'blank_node:#' + uniqueBlankNode
-
                 if pattern == 'id':
                     # subject/ID (e.g. "find rowids for rows where prop == x")
                     stmts.append(Statement(subj, None, None, None, None))
@@ -261,9 +260,9 @@ class JsonAlchemyStore(Model):
                             [stmts.append(
                                     Statement(subj, k, r[v], None, None)) \
                                  for k,v in td['colNames'].items()]
-        if SPEW:
-          for s in stmts:
-              print s, '\n'
+        if SPEW: 
+            for s in stmts: 
+                print s, '\n'
         return stmts
 
 
@@ -275,7 +274,7 @@ class JsonAlchemyStore(Model):
         # first, verify this is write-worthy table
         tableName = self.jmap.getTableNameFromResource(s)
         if self.jmap.isReadOnly(tableName):
-            # raise an error
+            # XXX raise an error
             return
         table = self._getTableObject(tableName)
         self._checkConnection()
@@ -294,13 +293,19 @@ class JsonAlchemyStore(Model):
                 for k, v in pKeyDict.items():
                     upd = upd.where(table.c[k] == v)
                 if SPEW:
-                    print "UPDATE:", table.name, pKeyDict, colName, o, ot, argDict
+                    print "UPDATE:", table.name, pKeyDict, colName, \
+                        o, ot, argDict
                 result = self.conn.execute(upd, argDict)
                 if result.rowcount:
                     return result.rowcount
         # update failed - try inserting new row
         for k, v in pKeyDict.items():
             argDict[k] = v
+
+        # we're responsible for inserting foreign keys in referencing tables
+        refDict = self.jmap.getRefFKeysFromTable(table.name)
+
+
         if SPEW:
             print "ADD:", table.name, pKeyName, pKeyValues, colName, o, argDict
         ins = table.insert()
@@ -364,7 +369,7 @@ class JsonAlchemyStore(Model):
 
     def removeStatement(self, stmt):
         s, p, o, ot, c = stmt
-        cmd = pKeyNames = pKeyValues = colName = None
+        cmd = pKeyDict = colName = None
         if s:
             tableName = self.jmap.getTableNameFromResource(s)
             pKeyDict = self.jmap.getPKeyDictFromResource(s)
@@ -398,16 +403,15 @@ class JsonAlchemyStore(Model):
                 cmd = table.update().values({colName : ''})
                 for k, v in pKeyDict.items():
                     cmd = cmd.where(table.c[k] == v)
-            elif p and pKeyValues and o:
+            elif p and pKeyDict and o:
                 # subj/id pred obj ==> null pred where subj==id and pred==obj
                 colName = self.jmap.getColFromPred(table.name, p)
                 cmd = table.update().values({colName : ''})
                 cmd = cmd.where(table.c[colName] == o)
                 for k, v in pKeyDict.items():
                     cmd = cmd.where(table.c[k] == v)
-                              
-            elif p and not pKeyValues and not o:
-                # uri/tbl col none ==> null pred
+            elif p and not pKeyDict and not o:
+                # tbl col none ==> null pred
                 colName = self.jmap.getColFromPred(table.name, p)
                 cmd = table.update().values({colName : ''})
             else:
