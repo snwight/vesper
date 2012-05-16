@@ -111,8 +111,14 @@ class JsonAlchemyStore(Model):
                 tableName = object
                 object = None
                 predicate = None
-            elif not subject:
-                tableName = self.jmap.getTableNameFromResource(predicate)
+            elif tableName:
+                # predicate must be 'referencing property'
+                refFKeys = self.jmap.getRefFKeysFromTable(table.name)
+                if refFKeys:
+                    print "refFKeys:"
+                    pprint.PrettyPrinter(indent=2).pprint(refFKeys)
+                
+                    
             table = self._getTableObject(tableName)
             if table is not None:
                 colName = self.jmap.getColFromPred(table.name, predicate)
@@ -298,13 +304,18 @@ class JsonAlchemyStore(Model):
                 result = self.conn.execute(upd, argDict)
                 if result.rowcount:
                     return result.rowcount
+
         # update failed - try inserting new row
         for k, v in pKeyDict.items():
             argDict[k] = v
 
-        # we're responsible for inserting foreign keys in referencing tables
-        refDict = self.jmap.getRefFKeysFromTable(table.name)
-
+        # we're responsible for inserting foreign keys in referencing tables!?
+        # refFKeys ==> [(tbl, col, vals),...]
+        # refFKeys = self.jmap.getRefFKeysFromTable(table.name)
+        if SPEW:
+            if refFKeys:
+                print "refFKeys:"
+                pprint.PrettyPrinter(indent=2).pprint(refFKeys)
 
         if SPEW:
             print "ADD:", table.name, pKeyName, pKeyValues, colName, o, argDict

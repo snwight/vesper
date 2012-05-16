@@ -24,8 +24,8 @@
                 {
                     "track_artist_ref": {
                         "references": {
-                            "key": "trackid", 
-                            "table": "track_artist", 
+                            "key": "trackid",
+                            "table": "track_artist",
                             "value": {
                                 "artistid": {
                                     "references": "artist"
@@ -33,31 +33,15 @@
                             }
                         }
                     }
-                }, 
+                },
                 {
                     "album_tracks_ref": {
                         "references": {
-                            "key": "trackid", 
-                            "table": "album_tracks", 
+                            "key": "trackid",
+                            "table": "album_tracks",
                             "value": {
                                 "albumid": {
                                     "references": "album"
-                                }
-                            }
-                        }
-                    }
-                }, 
-                {
-                    "album_tracks_artists_ref": {
-                        "references": {
-                            "key": "trackid", 
-                            "table": "album_tracks_artists", 
-                            "value": {
-                                "albumid": {
-                                    "references": "album"
-                                }, 
-                                "artistid": {
-                                    "references": "artist"
                                 }
                             }
                         }
@@ -96,22 +80,6 @@
                             }
                         }
                     }
-                }, 
-                {
-                    "album_tracks_artists_ref": {
-                        "references": {
-                            "key": "albumid", 
-                            "table": "album_tracks_artists", 
-                            "value": {
-                                "artistid": {
-                                    "references": "artist"
-                                }, 
-                                "trackid": {
-                                    "references": "track"
-                                }
-                            }
-                        }
-                    }
                 }
             ]
         },
@@ -129,32 +97,16 @@
 		    "gender": "artistgender"
 		},
 		{
-		    "artistid": { 
-			"view": "artist_discography" 
+		    "artistid": {
+			"view": "artist_discography"
 		    }
 		},
                 {
                     "track_artist_ref": {
                         "references": {
-                            "key": "artistid", 
-                            "table": "track_artist", 
+                            "key": "artistid",
+                            "table": "track_artist",
                             "value": {
-                                "trackid": {
-                                    "references": "track"
-                                }
-                            }
-                        }
-                    }
-                }, 
-                {
-                    "album_tracks_artists_ref": {
-                        "references": {
-                            "key": "artistid", 
-                            "table": "album_tracks_artists", 
-                            "value": {
-                                "albumid": {
-                                    "references": "album"
-                                }, 
                                 "trackid": {
                                     "references": "track"
                                 }
@@ -163,11 +115,30 @@
                     }
                 }
             ]
-        }, 
+        },
+	"label": {
+	    "id": ["labelid"],
+	    "properties": [
+		"*",
+		{
+		    "album_label_ref": {
+			"references": {
+			    "table": "album_label",
+			    "value": {
+				"albumid": {
+				    "references": "album"
+				}
+			    },
+			    "key": "labelid"
+			}
+		    }
+		}
+	    ]
+	},
  	"artist_discography": {
             "properties": [
                 "*"
-            ], 
+            ],
             "readonly": true
         }
     }

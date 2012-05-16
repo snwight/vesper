@@ -154,6 +154,11 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         self.assertEqual(123, len(rows))
 
         # TEST REFERRING PROPERTIES
+        rows = model.getStatements(subject=RSRC_URI + 'track/trackid#1',
+                                   predicate='track_artist_ref')
+        self.assertEqual(2, len(rows))
+
+
         model.close()
 
 

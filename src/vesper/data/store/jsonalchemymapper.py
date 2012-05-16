@@ -28,7 +28,7 @@ class JsonAlchemyMapper():
         # output readable json map and sql schema as diagnostic
         if SPEW_SCHEMA:
           self._printSchemata()
-        
+
 
     def _printSchemata(self):        
         print '===BEGIN SCHEMA INFO==========================================='
@@ -77,6 +77,7 @@ class JsonAlchemyMapper():
             readonly = relation = False
             pKeyNames = []
             if 'relationship' in tableDesc:
+                # but why, captain?
                 relation = tableDesc['relationship']
             if 'id' in tableDesc:
                 pKeyNames = tableDesc['id']
@@ -84,17 +85,19 @@ class JsonAlchemyMapper():
                 readonly = tableDesc['readonly']
             if 'properties' in tableDesc:
                 colNames = {}
-                viewRefs = joinCols = refFKeys = []
+                viewRefs = []
+                joinCols = []
+                refFKeys = []
                 for p in tableDesc['properties']:
                     if isinstance(p, dict):
                         (vr, jc, rfk, cn) = self._parsePropDict(p)
                         if vr: viewRefs.append(vr)
                         if jc: joinCols.append(jc)
                         if rfk: refFKeys.append(rfk)
-                        if cn: 
+                        if cn:
                             [(propNm, colNm)] = cn.items()
                             if colNm in colNames:
-                                # "*" parsed in previous pass - pop & replace!
+                                # "*" got it already - pop & replace!
                                 del(colNames[colNm])
                             colNames[propNm] = colNm
                     elif p == "*":
@@ -122,8 +125,8 @@ class JsonAlchemyMapper():
         compiled dictionary of relevant column names and relations - also
         take note of left-side join columns and view membership properties
         '''
-        viewRef = ()
         joinCols = ()
+        viewRef = ()
         refFKeys = ()
         colName = {}
         for k,v in refDict.items():
@@ -138,16 +141,14 @@ class JsonAlchemyMapper():
                     vName = r['name']
                     if 'column' in r:
                         vCol = r['column']
-                    else:
-                        vCol = k
                     if 'key' in r:
                         if r['key'] == 'id':
                             vKey = idkey
                         else:
                             vKey = r['key']
-                    viewRef = (vName, vCol, vKey)
+                    viewRef = (k, vName, vCol, vKey)
                 else:
-                    viewRef = (r, k, idkey)
+                    viewRef = (k, r, None, idkey)
             elif 'references' in v:
                 r = v['references']
                 if isinstance(r, dict):
@@ -158,8 +159,10 @@ class JsonAlchemyMapper():
                         col = r['key']
                     vals = []
                     if 'value' in r:
-                        [vals.append(k) for k in r['value'].keys()]
-                    refFKeys = (tbl, col, vals)
+                        [vals.append(rk) for rk in r['value'].keys()]
+                    refFKeys = (k, tbl, col, vals)
+                else:
+                    refFKeys = (k, r, None, None)
             else:
                 colName[k] = v
         return (viewRef, joinCols, refFKeys, colName)
@@ -295,12 +298,15 @@ class JsonAlchemyMapper():
 
 
     def _generateMapping(self, mapping=None):
+        '''
+        if we have no JSON-SQL property mapping supplied to us by the caller
+        we use this utility to derive a best guess mapping object based on 
+        SQLA schema inspection
+        '''
         if mapping:
             # simple! user has passed us a json-sql mapping
             self.mapping = mapping
             return
-
-        # no map - derive a best guess based on SQLA schema inspection
         mDict = {
             "tablesprop": "GENERATEDtype",
             "idpattern": "http://souzis.com/",
@@ -315,38 +321,34 @@ class JsonAlchemyMapper():
             if self.insp.get_primary_keys(tbl):
                 # primary keys ==> 'id' property list
                 mDict['tables'][tbl]['id'] = self.insp.get_primary_keys(tbl)
-
         # we've collected the list of all tables, now review it with an eye
-        # for relationships and foreign keys 
+        # for relationships and foreign keys
         for tbl in mDict['tables']:
             cNames = [c['name'] for c in self.insp.get_columns(tbl)]
             fKeys = self.insp.get_foreign_keys(tbl)
             fkNames = []
             [fkNames.extend(f['constrained_columns']) for f in fKeys]
             if Counter(cNames) == Counter(fkNames):
-                # looks like a correlation table, all foreign keys
+                # heuristic: all foreign keys ==>  correlation table
                 mDict['tables'][tbl]['relationship'] = 'true'
-
-            # for each foreign key in this table, add a prop to referred table
             for fk in fKeys:
                 # this preliminary nonsense prepares our 'value' property
                 cc = fk['constrained_columns'][0]
                 def f(x): return x['constrained_columns'][0] !=  cc
                 vDict = {}
+                # for each fk in this table, add a prop to referred table
                 for vKeys in filter(f, fKeys):
                     vDict[vKeys['constrained_columns'][0]] = {
                         'references': vKeys['referred_table']}
                 (mDict['tables'][fk['referred_table']]['properties']).append(
-                    {"{}_ref".format(tbl) : 
+                    {"{}_ref".format(tbl): 
                      {'references': 
                       {'table': "{}".format(tbl),
                        'key': "{}".format(cc),
                        'value': vDict}}})
-
         # SQL views are marked as "readonly" tables
         for vw in self.insp.get_view_names():
             mDict['tables'][vw] = {'properties': ['*'], 'readonly': 'true'}
-
         # check that we found some relevant tables before moving on
         if mDict['tables']:
             self.mapping = mDict
