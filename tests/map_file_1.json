@@ -140,6 +140,35 @@
                 "*"
             ],
             "readonly": true
-        }
+        },
+	"album_label": {
+            "properties": [
+	        "*"
+	    ],
+	    "relationship": "true",
+	    "id": [
+		"albumid"
+	    ]
+	},
+	"album_tracks": {
+	    "properties": [
+		        "*"
+	    ],
+	    "relationship": "true",
+	    "id": [
+		"albumid",
+		        "trackid"
+		      ]
+	},
+	"track_artist": {
+	    "properties": [
+		        "*"
+	    ],
+	    "relationship": "true",
+	    "id": [
+		"trackid",
+		        "artistid"
+		      ]
+	}
     }
 }

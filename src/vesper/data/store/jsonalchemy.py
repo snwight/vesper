@@ -103,26 +103,29 @@ class JsonAlchemyStore(Model):
             table = self._getTableObject(tableName)
             if table is not None:
                 pKeyDict = self.jmap.getPKeyDictFromResource(subject)
-            else:
-                # we have a subject but no table is named - vesperize it
-                table = self.vesper_stmts
         if predicate:
             if predicate == "rdf:type":
                 tableName = object
+                table = self._getTableObject(tableName)
                 object = None
                 predicate = None
-            elif tableName:
-                # predicate must be 'referencing property'
-                refFKeys = self.jmap.getRefFKeysFromTable(table.name)
-                if refFKeys:
-                    print "refFKeys:"
-                    pprint.PrettyPrinter(indent=2).pprint(refFKeys)
-                
-                    
-            table = self._getTableObject(tableName)
-            if table is not None:
+            elif not tableName:
+                # so no subject - find table with this unique predicate prop
+                tableName = self.jmap.getTableNameFromProperty(predicate)
+                table = self._getTableObject(tableName)
+            elif table is not None:
                 colName = self.jmap.getColFromPred(table.name, predicate)
+                if not colName:
+                    # predicate must be 'referencing property'
+                    refFKeys = self.jmap.getRefFKeysFromTable(table.name)
+                    for r in refFKeys:
+                        if predicate in r:
+                            (t, c, v) = r[predicate]
+                            return self.getStatements(subject=t, 
+                                                      predicate=c,
+                                                      object=pKeyDict[c])
                 if not pKeyDict:
+                    # no primary key yet - either no subj or just table name so
                     subject = None
                     pKeyNames = self.jmap.getPKeyNamesFromTable(table.name)
         if table is None:
@@ -308,10 +311,8 @@ class JsonAlchemyStore(Model):
         # update failed - try inserting new row
         for k, v in pKeyDict.items():
             argDict[k] = v
-
         # we're responsible for inserting foreign keys in referencing tables!?
-        # refFKeys ==> [(tbl, col, vals),...]
-        # refFKeys = self.jmap.getRefFKeysFromTable(table.name)
+
         if SPEW:
             if refFKeys:
                 print "refFKeys:"
