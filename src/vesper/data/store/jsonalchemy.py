@@ -116,14 +116,8 @@ class JsonAlchemyStore(Model):
             elif table is not None:
                 colName = self.jmap.getColFromPred(table.name, predicate)
                 if not colName:
-                    # predicate must be 'referencing property'
-                    refFKeys = self.jmap.getRefFKeysFromTable(table.name)
-                    for r in refFKeys:
-                        if predicate in r:
-                            (t, c, v) = r[predicate]
-                            return self.getStatements(subject=t, 
-                                                      predicate=c,
-                                                      object=pKeyDict[c])
+                    # predicate must be 'referencing property' - recurse w/new args!
+                    return self._callReferences(table.name, pKeyDict, predicate)
                 if not pKeyDict:
                     # no primary key yet - either no subj or just table name so
                     subject = None
@@ -269,10 +263,45 @@ class JsonAlchemyStore(Model):
                             [stmts.append(
                                     Statement(subj, k, r[v], None, None)) \
                                  for k,v in td['colNames'].items()]
-        if SPEW: 
+        if SPEW:
             for s in stmts: 
                 print s, '\n'
         return stmts
+
+
+    def _callReferences(self, tableName, pKeyDict, predicate):
+        '''
+        this is called after determination has been made that 'predicate' is 
+        not a simple column property - our task here is to find it by name 
+        in the "parent" table's property mapping... we are only interested 
+        now in views referring to an attribute of the parent table or 
+        correlation tables containing foreign keys which refer to primary 
+        key/s of the parent table. getStatements() is explicitly invoked if 
+        either class of property is matched, with appropriate arguments, 
+        making this procedure mutually recursive with getStatements() -
+        hence we break out of either search loop below with a return 
+        of getStatements() results to the caller
+        '''
+        refFKeys = self.jmap.getRefFKeysFromTable(tableName)
+        for r in refFKeys:
+            if predicate in r:
+                if isinstance(r[predicate], tuple):
+                    (tbl, col, val) = r[predicate]
+                else:
+                    pass             # XXX by which I mean punt
+                return self.getStatements(subject=tbl, 
+                                          predicate=col,
+                                          object=pKeyDict[col])
+        viewRefs = self.jmap.getViewRefsFromTable(tableName)
+        for r in viewRefs:
+            if predicate in r:
+                if isinstance(r[predicate], tuple):
+                    (vnm, col, val) = r[predicate]
+                else:
+                    vnm = r[predicate]
+                return self.getStatements(subject=self.jmap.getUriPrefix(),
+                                          predicate='rdf:type',
+                                          object=vnm)
 
 
     def addStatement(self, stmt):

@@ -13,7 +13,7 @@
 		    "date": "trackdate"
 		},
 		{
-		    "view_ref": {
+		    "discography_view_ref": {
 			"view": {
 			    "name": "artist_discography",
 			    "column": "trackname",
@@ -60,7 +60,7 @@
 		    "label": "albumlabel"
 		},
 		{
-		    "view_ref": {
+		    "discography_view_ref": {
 			"view": {
 			    "name": "artist_discography",
 			    "column": "albumname",
@@ -97,7 +97,7 @@
 		    "gender": "artistgender"
 		},
 		{
-		    "artistid": {
+		    "artistid_view": {
 			"view": "artist_discography"
 		    }
 		},
@@ -145,30 +145,22 @@
             "properties": [
 	        "*"
 	    ],
-	    "relationship": "true",
-	    "id": [
-		"albumid"
-	    ]
+	    "relationship": true,
+	    "id": ["albumid"]
 	},
 	"album_tracks": {
 	    "properties": [
 		        "*"
 	    ],
-	    "relationship": "true",
-	    "id": [
-		"albumid",
-		        "trackid"
-		      ]
+	    "relationship": true,
+	    "id": ["albumid", "trackid"]
 	},
 	"track_artist": {
 	    "properties": [
 		        "*"
 	    ],
-	    "relationship": "true",
-	    "id": [
-		"trackid",
-		        "artistid"
-		      ]
+	    "relationship": true,
+	    "id": ["trackid", "artistid"]
 	}
     }
 }

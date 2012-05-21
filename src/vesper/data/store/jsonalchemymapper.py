@@ -162,6 +162,7 @@ class JsonAlchemyMapper():
                                 colNames[c['name']] = c['name']
                     else:
                         print "properties list contains unknown obj:", p
+            # print "vref:", viewRefs
             self.parsedTables.append({'tableName': tableName,
                                       'readOnly': readonly,
                                       'relation': relation,
@@ -175,7 +176,7 @@ class JsonAlchemyMapper():
 
     def _parsePropDict(self, refDict):
         '''
-        handle each dictionary found in json mapping 'properties' list 
+        handle each dictionary found in json mapping 'properties' list -
         collect foreign key declarations that point into the current table
         as described by JSON mapping 'references' properties, build a
         compiled dictionary of relevant column names and relations - also
@@ -197,14 +198,15 @@ class JsonAlchemyMapper():
             elif "view" in v:
                 r = v['view']
                 if isinstance(r, dict):
+                    vName  = r['name']
                     col = r['column']
                     if r['key'] == 'id':
                         vKey = idkey
                     else:
                         vKey = r['key']
-                    viewRef[propName] = (col, vKey)
+                    viewRef[propName] = (vName, col, vKey)
                 else:
-                    viewRef[propName] = idkey
+                    viewRef[propName] = r
             elif 'references' in v:
                 r = v['references']
                 if isinstance(r, dict):
@@ -236,6 +238,12 @@ class JsonAlchemyMapper():
         if self.mapping['idpattern'] in uri:
             uri = uri[len(self.mapping['idpattern']):]
         return uri
+
+
+    def getUriPrefix(self):
+        if 'idpattern' in self.mapping:
+            return self.mapping['idpattern']
+        return None
 
 
     def _getPropNameFromResource(self, uri, index):
@@ -289,7 +297,8 @@ class JsonAlchemyMapper():
     def getPKeyDictFromResource(self, uri):
         '''
         extract (possibly multiple) primary key names from resource string
-        i.e. "RSRC_URI:/tablename/pkey1#pkval1.pkey2#pkval2"
+        i.e. "RSRC_URI:/tablename/pkey1#pkval1.pkey2#pkval2", 
+        render unto dictionary of {pkey1:pkval1, pkey2:pkval2,...} pairs
         '''
         if not uri:
             return None

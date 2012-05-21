@@ -152,11 +152,32 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
                                    predicate='rdf:type',
                                    object='artist_discography')
         self.assertEqual(123, len(rows))
-
         # TEST REFERRING PROPERTIES
         rows = model.getStatements(subject=RSRC_URI + 'track/trackid#1',
                                    predicate='track_artist_ref')
         self.assertEqual(2, len(rows))
+        rows = model.getStatements(subject=RSRC_URI + 'track/trackid#1',
+                                   predicate='album_tracks_ref')
+        self.assertEqual(1, len(rows))
+        rows = model.getStatements(subject=RSRC_URI + 'album/albumid#1',
+                                   predicate='album_tracks_ref')
+        self.assertEqual(4, len(rows))
+        rows = model.getStatements(subject=RSRC_URI + 'artist/artistid#1',
+                                   predicate='track_artist_ref')
+        self.assertEqual(5, len(rows))
+        rows = model.getStatements(subject=RSRC_URI + 'label/labelid#1',
+                                   predicate='album_label_ref')
+        self.assertEqual(2, len(rows))
+        # TEST VIEW REF PROPERTY
+        rows = model.getStatements(subject=RSRC_URI + 'album/albumid#1',
+                                   predicate='discography_view_ref')
+        self.assertEqual(123, len(rows))
+        rows = model.getStatements(subject=RSRC_URI + 'track/trackid#12',
+                                   predicate='discography_view_ref')
+        self.assertEqual(123, len(rows))
+        rows = model.getStatements(subject=RSRC_URI + 'artist/artistid#1',
+                                   predicate='artistid_view')
+        self.assertEqual(123, len(rows))
 
 
         model.close()
