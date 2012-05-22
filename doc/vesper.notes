@@ -1,0 +1,111 @@
+========================== links ===============================
+http://www.w3.org/TR/rdb-direct-mapping
+http://www.w3.org/TR/r2rml
+===============================================================
+
+{
+  "idpattern" : <<(table:)(id:)>>
+      -- the pattern to use to extract the table name and primary key 
+      out of the json id //(need to figure format out)
+
+  "tablesprop" : <<type>>
+      -- value is the name of the property that identifies the 
+      table the object corresponds to
+
+  "tables": 
+      { 
+      "tablename1" : 
+          {
+            -- a dictionary of table mapping objects that describe the mapping 
+            of each table. The keys correspond to table names and the values 
+            are objects with the following properties:
+
+            "id" : <<primary key colum name>>
+                -- the table column that is the primary key
+
+            "jsontype" : <<table1>>
+                -- name of json type (only need if json type name 
+                is different from table name)
+
+            "readonly" : true
+                -- this is a SQL view or virtual table which can 
+                ONLY be queried, not modified
+
+            "relationship" : true
+                -- indicates that the table is not reflected as a 
+                json object but rather used to maintain relationships 
+                between other tables. Specifying this allows the mapping 
+                engine to add or remove rows from this table when adding 
+                or removing values.
+
+            "properties" : 
+                [
+                  -- list of properties describing the how the json objects 
+                  map to the columns in the table
+
+                  "*"
+                    -- all columns in the table (unless specified elsewhere 
+                    in this list) map to a json property with the same name
+
+                  <<columnname>>
+                    -- name of the column that maps to a json property 
+                    with the same name
+
+                  { <<propertyname>> : <<columname>> } ||
+                    -- an object that maps the json "propertyname" to the 
+                    columns "columname" 
+
+                  { <<propertyname>> : 
+                      {
+                        -- an object describing a json property that doesn't 
+                        correspond directly to a column but rather a reference
+                        to another table that has a one-to-many or 
+                        many-to-many relation with the current table. Its 
+                        value is dictionary that can contain the following 
+                        properties:
+
+                      "key" : "id" ||
+                      "key" : <<columname>> ||
+                      "key" : [ <<columname1>>, <<columname2>>... ]
+                        -- the column(s) on this table to use when joining 
+                        with the referenced table. "id" equates to this table's
+			primary key, which is the default assumption, hence 
+			the "key":"id" construct is technically syntactic sugar
+
+                      "view" : <<view name>> ||
+                      "view" : 
+                         { "name" : <<viewname>>, 
+                           "column" : <<columnname>>, 
+                           "key" : <<columnname>>}
+                        -- declares the name of a SQL view that has this 
+                        property. "column" is the column on the view that 
+                        corresponds to this property. if "column' isn't 
+                        specified, default to same name as the property. 
+                        'key' operates analogously to the above usage, 
+			but in this case it describes the column in the view 
+			that corresponds to the primary key of this table. 
+			Again the default, i.e. if 'key' is ommitted, is to
+			assume they have the same name.
+
+                      "references" : <<tablename>> ||
+                      "references" :
+                          {
+                           "table" : <<tablename>>
+                            "key" : <<columname>> ||
+                            "key" : [ <<columname1>>, <<columname2>>... ] 
+                         -- 'table' is the name of the referencing table. 
+			 'key is again similar to the usage above, except 
+			 it refers to the referenced table. Default if 'key'
+			 is ommitted is to assume it is the same name as the
+			 referenced table primary key.
+
+                            "value" : "id" ||
+                            "value" : <<columnname>> ||
+                            "value" : <<property description object>>
+                         -- describes the column to use for the value. 
+                         For a many-to-many relationship this can 
+                         reference the child table.
+                        }
+                    }
+               }
+          ]
