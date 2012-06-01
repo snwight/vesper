@@ -116,8 +116,11 @@ class JsonAlchemyStore(Model):
             elif table is not None:
                 colName = self.jmap.getColFromPred(table.name, predicate)
                 if not colName:
-                    # predicate must be 'referencing property' - recurse w/new args!
-                    return self._callReferences(table.name, pKeyDict, predicate)
+                    # predicate must be 'referencing property'
+                    # return w/new triple => s, p, o!
+                    return self._callReferences(table.name, 
+                                                pKeyDict,
+                                                predicate)
                 if not pKeyDict:
                     # no primary key yet - either no subj or just table name so
                     subject = None
@@ -144,13 +147,15 @@ class JsonAlchemyStore(Model):
             pattern = 'multicol'
         elif not subject and predicate and not object:
             # * p * => select id[...], p from table
-            sList = [table.c[colName]]
+            if colName not in pKeyNames:
+                sList = [table.c[colName]]
             [sList.append(table.c[pkn]) for pkn in pKeyNames]
             query = select(sList)
             pattern = 'unicol'
         elif subject and predicate and not object:
             # s p * => select p from table where id[...] = s[...]
-            sList = [table.c[colName]]
+            if colName not in pKeyDict:
+                sList = [table.c[colName]]
             [sList.append(table.c[pkn]) for pkn in pKeyDict.keys()]
             query = select(sList)
             for pk, pv in pKeyDict.items():
@@ -225,8 +230,6 @@ class JsonAlchemyStore(Model):
         returned rows actually contain, which is dependent upon the nature of 
         the query
         '''
-        if pattern != 'vespercols':
-            pKeyNames = self.jmap.getPKeyNamesFromTable(tableName)
         stmts = []
         for r in fetchedRows:
             if SPEW: print "r: ", r
@@ -236,15 +239,12 @@ class JsonAlchemyStore(Model):
                     Statement(r['subject'], r['predicate'], r['object'], 
                               r['objecttype'], r['context']) )
             else:
-                if pKeyNames:
-                    subj = tableName + '/'
-                    i = len(pKeyNames)
-                    for pkn in pKeyNames:
-                        i = i - 1
-                        subj = subj + pkn + '#' + str(r[pkn])
-                        if i:
-                            subj = subj + '.'
-                else:
+                pKeyDict = {}
+                for pkn in self.jmap.getPKeyNamesFromTable(tableName):
+                    pKeyDict[pkn] = r[pkn]
+                subj = self.jmap.generateSubject(tableName, pKeyDict)
+                if not subj:
+                    # XXX leaving this here to flag non-pri key tables
                     uniqueBlankNode = ''.join(
                         random.choice(string.ascii_uppercase + string.digits)
                         for x in range(6))
@@ -269,9 +269,9 @@ class JsonAlchemyStore(Model):
         return stmts
 
 
-    def _callReferences(self, tableName, pKeyDict, predicate):
+    def _callReferences(self, tableName, pKeyDict, propName):
         '''
-        this is called after determination has been made that 'predicate' is 
+        this is called after determination has been made that 'prop' is 
         not a simple column property - our task here is to find it by name 
         in the "parent" table's property mapping... we are only interested 
         now in views referring to an attribute of the parent table or 
@@ -282,26 +282,30 @@ class JsonAlchemyStore(Model):
         hence we break out of either search loop below with a return 
         of getStatements() results to the caller
         '''
-        refFKeys = self.jmap.getRefFKeysFromTable(tableName)
-        for r in refFKeys:
-            if predicate in r:
-                if isinstance(r[predicate], tuple):
-                    (tbl, col, val) = r[predicate]
-                else:
-                    pass             # XXX by which I mean punt
-                return self.getStatements(subject=tbl, 
-                                          predicate=col,
-                                          object=pKeyDict[col])
-        viewRefs = self.jmap.getViewRefsFromTable(tableName)
-        for r in viewRefs:
-            if predicate in r:
-                if isinstance(r[predicate], tuple):
-                    (vnm, col, val) = r[predicate]
-                else:
-                    vnm = r[predicate]
-                return self.getStatements(subject=self.jmap.getUriPrefix(),
-                                          predicate='rdf:type',
-                                          object=vnm)
+        for r in self.jmap.getViewRefsFromTable(tableName):
+            if propName not in r:
+                continue
+            (t, c, v) = r[propName]
+            return self.getStatements(subject=t, predicate=c)
+
+        for r in self.jmap.getRefFKeysFromTable(tableName):
+            if propName not in r:
+                continue
+            (a, b) = r[propName]
+            [(refTbl, refKey)] = a.items()
+            [(trgTbl, trgKey)] = b.items()
+            rto = self._getTableObject(refTbl)
+            tto = self._getTableObject(trgTbl)
+            query = select([tto.c[trgKey]]).where(
+                (rto.c[refKey] == pKeyDict[refKey]) &
+                (rto.c[refKey] == tto.c[trgKey]))
+            self._checkConnection()
+            result = self.conn.execute(query)
+            stmts = []
+            subj = self.jmap.generateSubject(tableName, pKeyDict)
+            for row in result:
+                stmts.append(Statement(subj, propName, row[0], None, None))
+            return stmts
 
 
     def addStatement(self, stmt):

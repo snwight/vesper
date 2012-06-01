@@ -66,7 +66,7 @@ http://www.w3.org/TR/r2rml
 
                       "key" : "id" ||
                       "key" : <<columname>> ||
-                      "key" : [ <<columname1>>, <<columname2>>... ]
+                      "key" : [ <<columname1>>, <<columname2>>... ],
                         -- the column(s) on this table to use when joining 
                         with the referenced table. "id" equates to this table's
 			primary key, which is the default assumption, hence 
@@ -76,7 +76,8 @@ http://www.w3.org/TR/r2rml
                       "view" : 
                          { "name" : <<viewname>>, 
                            "column" : <<columnname>>, 
-                           "key" : <<columnname>>}
+                           "key" : <<columnname>>
+			 }
                         -- declares the name of a SQL view that has this 
                         property. "column" is the column on the view that 
                         corresponds to this property. if "column' isn't 
@@ -90,21 +91,20 @@ http://www.w3.org/TR/r2rml
                       "references" : <<tablename>> ||
                       "references" :
                           {
-                           "table" : <<tablename>>
+                           "table" : <<tablename>>,
                             "key" : <<columname>> ||
-                            "key" : [ <<columname1>>, <<columname2>>... ] 
+                            "key" : [ <<columname1>>, <<columname2>>... ], 
+                            "value" : "id" ||
+                            "value" : <<columnname>> ||
+                            "value" : <<property description object>>
+			   }
                          -- 'table' is the name of the referencing table. 
 			 'key is again similar to the usage above, except 
 			 it refers to the referenced table. Default if 'key'
 			 is ommitted is to assume it is the same name as the
-			 referenced table primary key.
-
-                            "value" : "id" ||
-                            "value" : <<columnname>> ||
-                            "value" : <<property description object>>
-                         -- describes the column to use for the value. 
-                         For a many-to-many relationship this can 
-                         reference the child table.
+			 referenced table primary key. 'value' describes the 
+			 column to use for the value. For a many-to-many 
+			 relationship this can reference the child table.
                         }
                     }
                }

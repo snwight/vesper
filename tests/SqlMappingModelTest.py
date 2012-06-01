@@ -147,39 +147,34 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
                                    predicate='tracklength',
                                    object=360)
         self.assertEqual('track/trackid#1', rows[0][0])
-        # verify retrieve rows from an SQL defined view (no primary key)
+        # verify retrieve all rows from an SQL defined view (no primary key)
         rows = model.getStatements(subject=RSRC_URI, 
                                    predicate='rdf:type',
                                    object='artist_discography')
         self.assertEqual(123, len(rows))
         # TEST REFERRING PROPERTIES
         rows = model.getStatements(subject=RSRC_URI + 'track/trackid#1',
-                                   predicate='track_artist_ref')
+                                   predicate='artists')
         self.assertEqual(2, len(rows))
         rows = model.getStatements(subject=RSRC_URI + 'track/trackid#1',
-                                   predicate='album_tracks_ref')
+                                   predicate='albums')
         self.assertEqual(1, len(rows))
         rows = model.getStatements(subject=RSRC_URI + 'album/albumid#1',
-                                   predicate='album_tracks_ref')
+                                   predicate='tracks')
         self.assertEqual(4, len(rows))
         rows = model.getStatements(subject=RSRC_URI + 'artist/artistid#1',
-                                   predicate='track_artist_ref')
+                                   predicate='tracks')
         self.assertEqual(5, len(rows))
         rows = model.getStatements(subject=RSRC_URI + 'label/labelid#1',
-                                   predicate='album_label_ref')
+                                   predicate='albums')
         self.assertEqual(2, len(rows))
         # TEST VIEW REF PROPERTY
         rows = model.getStatements(subject=RSRC_URI + 'album/albumid#1',
-                                   predicate='discography_view_ref')
-        self.assertEqual(123, len(rows))
+                                   predicate='discography')
+        self.assertEqual(41, len(rows))
         rows = model.getStatements(subject=RSRC_URI + 'track/trackid#12',
-                                   predicate='discography_view_ref')
-        self.assertEqual(123, len(rows))
-        rows = model.getStatements(subject=RSRC_URI + 'artist/artistid#1',
-                                   predicate='artistid_view')
-        self.assertEqual(123, len(rows))
-
-
+                                   predicate='albums')
+        self.assertEqual(2, len(rows))
         model.close()
 
 
