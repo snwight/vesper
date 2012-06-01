@@ -298,7 +298,7 @@ class JsonAlchemyStore(Model):
             tto = self._getTableObject(trgTbl)
             query = select([tto.c[trgKey]]).where(
                 (rto.c[refKey] == pKeyDict[refKey]) &
-                (rto.c[refKey] == tto.c[trgKey]))
+                (rto.c[trgKey] == tto.c[trgKey]))
             self._checkConnection()
             result = self.conn.execute(query)
             stmts = []
