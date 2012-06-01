@@ -151,7 +151,7 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         rows = model.getStatements(subject=RSRC_URI, 
                                    predicate='rdf:type',
                                    object='artist_discography')
-        self.assertEqual(123, len(rows))
+        self.assertEqual(246, len(rows))
         # TEST REFERRING PROPERTIES
         rows = model.getStatements(subject=RSRC_URI + 'track/trackid#1',
                                    predicate='artists')
@@ -170,11 +170,9 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         self.assertEqual(2, len(rows))
         # TEST VIEW REF PROPERTY
         rows = model.getStatements(subject=RSRC_URI + 'album/albumid#1',
-                                   predicate='discography')
-        self.assertEqual(41, len(rows))
-        rows = model.getStatements(subject=RSRC_URI + 'track/trackid#12',
-                                   predicate='albums')
+                                   predicate='artists')
         self.assertEqual(2, len(rows))
+
         model.close()
 
 

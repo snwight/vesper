@@ -64,10 +64,11 @@
                     }
                 },
 		{
-		    "discography": {
+		    "artists": {
 			"view": {
 			    "name": "artist_discography",
-			    "column": "albumname"
+			    "key": "albumid",
+			    "column": "artistid"
 			}
 		    }
 		}

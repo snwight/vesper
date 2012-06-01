@@ -336,9 +336,10 @@ class JsonAlchemyMapper():
 
 
     def generateSubject(self, tableName, pKeyDict):
-        subj = None
+        # XXX we should fake up a URI here
+        subj = tableName
         if pKeyDict:
-            subj = tableName + '/'
+            subj = subj + '/'
             i = len(pKeyDict)
             for pkn, pkv in pKeyDict.items():
                 i = i - 1

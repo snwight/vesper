@@ -243,12 +243,6 @@ class JsonAlchemyStore(Model):
                 for pkn in self.jmap.getPKeyNamesFromTable(tableName):
                     pKeyDict[pkn] = r[pkn]
                 subj = self.jmap.generateSubject(tableName, pKeyDict)
-                if not subj:
-                    # XXX leaving this here to flag non-pri key tables
-                    uniqueBlankNode = ''.join(
-                        random.choice(string.ascii_uppercase + string.digits)
-                        for x in range(6))
-                    subj = tableName + '/' + 'blank_node:#' + uniqueBlankNode
                 if pattern == 'id':
                     # subject/ID (e.g. "find rowids for rows where prop == x")
                     stmts.append(Statement(subj, None, None, None, None))
@@ -285,8 +279,18 @@ class JsonAlchemyStore(Model):
         for r in self.jmap.getViewRefsFromTable(tableName):
             if propName not in r:
                 continue
-            (t, c, v) = r[propName]
-            return self.getStatements(subject=t, predicate=c)
+            (vNm, vCol, vKey) = r[propName]
+            [(pKey, pKVal)] = pKeyDict.items()
+            vto = self._getTableObject(vNm)
+            query = select([vto.c[vCol]]).where(vto.c[vKey] == pKVal)
+            query = query.distinct()
+            self._checkConnection()
+            result = self.conn.execute(query)
+            stmts = []
+            subj = self.jmap.generateSubject(tableName, pKeyDict)
+            for row in result:
+                stmts.append(Statement(subj, propName, row[0], None, None))
+            return stmts
 
         for r in self.jmap.getRefFKeysFromTable(tableName):
             if propName not in r:
