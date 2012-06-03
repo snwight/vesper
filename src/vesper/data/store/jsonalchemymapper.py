@@ -183,15 +183,7 @@ class JsonAlchemyMapper():
         refFKey = {}
         colName = {}
         for propName, v in refDict.items():
-            if "key" in v:
-                r = v['key']
-                if isinstance(r, list):
-                    joinCols[propName] = r
-                elif r == 'id':
-                    joinCols[propName] = [idkey]
-                else:
-                    joinCols[propName] = [r]
-            elif "view" in v:
+            if "view" in v:
                 r = v['view']
                 if isinstance(r, dict):
                     vName = r['name']
@@ -211,30 +203,36 @@ class JsonAlchemyMapper():
             elif 'references' in v:
                 r = v['references']
                 if isinstance(r, dict):
-                    rTbl = r['table']
+                    refTbl = r['table']
                     if 'key' in r:
-                        rCol = r['key']
+                        refKey = r['key']
                     else:
-                        # primary key name is same as owner table's
-                        rCol = idkey
+                        refKey = idkey
                     if 'value' in r:
-                        # what to do with rTbl.rCol 
-                        rVal = r['value']
-                        if isinstance(rVal, dict):
-                            [(trgtKey, trgtDict)] = rVal.items()
-                            if 'references' in trgtDict:
-                                trgtTbl = trgtDict['references']
-                        elif rVal == 'id':
-                            # primary key of target table
-                            trgtKey = idkey
+                        refVal = r['value']
+                        if isinstance(refVal, dict):
+                            [(tgtKey, tgtDict)] = refVal.items()
+                            if 'references' in tgtDict:
+                                tgtTbl = tgtDict['references']
+                        elif refVal == 'id':
+                            # primary key of target table!
+                            tgtKey = idkey
                         else:
-                            trgtKey = [rVal]
+                            tgtKey = refVal
                 else:
-                    rTbl = r
-                    # primary key name is same as owner table's
-                    rCol = idkey
-                    rVal = "noidea"
-                refFKey[propName] = ({rTbl:rCol}, {trgtTbl:trgtKey})
+                    refTbl = r
+                    refKey = idkey
+                    tgtTbl = None
+                    tgtKey = None
+                refFKey[propName] = ({refTbl:refKey}, {tgtTbl:tgtKey})
+            elif "key" in v:
+                r = v['key']
+                if isinstance(r, list):
+                    joinCols[propName] = r
+                elif r == 'id':
+                    joinCols[propName] = [idkey]
+                else:
+                    joinCols[propName] = [r]
             else:
                 colName[propName] = v
         return (viewRef, joinCols, refFKey, colName)

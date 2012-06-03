@@ -68,7 +68,7 @@
 			"view": {
 			    "name": "artist_discography",
 			    "key": "albumid",
-			    "column": "artistid"
+			    "column": "artistname"
 			}
 		    }
 		}
@@ -88,9 +88,7 @@
 		    "gender": "artistgender"
 		},
 		{
-		    "discography": {
-			"view": "artist_discography"
-		    }
+		    "albumname": {"view": "artist_discography"}
 		},
                 {
                     "tracks": {

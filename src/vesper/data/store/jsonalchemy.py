@@ -128,7 +128,6 @@ class JsonAlchemyStore(Model):
         if table is None:
             # we finally believe this is a select * on vesper_stmts
             table = self.vesper_stmts
-
         # construct our query
         if table.name == 'vesper_stmts':
             # special case, we are querying our private statement store
@@ -171,10 +170,8 @@ class JsonAlchemyStore(Model):
             print query
         self._checkConnection()
         result = self.conn.execute(query)
-        stmts.extend(self._generateStatementAssignments(result,
-                                                        table.name,
-                                                        colName,
-                                                        pattern))
+        stmts.extend(self._generateStatementAssignments(result, table.name,
+                                                        colName, pattern))
         return stmts
 
 
@@ -281,6 +278,8 @@ class JsonAlchemyStore(Model):
                 continue
             (vNm, vCol, vKey) = r[propName]
             [(pKey, pKVal)] = pKeyDict.items()
+            if vKey == idkey:
+                vKey = pKey
             vto = self._getTableObject(vNm)
             query = select([vto.c[vCol]]).where(vto.c[vKey] == pKVal)
             query = query.distinct()
@@ -297,12 +296,18 @@ class JsonAlchemyStore(Model):
                 continue
             (a, b) = r[propName]
             [(refTbl, refKey)] = a.items()
-            [(trgTbl, trgKey)] = b.items()
+            [(tgtTbl, tgtKey)] = b.items()
+            [(pKey, pKVal)] = pKeyDict.items()
+            if refKey == idkey:
+                refKey = pKey
+# whoopsie - rely on full specification in json property map for now
+#            if tgtKey == idkey:
+#                tgtKey = pKey
             rto = self._getTableObject(refTbl)
-            tto = self._getTableObject(trgTbl)
-            query = select([tto.c[trgKey]]).where(
-                (rto.c[refKey] == pKeyDict[refKey]) &
-                (rto.c[trgKey] == tto.c[trgKey]))
+            tto = self._getTableObject(tgtTbl)
+            query = select([tto.c[tgtKey]]).where(
+                (rto.c[refKey] == pKVal) &
+                (rto.c[tgtKey] == tto.c[tgtKey]     ))
             self._checkConnection()
             result = self.conn.execute(query)
             stmts = []

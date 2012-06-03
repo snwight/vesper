@@ -172,7 +172,9 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         rows = model.getStatements(subject=RSRC_URI + 'album/albumid#1',
                                    predicate='artists')
         self.assertEqual(2, len(rows))
-
+        rows = model.getStatements(subject=RSRC_URI + 'artist/artistid#1',
+                                   predicate='albumname')
+        self.assertEqual(2, len(rows))
         model.close()
 
 
