@@ -81,7 +81,7 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
                             'birthdate', datetime.date(1960, 6, 6), 
                             'en', None),
                   Statement(RSRC_URI + 'artist/artistid#8', 
-                            'gender', 'TV', 'en', None),
+                            'gender', 'TX', 'en', None),
         ]
         model.addStatements(aStmts)
         rows = model.getStatements(subject = subj)

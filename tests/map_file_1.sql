@@ -6,7 +6,7 @@ CREATE TABLE artist(
   artistid	INTEGER PRIMARY KEY,
   artistname  	TEXT,
   artistbday	DATE,
-  artistgender	TEXT
+  artistgender	TEXT CHECK (artistgender IN ('M', 'F', 'TX'))
 );
 -- "for each track there is a unique ID, name, date, length"
 CREATE TABLE track(
@@ -15,23 +15,23 @@ CREATE TABLE track(
   trackdate	DATE,
   tracklength	INTEGER
 );
--- "for each album there is a unique ID, name, date, and label ID""
+-- "for each album there is a unique ID, name, date"
 CREATE TABLE album(
   albumid	INTEGER PRIMARY KEY,
   albumname  	TEXT,
   albumdate	DATE
 );
--- "for each label there is a unique ID, name, and city"
+-- "for each label there is a unique ID, name, city"
 CREATE TABLE label(
   labelid	INTEGER PRIMARY KEY,
   labelname	TEXT,
   labelcity	TEXT
 );
--- "for each grammy there is a unique ID, winner, and date"
+-- "for each grammy there is a unique ID, winner, class, date"
 CREATE TABLE grammy(
   grammyid	INTEGER PRIMARY KEY,
   grammywinner	INTEGER,
-  grammyclass	TEXT,
+  grammyclass	TEXT CHECK (grammyclass IN ('shmaltz', 'metal', 'exotica')),
   grammydate	DATE,
   FOREIGN KEY(grammywinner) REFERENCES artist(artistid) ON DELETE CASCADE
 );
