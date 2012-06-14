@@ -11,12 +11,10 @@
                 {"artists": {
                     "references": {
                         "table": "track_artist",
-			"key": "trackid",
 			"value": {"artistid": {"references": "artist"}}}}},
                 {"albums": {
                     "references": {
                         "table": "album_tracks",
-			"key": "trackid",
                         "value": {"albumid": {"references": "album"}}}}}
             ]
         },
@@ -29,12 +27,11 @@
                 {"tracks": {
                     "references": {
                         "table": "album_tracks",
-			"key": "albumid",
                         "value": {"trackid": {"references": "track"}}}}},
 		{"artists": {
 		    "view": {
 			"name": "artist_discography",
-			"key": "albumid",
+			"key": "album_id",
 			"column": "artistname"}}}
             ]
         },
@@ -49,7 +46,6 @@
 		{"tracks": {
                     "references": {
                         "table": "track_artist",
-			"key": "artistid",
                         "value": {"trackid": {"references": "track"}}}}}
             ]
         },
@@ -60,7 +56,6 @@
 		{"albums": {
 		    "references": {
 			"table": "album_label",
-			"key": "labelid",
 			"value": {"albumid": {"references": "album"}}}}}
 	    ]
 	}

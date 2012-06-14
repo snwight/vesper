@@ -67,9 +67,9 @@ CREATE TABLE album_label(
 --
 -- "find all tracks on any album that any artist appears on"
 CREATE VIEW artist_discography AS
-select artistname, artist.artistid as artistid, 
-trackname, track.trackid as trackid, 
-albumname, album.albumid as albumid
+select artistname, artist.artistid as artistid,
+trackname, track.trackid as track_id,
+albumname, album.albumid as album_id
 from artist, track, album, track_artist, album_tracks
 where artist.artistid = track_artist.artistid 
 and track.trackid = track_artist.trackid
