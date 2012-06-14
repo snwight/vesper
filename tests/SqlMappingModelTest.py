@@ -147,8 +147,8 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
                                    predicate='tracklength',
                                    object=360)
         self.assertEqual('track/trackid#1', rows[0][0])
-        # verify retrieve all rows from an SQL defined view (no primary key)
-        rows = model.getStatements(subject=RSRC_URI, 
+        # verify retrieve all rows from an SQL defined view
+        rows = model.getStatements(subject=RSRC_URI,
                                    predicate='rdf:type',
                                    object='artist_discography')
         self.assertEqual(246, len(rows))
@@ -261,15 +261,14 @@ if os.getenv("SQLA_TEST_POSTGRESQL"):
 
         def tearDown(self):
             # destroy all zombies
-            cmd = '''
-                select 
-                pg_terminate_backend(procpid) 
-                    from pg_stat_activity 
-                    where datname = \'jsonmap_db\'
-            '''
-            call("psql -q -U vesper -c \"{0}\" postgres >> /dev/null".format(cmd), 
+            call('''
+                 psql -q -U vesper -c \
+                 \"select pg_terminate_backend(procpid) from pg_stat_activity 
+                   where datname = \'jsonmap_db\'\" postgres >> /dev/null''', 
                  shell=True)
-            call("psql -q -U vesper -c \"drop database if exists jsonmap_db\" postgres",
+            call('''
+                 psql -q -U vesper -c \
+                 \"drop database if exists jsonmap_db\" postgres''', 
                  shell=True)
 
 

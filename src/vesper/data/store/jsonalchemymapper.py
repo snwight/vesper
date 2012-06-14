@@ -175,7 +175,7 @@ class JsonAlchemyMapper():
         handle each dictionary found in json mapping 'properties' list -
         collect foreign key declarations that point into the current table
         as described by JSON mapping 'references' properties, build a
-        compiled dictionary of relevant column names and relations - also
+        dictionary of relevant column names and relations - also
         take note of left-side join columns and view membership properties
         '''
         joinCols = {}
@@ -215,7 +215,6 @@ class JsonAlchemyMapper():
                             if 'references' in tgtDict:
                                 tgtTbl = tgtDict['references']
                         elif refVal == 'id':
-                            # primary key of target table!
                             tgtKey = idkey
                         else:
                             tgtKey = refVal

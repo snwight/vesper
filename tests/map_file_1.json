@@ -6,122 +6,62 @@
             "id": ["trackid"],
             "properties": [
 		"*",
-		{
-		    "title": "trackname"
-		},
-		{
-		    "date": "trackdate"
-		},
-                {
-                    "artists": {
-                        "references": {
-                            "table": "track_artist",
-			    "key": "trackid",
-			    "value": {
-                                "artistid": {
-                                    "references": "artist"
-                                }
-                            }
-                        }
-                    }
-                },
-                {
-                    "albums": {
-                        "references": {
-                            "table": "album_tracks",
-			    "key": "trackid",
-                            "value": {
-                                "albumid": {
-                                    "references": "album"
-                                }
-                            }
-                        }
-                    }
-                }
+		{"title": "trackname"},
+		{"date": "trackdate"},
+                {"artists": {
+                    "references": {
+                        "table": "track_artist",
+			"key": "trackid",
+			"value": {"artistid": {"references": "artist"}}}}},
+                {"albums": {
+                    "references": {
+                        "table": "album_tracks",
+			"key": "trackid",
+                        "value": {"albumid": {"references": "album"}}}}}
             ]
         },
         "album": {
             "id": ["albumid"],
             "properties": [
 		"*",
- 		{
-		    "title": "albumname"
-		},
- 		{
-		    "label": "albumlabel"
-		},
-                {
-                    "tracks": {
-                        "references": {
-                            "table": "album_tracks", 
-			    "key": "albumid",
-                            "value": {
-                                "trackid": {
-                                    "references": "track"
-                                }
-                            }
-                        }
-                    }
-                },
-		{
-		    "artists": {
-			"view": {
-			    "name": "artist_discography",
-			    "key": "albumid",
-			    "column": "artistname"
-			}
-		    }
-		}
+ 		{"title": "albumname"},
+ 		{"label": "albumlabel"},
+                {"tracks": {
+                    "references": {
+                        "table": "album_tracks",
+			"key": "albumid",
+                        "value": {"trackid": {"references": "track"}}}}},
+		{"artists": {
+		    "view": {
+			"name": "artist_discography",
+			"key": "albumid",
+			"column": "artistname"}}}
             ]
         },
         "artist": {
             "id": ["artistid"],
             "properties": [
                 "*",
-		{
-		    "name": "artistname"
-		},
-		{
-		    "birthdate": "artistbday"
-		},
-		{
-		    "gender": "artistgender"
-		},
-		{
-		    "albumname": {"view": "artist_discography"}
-		},
-                {
-                    "tracks": {
-                        "references": {
-                            "table": "track_artist",
-			    "key": "artistid",
-                            "value": {
-                                "trackid": {
-                                    "references": "track"
-                                }
-                            }
-                        }
-                    }
-                }
+		{"name": "artistname"},
+		{"birthdate": "artistbday"},
+		{"gender": "artistgender"},
+		{"albumname": {"view": "artist_discography"}},
+		{"tracks": {
+                    "references": {
+                        "table": "track_artist",
+			"key": "artistid",
+                        "value": {"trackid": {"references": "track"}}}}}
             ]
         },
 	"label": {
 	    "id": ["labelid"],
 	    "properties": [
 		"*",
-		{
-		    "albums": {
-			"references": {
-			    "table": "album_label",
-			    "key": "labelid",
-			    "value": {
-				"albumid": {
-				    "references": "album"
-				}
-			    }
-			}
-		    }
-		}
+		{"albums": {
+		    "references": {
+			"table": "album_label",
+			"key": "labelid",
+			"value": {"albumid": {"references": "album"}}}}}
 	    ]
 	}
     }

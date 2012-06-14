@@ -119,7 +119,7 @@ class JsonAlchemyStore(Model):
                     # predicate must be 'referencing property'
                     # return w/new triple => s, p, o!
                     return self._callReferences(table.name, 
-                                                pKeyDict,
+                                                pKeyDict, 
                                                 predicate)
                 if not pKeyDict:
                     # no primary key yet - either no subj or just table name so
@@ -297,17 +297,16 @@ class JsonAlchemyStore(Model):
             (a, b) = r[propName]
             [(refTbl, refKey)] = a.items()
             [(tgtTbl, tgtKey)] = b.items()
-            [(pKey, pKVal)] = pKeyDict.items()
+            [(refPKey, refPKVal)] = pKeyDict.items()
             if refKey == idkey:
-                refKey = pKey
-# whoopsie - rely on full specification in json property map for now
-#            if tgtKey == idkey:
-#                tgtKey = pKey
+                refKey = refPKey
+            if tgtKey == idkey:
+                # XXX PUNT on compound primary keys - just use first one
+                tgtKey = self.jmap.getPKeyNamesFromTable(tgtTbl)[0]
             rto = self._getTableObject(refTbl)
             tto = self._getTableObject(tgtTbl)
             query = select([tto.c[tgtKey]]).where(
-                (rto.c[refKey] == pKVal) &
-                (rto.c[tgtKey] == tto.c[tgtKey]     ))
+                (rto.c[refKey] == refPKVal) & (rto.c[tgtKey] == tto.c[tgtKey]))
             self._checkConnection()
             result = self.conn.execute(query)
             stmts = []

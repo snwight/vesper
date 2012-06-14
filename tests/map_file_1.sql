@@ -27,6 +27,14 @@ CREATE TABLE label(
   labelname	TEXT,
   labelcity	TEXT
 );
+-- "for each grammy there is a unique ID, winner, and date"
+CREATE TABLE grammy(
+  grammyid	INTEGER PRIMARY KEY,
+  grammywinner	INTEGER,
+  grammyclass	TEXT,
+  grammydate	TEXT,
+  FOREIGN KEY(grammywinner) REFERENCES artist(artistid) ON DELETE CASCADE
+);
 --
 -- functional dependencies
 --
