@@ -7,7 +7,7 @@ import unittest
 import json
 import subprocess, tempfile, os, signal, sys
 from subprocess import check_call, call
-import string, random, shutil, time
+import string, random, shutil, time, datetime
 import pprint
 import logging
 
@@ -78,7 +78,8 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         aStmts = [Statement(RSRC_URI + 'artist/artistid#8', 
                             'name', 'john', 'en', None),
                   Statement(RSRC_URI + 'artist/artistid#8', 
-                            'birthdate', '06061960', 'en', None),
+                            'birthdate', datetime.date(1960, 6, 6), 
+                            'en', None),
                   Statement(RSRC_URI + 'artist/artistid#8', 
                             'gender', 'TV', 'en', None),
         ]
@@ -123,7 +124,7 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         # verify select subject ID given a property and object value
         rows = model.getStatements(subject=RSRC_URI + 'artist',
                                    predicate='birthdate',
-                                   object='5151961')
+                                   object=datetime.date(1961, 5, 15))
         self.assertEqual('artist/artistid#1', rows[0][0])
         # REPEAT the above tests against another table
         # verify select all rows from a single table
@@ -240,7 +241,7 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         rows = model.getStatements(subject=RSRC_URI + 'track',
                                    predicate='title', object='')
         self.assertEqual(13, len(rows))
-        model.commit()
+        # remove 
         model.close()
 
 

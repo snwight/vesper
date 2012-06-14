@@ -5,21 +5,21 @@
 CREATE TABLE artist(
   artistid	INTEGER PRIMARY KEY,
   artistname  	TEXT,
-  artistbday	TEXT,
+  artistbday	DATE,
   artistgender	TEXT
 );
 -- "for each track there is a unique ID, name, date, length"
 CREATE TABLE track(
   trackid	INTEGER PRIMARY KEY,
   trackname   	TEXT,
-  trackdate	INTEGER,
+  trackdate	DATE,
   tracklength	INTEGER
 );
 -- "for each album there is a unique ID, name, date, and label ID""
 CREATE TABLE album(
   albumid	INTEGER PRIMARY KEY,
   albumname  	TEXT,
-  albumdate	INTEGER
+  albumdate	DATE
 );
 -- "for each label there is a unique ID, name, and city"
 CREATE TABLE label(
@@ -32,7 +32,7 @@ CREATE TABLE grammy(
   grammyid	INTEGER PRIMARY KEY,
   grammywinner	INTEGER,
   grammyclass	TEXT,
-  grammydate	TEXT,
+  grammydate	DATE,
   FOREIGN KEY(grammywinner) REFERENCES artist(artistid) ON DELETE CASCADE
 );
 --
@@ -79,34 +79,34 @@ and album_tracks.trackid = track_artist.trackid;
 -- bulk load
 --
 -- 'for each known artist there is a unique ID, name, birthdate, and gender'
-insert into artist values (1, 'bobby', 05151961, 'M');
-insert into artist values (2, 'diane', 07081960, 'F');
-insert into artist values (3, 'lashana', 04091991, 'TX');
-insert into artist values (4, 'lucy', 12251950, 'F');
-insert into artist values (5, 'sid', 12241960, 'M');
-insert into artist values (6, 'brian', 02251950, 'M');
-insert into artist values (7, 'nancy', 10251950, 'F');
+insert into artist values (1, 'bobby', '1961-05-15', 'M');
+insert into artist values (2, 'diane', '1960-07-08', 'F');
+insert into artist values (3, 'lashana', '1991-04-09', 'TX');
+insert into artist values (4, 'lucy', '1950-12-25', 'F');
+insert into artist values (5, 'sid', '1960-12-24', 'M');
+insert into artist values (6, 'brian', '1950-02-25', 'M');
+insert into artist values (7, 'nancy', '1950-10-25', 'F');
 
 -- 'for each track there is a unique ID, name, date, length'
-insert into track values (1, 'love song one', 08082008, 360);
-insert into track values (2, 'love song two', 08082008, 142);
-insert into track values (3, 'love song three', 08082008, 220);
-insert into track values (4, 'love song four', 08082008, 420);
-insert into track values (5, 'love song five', 08082008, 361);
-insert into track values (6, 'hate song one', 08092001, 180);
-insert into track values (7, 'hate song two', 08102001, 270);
-insert into track values (8, 'hate song three', 08102001, 145);
-insert into track values (9, 'hate song four', 08092001, 89);
-insert into track values (10, 'something happened part 1', 08091997, 135);
-insert into track values (11, 'something happened part 2', 08101997, 564);
-insert into track values (12, 'nothing happened part 1', 08101997, 876);
-insert into track values (13, 'nothing happened part 2', 08091997, 666);
+insert into track values (1, 'love song one', '2008-08-08', 360);
+insert into track values (2, 'love song two', '2008-08-08', 142);
+insert into track values (3, 'love song three', '2008-08-08', 220);
+insert into track values (4, 'love song four', '2008-08-08', 420);
+insert into track values (5, 'love song five', '2008-08-08', 361);
+insert into track values (6, 'hate song one', '2001-08-09', 180);
+insert into track values (7, 'hate song two', '2001-08-10', 270);
+insert into track values (8, 'hate song three', '2001-08-10', 145);
+insert into track values (9, 'hate song four', '2001-08-09', 89);
+insert into track values (10, 'something happened part 1', '1997-08-09', 135);
+insert into track values (11, 'something happened part 2', '1997-08-10', 564);
+insert into track values (12, 'nothing happened part 1', '1997-08-10', 876);
+insert into track values (13, 'nothing happened part 2', '1997-08-09', 666);
 
--- 'for each album there is a unique ID, name, date, and label ID'
-insert into album values (1, 'Dark Night of the Soul', 09092009);
-insert into album values (2, 'Blended Up in Black', 03191999);
-insert into album values (3, 'Songs My Dog Showed Me', 020172001);
-insert into album values (4, 'Greatest Hits', 050152012);
+-- 'for each album there is a unique ID, name, date'
+insert into album values (1, 'Dark Night of the Soul', '2009-09-09');
+insert into album values (2, 'Blended Up in Black', '1999-03-19');
+insert into album values (3, 'Songs My Dog Showed Me', '2001-02-01');
+insert into album values (4, 'Greatest Hits', '2011-05-05');
 
 -- 'for each label there is a unique ID, name, and city'
 insert into label values (1, 'Arista', 'Los Angeles');
