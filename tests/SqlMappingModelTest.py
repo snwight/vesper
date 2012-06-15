@@ -167,7 +167,13 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
                                    predicate='tracks')
         self.assertEqual(5, len(rows))
         rows = model.getStatements(subject=RSRC_URI + 'label/labelid#1',
-                                   predicate='albums')
+                                   predicate='albumsA')
+        self.assertEqual(2, len(rows))
+        rows = model.getStatements(subject=RSRC_URI + 'label/labelid#1',
+                                   predicate='albumsB')
+        self.assertEqual(2, len(rows))
+        rows = model.getStatements(subject=RSRC_URI + 'album/albumid#1',
+                                   predicate='grammyclasses')
         self.assertEqual(2, len(rows))
         # TEST VIEW REF PROPERTY
         rows = model.getStatements(subject=RSRC_URI + 'album/albumid#1',

@@ -32,8 +32,13 @@
 		    "view": {
 			"name": "artist_discography",
 			"key": "album_id",
-			"column": "artistname"}}}
-            ]
+			"column": "artistname"}}},
+		{"grammyclasses": {
+		    "references": {
+                        "table": "grammy",
+			"key": "grammywinner",
+                        "value": "grammyclass"}}}
+	    ]
         },
         "artist": {
             "id": ["artistid"],
@@ -53,11 +58,16 @@
 	    "id": ["labelid"],
 	    "properties": [
 		"*",
-		{"albums": {
+		{"albumsA": {"references": "album_label"}},
+		{"albumsB": {
 		    "references": {
 			"table": "album_label",
 			"value": {"albumid": {"references": "album"}}}}}
 	    ]
+	},
+	"grammy": {
+	    "id": ["grammyid"],
+	    "properties": ["*"]
 	}
     }
 }

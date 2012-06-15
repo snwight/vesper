@@ -214,15 +214,12 @@ class JsonAlchemyMapper():
                             [(tgtKey, tgtDict)] = refVal.items()
                             if 'references' in tgtDict:
                                 tgtTbl = tgtDict['references']
-                        elif refVal == 'id':
-                            tgtKey = idkey
                         else:
+                            tgtTbl = refTbl
                             tgtKey = refVal
                 else:
-                    refTbl = r
-                    refKey = idkey
-                    tgtTbl = None
-                    tgtKey = None
+                    tgtTbl = refTbl = r
+                    tgtKey = refKey = idkey
                 refFKey[propName] = ({refTbl:refKey}, {tgtTbl:tgtKey})
             elif "key" in v:
                 r = v['key']

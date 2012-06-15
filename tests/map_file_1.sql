@@ -33,7 +33,7 @@ CREATE TABLE grammy(
   grammywinner	INTEGER,
   grammyclass	TEXT CHECK (grammyclass IN ('shmaltz', 'metal', 'exotica')),
   grammydate	DATE,
-  FOREIGN KEY(grammywinner) REFERENCES artist(artistid) ON DELETE CASCADE
+  FOREIGN KEY(grammywinner) REFERENCES album(albumid) ON DELETE CASCADE
 );
 --
 -- functional dependencies
@@ -113,6 +113,11 @@ insert into label values (1, 'Arista', 'Los Angeles');
 insert into label values (2, 'Stax', 'Memphis');
 insert into label values (3, 'Motown', 'Detroit');
 
+-- for each grammy there is a unique ID, album, class, date
+insert into grammy values (1, 1, 'shmaltz', '2010-04-15');
+insert into grammy values (2, 1, 'exotica', '2010-04-15');
+insert into grammy values (3, 2, 'metal', '2010-04-15');
+insert into grammy values (4, 3, 'shmaltz', '2011-04-15');
 --
 -- functional dependencies
 --

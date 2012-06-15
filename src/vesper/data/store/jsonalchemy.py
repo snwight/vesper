@@ -297,11 +297,11 @@ class JsonAlchemyStore(Model):
             (a, b) = r[propName]
             [(refTbl, refKey)] = a.items()
             [(tgtTbl, tgtKey)] = b.items()
+            # XXX PUNT on compound primary keys - just use first one
             [(refPKey, refPKVal)] = pKeyDict.items()
             if refKey == idkey:
                 refKey = refPKey
             if tgtKey == idkey:
-                # XXX PUNT on compound primary keys - just use first one
                 tgtKey = self.jmap.getPKeyNamesFromTable(tgtTbl)[0]
             rto = self._getTableObject(refTbl)
             tto = self._getTableObject(tgtTbl)
