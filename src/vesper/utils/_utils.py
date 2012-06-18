@@ -105,14 +105,15 @@ def getTransitiveClosure(aMap):
         done[super] = set(subs)
         for sub in subs:
             if not sub in done:
-                close(done, sub, aMap[sub])
+                subSubs = aMap.get(sub, [])
+                close(done, sub, subSubs)
             done[super].update(done[sub])
 
     closure = {}
     for key, value in aMap.items():
         close(closure, key, value)
     return dict([(x, list(y)) for x, y in closure.items()])
-    
+
 class ObjectWithThreadLocals(object):
     '''
     Creates an attribute whose value will be local to the current
@@ -457,15 +458,29 @@ def shaDigestString(line):
 class Bitset(object):
     '''
 >>> bs = Bitset()
+>>> len(bs)
+0
+>>> bool(bs)
+False
+>>> bs[3]
+False
 >>> bs[3] = 1
+>>> bs[3]
+True
+>>> len(bs)
+4
+>>> bool(bs)
+True
 >>> [i for i in bs]
 [False, False, False, True]
+>>> bs[4]
+False
     '''
-    
+
     def __init__(self):
         self.bits = 0
         self._size = 0
-                
+
     def __setitem__(self, i, v):
         if v:
             self.bits |= (1<<i)

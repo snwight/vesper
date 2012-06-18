@@ -555,7 +555,23 @@ class GraphModelTestCase(BasicModelTestCase):
         modelUri = base.generateBnode()
         return graphManagerClass(model, None, modelUri)
 
-class SplitGraphModelTestCase(BasicModelTestCase):
+    def testGetStatementsAtRevision(self):
+        model = self.getModel()
+        subj = random_name(12)
+        s1 = Statement(subj, 'pred', "obj")
+        model.addStatement(s1)
+        model.commit()
+        s2 = Statement(subj, 'pred', "obj2")
+        model.addStatement(s2)
+        model.commit()
+        model.removeStatement(s2)
+        model.commit()
+        history = model.getRevisionContextsForResource(subj)
+        self.assertEquals(len(history), 3)
+        self.assertEquals(model.getStatementsForResourceVisibleAtRevision(subj, 0), set([s1]))
+        self.assertEquals(model.getStatementsForResourceVisibleAtRevision(subj, 1), set([s1, s2]))
+
+class SplitGraphModelTestCase(GraphModelTestCase):
 
     def _getModel(self, model):
         modelUri = base.generateBnode()
