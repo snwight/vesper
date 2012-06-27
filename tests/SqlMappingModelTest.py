@@ -37,14 +37,13 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
     persistentStore = True
 
     def setUp(self):
-        # sqlite via sqlite3/pysql - (default python driver)
+        # sqlite via pysql - (default python driver)
         self.tmpdir = tempfile.mkdtemp(prefix="rhizometest")
         fname = os.path.abspath(os.path.join(self.tmpdir, 'jsonmap_db'))
-        self.sqlaConfiguration = '/'.join(
-            [os.getenv("SQLA_TEST_SQLITE"), fname])
+        self.sqlaConfiguration = '/'.join(["sqlite:///", fname])
 
         # create our sqlite test db and schema 
-        cmd = "sqlite3 {0} < {1}".format(fname, self.sqlSchemaPath)
+        cmd = "sqlite {0} < {1}".format(fname, self.sqlSchemaPath)
         call(cmd, shell=True)
                 
 
