@@ -10,7 +10,7 @@ from sqlalchemy.sql.expression import func
 from sqlalchemy.schema import Table, Column, MetaData, UniqueConstraint, Index
 from sqlalchemy.engine import reflection
 from jsonalchemymapper import *
-import string, random
+import string, random, copy
 import logging 
 log = logging.getLogger("jsonalchemy")
 
@@ -25,7 +25,8 @@ class JsonAlchemyStore(Model):
         self.engine = create_engine(source, echo=False)
         self.md = MetaData(self.engine)
         self.md.reflect(views=True)
-        self.jmap = JsonAlchemyMapper(mapping, self.engine)
+        newmap = copy.deepcopy(mapping)
+        self.jmap = JsonAlchemyMapper(newmap, self.engine)
         self.vesper_stmts = None
         if loadVesperTable:
             self.vesper_stmts = Table(
@@ -294,23 +295,23 @@ class JsonAlchemyStore(Model):
         for r in self.jmap.getRefFKeysFromTable(tableName):
             if propName not in r:
                 continue
+            # extract previously collected property attributes
             (a, b) = r[propName]
             [(refTbl, refKey)] = a.items()
             [(tgtTbl, tgtKey)] = b.items()
-            # XXX PUNT on compound primary keys - just use first one
-            [(refPKey, refPKVal)] = pKeyDict.items()
-            if refKey == idkey:
-                refKey = refPKey
-            if tgtKey == idkey:
-                tgtKey = self.jmap.getPKeyNamesFromTable(tgtTbl)[0]
+            # XXX PUNT on compound primary keys - just use first
+            (refPKey, refPKVal) = pKeyDict.items()[0]
             rto = self._getTableObject(refTbl)
             tto = self._getTableObject(tgtTbl)
+
+            # build our canned select()
             query = select([tto.c[tgtKey]]).where(
                 (rto.c[refKey] == refPKVal) & (rto.c[tgtKey] == tto.c[tgtKey]))
+            # now we perform the query and format returned values
             self._checkConnection()
             result = self.conn.execute(query)
             stmts = []
-            subj = self.jmap.generateSubject(tableName, pKeyDict)
+            subj = self.jmap.generateSubject(tableName, {refPKey:refPKVal})
             for row in result:
                 stmts.append(Statement(subj, propName, row[0], None, None))
             return stmts
@@ -348,17 +349,13 @@ class JsonAlchemyStore(Model):
                 result = self.conn.execute(upd, argDict)
                 if result.rowcount:
                     return result.rowcount
-
         # update failed - try inserting new row
         for k, v in pKeyDict.items():
             argDict[k] = v
-        # we're responsible for inserting foreign keys in referencing tables!?
-
         if SPEW:
             if refFKeys:
                 print "refFKeys:"
                 pprint.PrettyPrinter(indent=2).pprint(refFKeys)
-
         if SPEW:
             print "ADD:", table.name, pKeyName, pKeyValues, colName, o, argDict
         ins = table.insert()
