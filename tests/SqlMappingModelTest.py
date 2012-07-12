@@ -247,7 +247,6 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         rows = model.getStatements(subject=RSRC_URI + 'track',
                                    predicate='title', object='')
         self.assertEqual(15, len(rows))
-
         # remove all rows correspnding to reference property
         ts = Statement(RSRC_URI + 'track/trackid#1', 'artists',
                        None, None, None)
@@ -255,7 +254,7 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         self.assertEqual(2, ret)
         rows = model.getStatements(ts.subject, ts.predicate)
         self.assertEqual(0, len(rows))
-        
+
         ts = Statement(RSRC_URI + 'track/trackid#2', 'albums',
                        None, None, None)
         ret = model.removeStatement(ts)
@@ -276,6 +275,11 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         self.assertEqual(2, ret)
         rows = model.getStatements(ts.subject, ts.predicate)
         self.assertEqual(0, len(rows))
+
+        # remove entire contents of a table
+        ts = Statement(RSRC_URI, "rdf:type", 'label', None, None)
+        ret = model.removeStatement(ts)
+        self.assertEqual(3, ret)
 
         # remove 
         model.close()

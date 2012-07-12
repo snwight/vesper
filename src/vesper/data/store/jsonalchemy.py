@@ -271,11 +271,11 @@ class JsonAlchemyStore(Model):
             if propName not in r:
                 continue
             (vNm, vCol, vKey) = r[propName]
-            [(pKey, pKVal)] = pKeyDict.items()
+            [(pk, pv)] = pKeyDict.items()
             if vKey == idkey:
-                vKey = pKey
+                vKey = pk
             vto = self._getTableObject(vNm)
-            query = select([vto.c[vCol]]).where(vto.c[vKey] == pKVal)
+            query = select([vto.c[vCol]]).where(vto.c[vKey] == pv)
             query = query.distinct()
             self._checkConnection()
             result = self.conn.execute(query)
@@ -293,20 +293,48 @@ class JsonAlchemyStore(Model):
             [(refTbl, refKey)] = a.items()
             [(tgtTbl, tgtKey)] = b.items()
             # XXX PUNT on compound primary keys - just use first
-            (refPKey, refPKVal) = pKeyDict.items()[0]
+            (pk, pv) = pKeyDict.items()[0]
             rto = self._getTableObject(refTbl)
             tto = self._getTableObject(tgtTbl)
             # build our canned select()
             query = select([tto.c[tgtKey]]).where(
-                (rto.c[refKey] == refPKVal) & (rto.c[tgtKey] == tto.c[tgtKey]))
+                (rto.c[refKey] == pv) & (rto.c[tgtKey] == tto.c[tgtKey]))
             # now we perform the query and format returned values
             self._checkConnection()
             result = self.conn.execute(query)
             stmts = []
-            subj = self.jmap.generateSubject(tableName, {refPKey:refPKVal})
+            subj = self.jmap.generateSubject(tableName, {pk:pv})
             for row in result:
                 stmts.append(Statement(subj, propName, row[0], None, None))
             return stmts
+
+
+    def _removeReferences(self, tableName, pKeyDict=None, propName=None):
+        '''
+        find 'propName' by name in the parent table's reference property map
+        and delete those corresonding to pKeyDict - if it is None we delete all
+        references found in the map which correspond to row pKeyDict - if
+        pKeyDict is None we delete ALL references pointing to ANY row of this
+        table
+        '''
+        for r in self.jmap.getRefFKeysFromTable(tableName):
+            if propName:
+                if propName not in r:
+                    continue
+                # extract previously collected property attributes
+                (a, b) = r[propName]
+            else:
+                [(a, b)] = r.values()
+            [(refTbl, refKey)] = a.items()
+            rto = self._getTableObject(refTbl)
+            cmd = rto.delete()
+            if pKeyDict:
+                # XXX PUNT on compound primary keys - just use first
+                (pk, pv) = pKeyDict.items()[0]
+                cmd = cmd.where(rto.c[refKey] == pv)
+            self._checkConnection()
+            result = self.conn.execute(cmd)
+            return result.rowcount
 
 
     def addStatement(self, stmt):
@@ -333,8 +361,8 @@ class JsonAlchemyStore(Model):
             if colName:
                 argDict = {colName : o}
                 upd = table.update()
-                for k, v in pKeyDict.items():
-                    upd = upd.where(table.c[k] == v)
+                for pk, pv in pKeyDict.items():
+                    upd = upd.where(table.c[pk] == pv)
                 if SPEW:
                     print "UPDATE:", table.name, pKeyDict, colName, \
                         o, ot, argDict
@@ -342,14 +370,14 @@ class JsonAlchemyStore(Model):
                 if result.rowcount:
                     return result.rowcount
         # update failed - try inserting new row
-        for k, v in pKeyDict.items():
-            argDict[k] = v
+        for pk, pv in pKeyDict.items():
+            argDict[pk] = pv
         if SPEW:
             if refFKeys:
                 print "refFKeys:"
                 pprint.PrettyPrinter(indent=2).pprint(refFKeys)
         if SPEW:
-            print "ADD:", table.name, pKeyName, pKeyValues, colName, o, argDict
+            print "ADD:", table.name, pKeyDict, colName, o, argDict
         ins = table.insert()
         if self.engine.name == 'postgresql':
             if table == self.vesper_stmts:
@@ -409,31 +437,6 @@ class JsonAlchemyStore(Model):
         return rc
 
 
-    def _removeReferences(self, tableName, pKeyDict, propName):
-        '''
-        this is called after determination has been made that 'prop' is 
-        not a simple column property - our task here is to find it by name 
-        in the "parent" table's property mapping
-        '''
-        for r in self.jmap.getRefFKeysFromTable(tableName):
-            if propName not in r:
-                continue
-            # extract previously collected property attributes
-            (a, b) = r[propName]
-            [(refTbl, refKey)] = a.items()
-            [(tgtTbl, tgtKey)] = b.items()
-            # XXX PUNT on compound primary keys - just use first
-            (refPKey, refPKVal) = pKeyDict.items()[0]
-            rto = self._getTableObject(refTbl)
-            tto = self._getTableObject(tgtTbl)
-            # build our canned delete()
-            cmd = rto.delete().where(rto.c[refKey] == refPKVal)
-            # now we perform the query and format returned values
-            self._checkConnection()
-            result = self.conn.execute(cmd)
-            return result.rowcount
-
-
     def removeStatement(self, stmt):
         s, p, o, ot, c = stmt
         cmd = pKeyDict = colName = None
@@ -458,48 +461,35 @@ class JsonAlchemyStore(Model):
         else:
             if p == 'rdf:type':
                 # uri 'rdf:type' tbl ==> delete * from table <<uri/tbl>>
+                # this means delete ref props too, for each row
+                self._removeReferences(tableName)
                 cmd = table.delete()
             elif not p and pKeyDict:
-                # subj/id none none ==> delete row where subj == id
+                # subj/id none none ==> delete row where s=id
+                self._removeReferences(tableName, pKeyDict)
                 cmd = table.delete()
-                for k, v in pKeyDict.items():
-                    cmd = cmd.where(table.c[k] == v)
+                for pk, pv in pKeyDict.items():
+                    cmd = cmd.where(table.c[pk] == pv)
             elif p:
                 colName = self.jmap.getColFromPred(table.name, p)
                 if colName:
+                    # null this non-primary key column in 1 or more rows
+                    # no reference props to worry about here yet
                     cmd = table.update().values({colName : ''})
                 else:
-                    # predicate must be 'referencing property'
-                    # i believe that update is irrelevant but DELETE is plausible
+                    # predicate must be 'referencing property' - remove it now
+                    # update is irrelevant but DELETE is plausible
                     return self._removeReferences(table.name, pKeyDict, p)
                 if pKeyDict:
-                    if not o:
-                        # subj/id pred none ==> null pred where subj == id
-                        for k, v in pKeyDict.items():
-                            cmd = cmd.where(table.c[k] == v)
                     if o:
-                        # subj/id pred obj ==> null pred where subj==id and pred==obj
+                        # subj/id p o ==> null p where s=id and p=o
                         cmd = cmd.where(table.c[colName] == o)
-                        for k, v in pKeyDict.items():
-                            cmd = cmd.where(table.c[k] == v)
-            else:
-                pass
-
-                '''
-                prop = self.mapping[p]
-                if props['references']:
-                    # this is a foreign key 
-                    if key != "id":
-                        #  cmd = update([table] set " + key+" = null 
-                        {colName : ''}
-                        upd = table.update().\
-                            where(table.c[pKeyName] == pKeyValue)
-                elif props['relationship']:
-                    # delete row
-                    cmd = table.delete().where(table.c[pKeyName] == pKeyValue)
-                elif something
-                    update table set propinfo.column = null
-                '''
+                        for pk, pv in pKeyDict.items():
+                            cmd = cmd.where(table.c[pk] == pv)
+                    else:
+                        # subj/id p none ==> null p where s=id
+                        for pk, pv in pKeyDict.items():
+                            cmd = cmd.where(table.c[pk] == pv)
         self._checkConnection()
         result = self.conn.execute(cmd)
         return result.rowcount
