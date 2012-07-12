@@ -253,14 +253,29 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
                        None, None, None)
         ret = model.removeStatement(ts)
         self.assertEqual(2, ret)
-        ts = Statement(RSRC_URI + 'track/trackid#2', 'artists',
+        rows = model.getStatements(ts.subject, ts.predicate)
+        self.assertEqual(0, len(rows))
+        
+        ts = Statement(RSRC_URI + 'track/trackid#2', 'albums',
                        None, None, None)
         ret = model.removeStatement(ts)
         self.assertEqual(2, ret)
+        rows = model.getStatements(ts.subject, ts.predicate)
+        self.assertEqual(0, len(rows))
+
         ts = Statement(RSRC_URI + 'album/albumid#3', 'tracks',
                        None, None, None)
         ret = model.removeStatement(ts)
         self.assertEqual(4, ret)
+        rows = model.getStatements(ts.subject, ts.predicate)
+        self.assertEqual(0, len(rows))
+
+        ts = Statement(RSRC_URI + 'album/albumid#1', 'grammyclasses',
+                       None, None, None)
+        ret = model.removeStatement(ts)
+        self.assertEqual(2, ret)
+        rows = model.getStatements(ts.subject, ts.predicate)
+        self.assertEqual(0, len(rows))
 
         # remove 
         model.close()

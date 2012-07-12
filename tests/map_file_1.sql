@@ -35,7 +35,7 @@ CREATE TABLE grammy(
   CHECK (grammyclass IN ('none', 'shmaltz', 'metal', 'exotica')) 
   DEFAULT 'none',
   grammydate	DATE,
-  FOREIGN KEY(grammywinner) REFERENCES album(albumid) ON DELETE CASCADE
+  FOREIGN KEY(grammywinner) REFERENCES album(albumid) -- ON DELETE CASCADE
 );
 --
 -- functional dependencies
@@ -45,24 +45,24 @@ CREATE TABLE album_tracks(
   albumid	INTEGER,
   trackid	INTEGER,
   PRIMARY KEY(albumid, trackid),
-  FOREIGN KEY(albumid) REFERENCES album(albumid) ON DELETE CASCADE,
-  FOREIGN KEY(trackid) REFERENCES track(trackid) ON DELETE CASCADE
+  FOREIGN KEY(albumid) REFERENCES album(albumid), -- ON DELETE CASCADE,
+  FOREIGN KEY(trackid) REFERENCES track(trackid) -- ON DELETE CASCADE
 );
 -- "for each track there are one or more possibly non-unique artists"
 CREATE TABLE track_artist(
   trackid	INTEGER,
   artistid    	INTEGER,
   PRIMARY KEY(trackid, artistid),
-  FOREIGN KEY(trackid) REFERENCES track(trackid) ON DELETE CASCADE,
-  FOREIGN KEY(artistid) REFERENCES artist(artistid) ON DELETE CASCADE
+  FOREIGN KEY(trackid) REFERENCES track(trackid), -- ON DELETE CASCADE,
+  FOREIGN KEY(artistid) REFERENCES artist(artistid) -- ON DELETE CASCADE
 );
 -- "for each album there is a single possibly non-unique record label"
 CREATE TABLE album_label(
   albumid	INTEGER,
   labelid    	INTEGER,
   PRIMARY KEY(albumid),
-  FOREIGN KEY(albumid) REFERENCES album(albumid) ON DELETE CASCADE,
-  FOREIGN KEY(labelid) REFERENCES label(labelid) ON DELETE CASCADE
+  FOREIGN KEY(albumid) REFERENCES album(albumid), -- ON DELETE CASCADE,
+  FOREIGN KEY(labelid) REFERENCES label(labelid) -- ON DELETE CASCADE
 );
 --
 -- SQL view relvars

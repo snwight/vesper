@@ -427,7 +427,7 @@ class JsonAlchemyStore(Model):
             rto = self._getTableObject(refTbl)
             tto = self._getTableObject(tgtTbl)
             # build our canned delete()
-            cmd = rto.delete().where(rto.c[refPKey] == refPKVal)
+            cmd = rto.delete().where(rto.c[refKey] == refPKVal)
             # now we perform the query and format returned values
             self._checkConnection()
             result = self.conn.execute(cmd)
