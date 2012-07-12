@@ -249,11 +249,19 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         self.assertEqual(15, len(rows))
 
         # remove all rows correspnding to reference property
-#        ts = Statement(RSRC_URI + 'track/trackid#1', 'artists',
-#                       None, None, None)
-#        ret = model.removeStatement(ts)
-#        self.assertEqual(2, ret)
-       
+        ts = Statement(RSRC_URI + 'track/trackid#1', 'artists',
+                       None, None, None)
+        ret = model.removeStatement(ts)
+        self.assertEqual(2, ret)
+        ts = Statement(RSRC_URI + 'track/trackid#2', 'artists',
+                       None, None, None)
+        ret = model.removeStatement(ts)
+        self.assertEqual(2, ret)
+        ts = Statement(RSRC_URI + 'album/albumid#3', 'tracks',
+                       None, None, None)
+        ret = model.removeStatement(ts)
+        self.assertEqual(4, ret)
+
         # remove 
         model.close()
 

@@ -265,14 +265,7 @@ class JsonAlchemyStore(Model):
         '''
         this is called after determination has been made that 'prop' is 
         not a simple column property - our task here is to find it by name 
-        in the "parent" table's property mapping... we are only interested 
-        now in views referring to an attribute of the parent table or 
-        correlation tables containing foreign keys which refer to primary 
-        key/s of the parent table. getStatements() is explicitly invoked if 
-        either class of property is matched, with appropriate arguments, 
-        making this procedure mutually recursive with getStatements() -
-        hence we break out of either search loop below with a return 
-        of getStatements() results to the caller
+        in the "parent" table's property mapping
         '''
         for r in self.jmap.getViewRefsFromTable(tableName):
             if propName not in r:
@@ -303,7 +296,6 @@ class JsonAlchemyStore(Model):
             (refPKey, refPKVal) = pKeyDict.items()[0]
             rto = self._getTableObject(refTbl)
             tto = self._getTableObject(tgtTbl)
-
             # build our canned select()
             query = select([tto.c[tgtKey]]).where(
                 (rto.c[refKey] == refPKVal) & (rto.c[tgtKey] == tto.c[tgtKey]))
@@ -417,6 +409,31 @@ class JsonAlchemyStore(Model):
         return rc
 
 
+    def _removeReferences(self, tableName, pKeyDict, propName):
+        '''
+        this is called after determination has been made that 'prop' is 
+        not a simple column property - our task here is to find it by name 
+        in the "parent" table's property mapping
+        '''
+        for r in self.jmap.getRefFKeysFromTable(tableName):
+            if propName not in r:
+                continue
+            # extract previously collected property attributes
+            (a, b) = r[propName]
+            [(refTbl, refKey)] = a.items()
+            [(tgtTbl, tgtKey)] = b.items()
+            # XXX PUNT on compound primary keys - just use first
+            (refPKey, refPKVal) = pKeyDict.items()[0]
+            rto = self._getTableObject(refTbl)
+            tto = self._getTableObject(tgtTbl)
+            # build our canned delete()
+            cmd = rto.delete().where(rto.c[refPKey] == refPKVal)
+            # now we perform the query and format returned values
+            self._checkConnection()
+            result = self.conn.execute(cmd)
+            return result.rowcount
+
+
     def removeStatement(self, stmt):
         s, p, o, ot, c = stmt
         cmd = pKeyDict = colName = None
@@ -447,23 +464,24 @@ class JsonAlchemyStore(Model):
                 cmd = table.delete()
                 for k, v in pKeyDict.items():
                     cmd = cmd.where(table.c[k] == v)
-            elif p and pKeyDict and not o:
-                # subj/id pred none ==> null pred where subj == id
+            elif p:
                 colName = self.jmap.getColFromPred(table.name, p)
-                cmd = table.update().values({colName : ''})
-                for k, v in pKeyDict.items():
-                    cmd = cmd.where(table.c[k] == v)
-            elif p and pKeyDict and o:
-                # subj/id pred obj ==> null pred where subj==id and pred==obj
-                colName = self.jmap.getColFromPred(table.name, p)
-                cmd = table.update().values({colName : ''})
-                cmd = cmd.where(table.c[colName] == o)
-                for k, v in pKeyDict.items():
-                    cmd = cmd.where(table.c[k] == v)
-            elif p and not pKeyDict and not o:
-                # tbl col none ==> null pred
-                colName = self.jmap.getColFromPred(table.name, p)
-                cmd = table.update().values({colName : ''})
+                if colName:
+                    cmd = table.update().values({colName : ''})
+                else:
+                    # predicate must be 'referencing property'
+                    # i believe that update is irrelevant but DELETE is plausible
+                    return self._removeReferences(table.name, pKeyDict, p)
+                if pKeyDict:
+                    if not o:
+                        # subj/id pred none ==> null pred where subj == id
+                        for k, v in pKeyDict.items():
+                            cmd = cmd.where(table.c[k] == v)
+                    if o:
+                        # subj/id pred obj ==> null pred where subj==id and pred==obj
+                        cmd = cmd.where(table.c[colName] == o)
+                        for k, v in pKeyDict.items():
+                            cmd = cmd.where(table.c[k] == v)
             else:
                 pass
 
