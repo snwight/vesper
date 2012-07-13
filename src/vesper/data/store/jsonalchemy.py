@@ -321,7 +321,6 @@ class JsonAlchemyStore(Model):
             if propName:
                 if propName not in r:
                     continue
-                # extract previously collected property attributes
                 (a, b) = r[propName]
             else:
                 [(a, b)] = r.values()
@@ -342,7 +341,6 @@ class JsonAlchemyStore(Model):
         colName = None
         argDict = {}
         pKeyDict = {}
-        # first, verify this is write-worthy table
         tableName = self.jmap.getTableNameFromResource(s)
         if self.jmap.isReadOnly(tableName):
             # XXX raise an error

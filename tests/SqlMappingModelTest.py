@@ -285,6 +285,7 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         model.close()
 
 
+
 if os.getenv("SQLA_TEST_POSTGRESQL"):
     class PgsqlMappingModelTestCase(SqlMappingModelTestCase):
 

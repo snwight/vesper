@@ -72,13 +72,12 @@ class JsonAlchemyMapper():
         SQLA schema inspection
         '''
         if mapping:
-            # good start - user has passed us a json-sql mapping
+            # abort mission - user has passed us a json-sql mapping
             self.mapping = mapping
         else:
-            # XXX should be regexp test!!
             self.mapping = {
                 "tablesprop": "GENERATEDtype",
-                "idpattern": "http://souzis.com/",
+                "idpattern": "http://souzis.com/",    # XXX should be regex
                 "tables": {}
                 }
         # generate mappings for all unaccounted for tables
@@ -240,8 +239,8 @@ class JsonAlchemyMapper():
         utility function to assist _parsePropDict(), this performs a second 
         pass through parsedTables and resolves table-to-table references
         '''
-        for i in range(0, len(self.parsedTables) - 1):
-            for j in range(0, len(self.parsedTables[i]['refFKeys']) - 1):
+        for i in range(0, len(self.parsedTables)):
+            for j in range(0, len(self.parsedTables[i]['refFKeys'])):
                 [(rk, (ref, tgt))] = self.parsedTables[i]['refFKeys'][j].items()
                 [(refTbl, refKey)] = ref.items()
                 [(tgtTbl, tgtKey)] = tgt.items()
@@ -251,6 +250,11 @@ class JsonAlchemyMapper():
                     if tgtKey == idkey:
                         tgtKey = self.getPKeyNamesFromTable(tgtTbl)[0]
                 self.parsedTables[i]['refFKeys'][j][rk] = ({refTbl:refKey}, {tgtTbl:tgtKey})
+            for k in range(0, len(self.parsedTables[i]['viewRefs'])):
+                [(vk, (vNm, vCol, vKey))] = self.parsedTables[i]['viewRefs'][k].items()
+                if vKey == idkey:
+                    self.parsedTables[i]['viewRefs'][k][vk] = (
+                        vNm, vCol, self.parsedTables[i]['pKeyNames'][0])
 
 
     def _getParsedValueFromTable(self, tableName, key):
