@@ -240,21 +240,21 @@ class JsonAlchemyMapper():
         pass through parsedTables and resolves table-to-table references
         '''
         for i in range(0, len(self.parsedTables)):
-            for j in range(0, len(self.parsedTables[i]['refFKeys'])):
-                [(rk, (ref, tgt))] = self.parsedTables[i]['refFKeys'][j].items()
+            pti = self.parsedTables[i]
+            for j in range(0, len(pti['refFKeys'])):
+                [(rk, (ref, tgt))] = pti['refFKeys'][j].items()
                 [(refTbl, refKey)] = ref.items()
                 [(tgtTbl, tgtKey)] = tgt.items()
                 if refKey == idkey:
-                    refKey = self.parsedTables[i]['pKeyNames'][0]
-                if tgtKey:                               # possibly None, that's why
+                    refKey = pti['pKeyNames'][0]
+                if tgtKey:                          # possibly None, that's why
                     if tgtKey == idkey:
                         tgtKey = self.getPKeyNamesFromTable(tgtTbl)[0]
-                self.parsedTables[i]['refFKeys'][j][rk] = ({refTbl:refKey}, {tgtTbl:tgtKey})
-            for k in range(0, len(self.parsedTables[i]['viewRefs'])):
-                [(vk, (vNm, vCol, vKey))] = self.parsedTables[i]['viewRefs'][k].items()
+                pti['refFKeys'][j][rk] = ({refTbl:refKey}, {tgtTbl:tgtKey})
+            for k in range(0, len(pti['viewRefs'])):
+                [(vk, (vNm, vCol, vKey))] = pti['viewRefs'][k].items()
                 if vKey == idkey:
-                    self.parsedTables[i]['viewRefs'][k][vk] = (
-                        vNm, vCol, self.parsedTables[i]['pKeyNames'][0])
+                    pti['viewRefs'][k][vk] = (vNm, vCol, pti['pKeyNames'][0])
 
 
     def _getParsedValueFromTable(self, tableName, key):
