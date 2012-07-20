@@ -43,9 +43,9 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         self.sqlaConfiguration = '/'.join(["sqlite:///", fname])
 
         # create our sqlite test db and schema 
-        cmd = "sqlite {0} < {1}".format(fname, self.sqlSchemaPath)
+        cmd = "sqlite3 {0} < {1}".format(fname, self.sqlSchemaPath)
         call(cmd, shell=True)
-                
+
     def tearDown(self):
         shutil.rmtree(self.tmpdir)
 
@@ -80,7 +80,12 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         ]
         model.addStatements(aStmts)
         rows = model.getStatements(subject = subj)
-        self.assertEqual(4, len(rows))
+        expected = [
+            ('artist/artistid#8', 'name', 'john', None, None),
+            ('artist/artistid#8', 'gender', 'TX', None, None),
+            ('artist/artistid#8', 'birthdate', datetime.date(1960, 6, 6), None, None),
+            ('artist/artistid#8', 'artistid', 8, None, None)]
+        self.assertEqual(expected, rows)
         model.commit()
         model.close()
         if not self.persistentStore:
@@ -89,6 +94,12 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         model = self.getModel()
         rows = model.getStatements(subject=subj)
         self.assertEqual(4, len(rows))
+        expected = [
+            ('artist/artistid#8', 'name', 'john', None, None),
+            ('artist/artistid#8', 'gender', 'TX', None, None),
+            ('artist/artistid#8', 'birthdate', datetime.date(1960, 6, 6), None, None),
+            ('artist/artistid#8', 'artistid', 8, None, None)]
+        self.assertEqual(expected, rows)
         model.close()
     
 
@@ -108,20 +119,35 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         artist_table = rows
         # verify select all elements from one row of one table
         rows = model.getStatements(subject=RSRC_URI + 'artist/artistid#1')
-        self.assertEqual(4, len(rows))
+        expected = [
+            ('artist/artistid#1', 'name', 'bobby', None, None),
+            ('artist/artistid#1', 'gender', 'M', None, None),
+            ('artist/artistid#1', 'birthdate', datetime.date(1961, 5, 15), None, None),
+            ('artist/artistid#1', 'artistid', 1, None, None)]
+        self.assertEqual(expected, rows)
         # verify select all objects with a particular property from one table
         rows = model.getStatements(subject=RSRC_URI + 'artist',
                                    predicate='name')
-        self.assertEqual(7, len(rows))
+        expected = [
+            ('artist/artistid#1', 'artistname', 'bobby', None, None),
+            ('artist/artistid#2', 'artistname', 'diane', None, None),
+            ('artist/artistid#3', 'artistname', 'lashana', None, None),
+            ('artist/artistid#4', 'artistname', 'lucy', None, None),
+            ('artist/artistid#5', 'artistname', 'sid', None, None),
+            ('artist/artistid#6', 'artistname', 'brian', None, None),
+            ('artist/artistid#7', 'artistname', 'nancy', None, None)]
+        self.assertEqual(expected, rows)
         # verify select a property's object given subject ID  
         rows = model.getStatements(subject=RSRC_URI + 'artist/artistid#1', 
                                    predicate='gender')
-        self.assertEqual('M', rows[0][2])
+        expected = [
+            ('artist/artistid#1', 'artistgender', 'M', None, None)]
         # verify select subject ID given a property and object value
         rows = model.getStatements(subject=RSRC_URI + 'artist',
                                    predicate='birthdate',
                                    object=datetime.date(1961, 5, 15))
-        self.assertEqual('artist/artistid#1', rows[0][0])
+        expected = [('artist/artistid#1', None, None, None, None)]
+        self.assertEqual(expected, rows)
         # REPEAT the above tests against another table
         # verify select all rows from a single table
         rows = model.getStatements(subject=RSRC_URI,
@@ -131,55 +157,108 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         track_table = rows
         # verify select all elements from one row of one table
         rows = model.getStatements(subject=RSRC_URI + 'track/trackid#1')
-        self.assertEqual(4, len(rows))
+        expected = [
+            ('track/trackid#1', 'date', datetime.date(2008, 8, 8), None, None),
+            ('track/trackid#1', 'trackid', 1, None, None),
+            ('track/trackid#1', 'tracklength', 360, None, None),
+            ('track/trackid#1', 'title', 'love song one', None, None)]
+        self.assertEqual(expected, rows)
         # verify select all objects with a particular property from one table
         rows = model.getStatements(subject=RSRC_URI + 'track',
                                    predicate='title')
-        self.assertEqual(13, len(rows))
+        expected = [
+            ('track/trackid#1', 'trackname', 'love song one', None, None),
+            ('track/trackid#2', 'trackname', 'love song two', None, None),
+            ('track/trackid#3', 'trackname', 'love song three', None, None),
+            ('track/trackid#4', 'trackname', 'love song four', None, None),
+            ('track/trackid#5', 'trackname', 'love song five', None, None),
+            ('track/trackid#6', 'trackname', 'hate song one', None, None),
+            ('track/trackid#7', 'trackname', 'hate song two', None, None),
+            ('track/trackid#8', 'trackname', 'hate song three', None, None),
+            ('track/trackid#9', 'trackname', 'hate song four', None, None),
+            ('track/trackid#10', 'trackname', 'something happened part 1', None, None),
+            ('track/trackid#11', 'trackname', 'something happened part 2', None, None),
+            ('track/trackid#12', 'trackname', 'nothing happened part 1', None, None),
+            ('track/trackid#13', 'trackname', 'nothing happened part 2', None, None)]
+        self.assertEqual(expected, rows)
         # verify select a property's object given subject ID  
-        rows = model.getStatements(subject=RSRC_URI + 'track/trackid#1', 
+        rows = model.getStatements(subject=RSRC_URI + 'track/trackid#1',
                                    predicate='title')
-        self.assertEqual('love song one', rows[0][2])
+        expected = [
+            ('track/trackid#1', 'trackname', 'love song one', None, None)]
+        self.assertEqual(expected, rows)
         # verify select subject ID given a property and object value
         rows = model.getStatements(subject=RSRC_URI + 'track',
                                    predicate='tracklength',
                                    object=360)
-        self.assertEqual('track/trackid#1', rows[0][0])
+        expected = [
+            ('track/trackid#1', None, None, None, None)]
+        self.assertEqual(expected, rows)
         # verify retrieve all rows from an SQL defined view
         rows = model.getStatements(subject=RSRC_URI,
                                    predicate='rdf:type',
                                    object='artist_discography')
         self.assertEqual(246, len(rows))
-        
         # TEST REFERRING PROPERTIES
         rows = model.getStatements(subject=RSRC_URI + 'track/trackid#1',
                                    predicate='artists')
-        self.assertEqual(2, len(rows))
+        expected = [
+            ('track/trackid#1', 'artists', 1, None, None),
+            ('track/trackid#1', 'artists', 2, None, None)]
+        self.assertEqual(expected, rows)
         rows = model.getStatements(subject=RSRC_URI + 'track/trackid#1',
                                    predicate='albums')
-        self.assertEqual(1, len(rows))
+        expected = [
+            ('track/trackid#1', 'albums', 2, None, None)]
+        self.assertEqual(expected, rows)
         rows = model.getStatements(subject=RSRC_URI + 'album/albumid#1',
                                    predicate='tracks')
-        self.assertEqual(4, len(rows))
+        expected = [
+            ('album/albumid#1', 'tracks', 6, None, None),
+            ('album/albumid#1', 'tracks', 7, None, None),
+            ('album/albumid#1', 'tracks', 8, None, None),
+            ('album/albumid#1', 'tracks', 9, None, None)]
+        self.assertEqual(expected, rows)
         rows = model.getStatements(subject=RSRC_URI + 'artist/artistid#1',
                                    predicate='tracks')
-        self.assertEqual(5, len(rows))
+        expected = [
+            ('artist/artistid#1', 'tracks', 1, None, None),
+            ('artist/artistid#1', 'tracks', 2, None, None),
+            ('artist/artistid#1', 'tracks', 3, None, None),
+            ('artist/artistid#1', 'tracks', 4, None, None),
+            ('artist/artistid#1', 'tracks', 5, None, None)]
+        self.assertEqual(expected, rows)
         rows = model.getStatements(subject=RSRC_URI + 'label/labelid#1',
                                    predicate='albumsA')
-        self.assertEqual(2, len(rows))
+        expected = [
+            ('label/labelid#1', 'albumsA', 1, None, None),
+            ('label/labelid#1', 'albumsA', 2, None, None)]
+        self.assertEqual(expected, rows)
         rows = model.getStatements(subject=RSRC_URI + 'label/labelid#1',
                                    predicate='albumsB')
-        self.assertEqual(2, len(rows))
+        expected = [
+            ('label/labelid#1', 'albumsB', 1, None, None), 
+            ('label/labelid#1', 'albumsB', 2, None, None)]
+        self.assertEqual(expected, rows)
         rows = model.getStatements(subject=RSRC_URI + 'album/albumid#1',
                                    predicate='grammyclasses')
-        self.assertEqual(2, len(rows))
+        expected = [
+            ('album/albumid#1', 'grammyclasses', 'shmaltz', None, None),
+            ('album/albumid#1', 'grammyclasses', 'exotica', None, None)]
+        self.assertEqual(expected, rows)
         # TEST VIEW REF PROPERTY
         rows = model.getStatements(subject=RSRC_URI + 'album/albumid#1',
                                    predicate='artists')
-        self.assertEqual(2, len(rows))
+        expected = [
+            ('album/albumid#1', 'artists', 'lashana', None, None),
+            ('album/albumid#1', 'artists', 'lucy', None, None)]
+        self.assertEqual(expected, rows)
         rows = model.getStatements(subject=RSRC_URI + 'artist/artistid#1',
                                    predicate='albumname')
-        self.assertEqual(2, len(rows))
+        expected = [
+            ('artist/artistid#1', 'albumname', 'Blended Up in Black', None, None),
+            ('artist/artistid#1', 'albumname', 'Greatest Hits', None, None)]
+        self.assertEqual(expected, rows)
         model.close()
 
 
