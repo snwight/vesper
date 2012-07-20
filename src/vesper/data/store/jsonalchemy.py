@@ -1,5 +1,5 @@
-#:copyright: Copyright 2009-2011 by the Vesper team, see AUTHORS.
-#:license: Dual licenced under the GPL or Apache2 licences, see LICENSE.
+#:copyright: Copyright 2009-2012 by the Vesper team, see AUTHORS.
+#:license: Dual licenced under the GPL or Apache2 licenses, see LICENSE.
 __all__ = ['JsonAlchemyStore']
 
 from vesper.data.base import *

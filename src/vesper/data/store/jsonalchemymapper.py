@@ -1,10 +1,10 @@
+#:copyright: Copyright 2009-2012 by the Vesper team, see AUTHORS.
+#:license: Dual licenced under the GPL or Apache2 licenses, see LICENSE.
 import json
 import pprint
 from sqlalchemy import engine
 from sqlalchemy.engine import reflection
 from collections import Counter
-
-import vesper.data.base.utils
 
 RSRC_DELIM='/'
 PKEY_VAL_DELIM='#'

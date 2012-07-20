@@ -1,5 +1,5 @@
-#:copyright: Copyright 2009-2011 by the Vesper team, see AUTHORS.
-#:license: Dual licenced under the GPL or Apache2 licences, see LICENSE.
+#:copyright: Copyright 2009-2012 by the Vesper team, see AUTHORS.
+#:license: Dual licenced under the GPL or Apache2 licenses, see LICENSE.
 """
     SqlMapping model unit tests
 """
@@ -22,8 +22,8 @@ from vesper.data.store.jsonalchemy import JsonAlchemyStore
 # <<HACK!COUGH!>>
 RSRC_URI = "http://souzis.com/"
 
+
 class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
-    
     # initialize our json-to-sql mapping engine SQL and JSON scripts
     sqlSchemaPath = os.path.join(os.getcwd(), 'map_file_1.sql')
     jsonMapPath = os.path.join(os.getcwd(), 'map_file_1.json')
@@ -33,7 +33,6 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
     # XXX TESTING
     # mapping = None
     # XXX
-
     sqlaConfiguration = None
     persistentStore = True
 
@@ -47,25 +46,21 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         cmd = "sqlite {0} < {1}".format(fname, self.sqlSchemaPath)
         call(cmd, shell=True)
                 
-
     def tearDown(self):
         shutil.rmtree(self.tmpdir)
-
 
     def getModel(self):
         return  JsonAlchemyStore(source=self.sqlaConfiguration, 
                                  mapping=self.mapping, autocommit=True)
 
-
     def getTransactionModel(self):
         return JsonAlchemyStore(source=self.sqlaConfiguration, 
                                  mapping=self.mapping, autocommit=False)
 
-
     def _getModel(self, model):
         return model
 
-
+ 
     def testStore(self):
         "basic storage test"
         global RSRC_URI
@@ -110,6 +105,7 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
                                    predicate='rdf:type',
                                    object='artist')
         self.assertEqual(28, len(rows))
+        artist_table = rows
         # verify select all elements from one row of one table
         rows = model.getStatements(subject=RSRC_URI + 'artist/artistid#1')
         self.assertEqual(4, len(rows))
@@ -132,6 +128,7 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
                                    predicate='rdf:type',
                                    object='track')
         self.assertEqual(52, len(rows))
+        track_table = rows
         # verify select all elements from one row of one table
         rows = model.getStatements(subject=RSRC_URI + 'track/trackid#1')
         self.assertEqual(4, len(rows))
@@ -153,6 +150,7 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
                                    predicate='rdf:type',
                                    object='artist_discography')
         self.assertEqual(246, len(rows))
+        
         # TEST REFERRING PROPERTIES
         rows = model.getStatements(subject=RSRC_URI + 'track/trackid#1',
                                    predicate='artists')
