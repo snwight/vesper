@@ -72,13 +72,12 @@ class JsonAlchemyMapper():
         SQLA schema inspection
         '''
         if mapping:
-            # good start - user has passed us a json-sql mapping
+            # abort mission - user has passed us a json-sql mapping
             self.mapping = mapping
         else:
-            # XXX should be regexp test!!
             self.mapping = {
                 "tablesprop": "GENERATEDtype",
-                "idpattern": "http://souzis.com/",
+                "idpattern": "http://souzis.com/",    # XXX should be regex
                 "tables": {}
                 }
         # generate mappings for all unaccounted for tables
@@ -96,7 +95,6 @@ class JsonAlchemyMapper():
         # we've collected the list of all tables, now review it with an eye
         # for relationships and foreign keys
         for tbl in mDict:
-            cNames = [c['name'] for c in self.insp.get_columns(tbl)]
             fKeys = self.insp.get_foreign_keys(tbl)
             fkNames = []
             [fkNames.extend(f['constrained_columns']) for f in fKeys]
@@ -149,8 +147,7 @@ class JsonAlchemyMapper():
                         if cn:
                             [(propNm, colNm)] = cn.items()
                             if colNm in colNames:
-                                # "*" got it already - pop & replace!
-                                del(colNames[colNm])
+                                del(colNames[colNm])         # no dupes!
                             colNames[propNm] = colNm
                     elif p == "*":
                         for c in self.insp.get_columns(tableName):
@@ -158,7 +155,6 @@ class JsonAlchemyMapper():
                                 colNames[c['name']] = c['name']
                     else:
                         print "properties list contains unknown obj:", p
-            # print "vref:", viewRefs
             self.parsedTables.append({'tableName': tableName,
                                       'readOnly': readonly,
                                       'relation': relation,
@@ -167,6 +163,8 @@ class JsonAlchemyMapper():
                                       'viewRefs': viewRefs, 
                                       'joinCols': joinCols, 
                                       'refFKeys': refFKeys})
+        # now walk through that list and resolve table refs
+        self._resolveTableRefs()
         if SPEW: pprint.PrettyPrinter(indent=2).pprint(self.parsedTables)
 
 
@@ -217,6 +215,8 @@ class JsonAlchemyMapper():
                         else:
                             tgtTbl = refTbl
                             tgtKey = refVal
+                    else:
+                        refKey = idkey
                 else:
                     tgtTbl = refTbl = r
                     tgtKey = refKey = idkey
@@ -225,13 +225,36 @@ class JsonAlchemyMapper():
                 r = v['key']
                 if isinstance(r, list):
                     joinCols[propName] = r
-                elif r == 'id':
+                elif isinstance(r, str):
                     joinCols[propName] = [idkey]
                 else:
                     joinCols[propName] = [r]
             else:
                 colName[propName] = v
         return (viewRef, joinCols, refFKey, colName)
+
+
+    def _resolveTableRefs(self):
+        '''
+        utility function to assist _parsePropDict(), this performs a second 
+        pass through parsedTables and resolves table-to-table references
+        '''
+        for i in range(0, len(self.parsedTables)):
+            pti = self.parsedTables[i]
+            for j in range(0, len(pti['refFKeys'])):
+                [(rk, (ref, tgt))] = pti['refFKeys'][j].items()
+                [(refTbl, refKey)] = ref.items()
+                [(tgtTbl, tgtKey)] = tgt.items()
+                if refKey == idkey:
+                    refKey = pti['pKeyNames'][0]
+                if tgtKey:                          # possibly None, that's why
+                    if tgtKey == idkey:
+                        tgtKey = self.getPKeyNamesFromTable(tgtTbl)[0]
+                pti['refFKeys'][j][rk] = ({refTbl:refKey}, {tgtTbl:tgtKey})
+            for k in range(0, len(pti['viewRefs'])):
+                [(vk, (vNm, vCol, vKey))] = pti['viewRefs'][k].items()
+                if vKey == idkey:
+                    pti['viewRefs'][k][vk] = (vNm, vCol, pti['pKeyNames'][0])
 
 
     def _getParsedValueFromTable(self, tableName, key):

@@ -27,8 +27,9 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
     # initialize our json-to-sql mapping engine SQL and JSON scripts
     sqlSchemaPath = os.path.join(os.getcwd(), 'map_file_1.sql')
     jsonMapPath = os.path.join(os.getcwd(), 'map_file_1.json')
-    mapping = json.loads(open(jsonMapPath).read())
-    
+    mFile = open(jsonMapPath)
+    mapping = json.loads(mFile.read())
+    mFile.close()
     # XXX TESTING
     # mapping = None
     # XXX
@@ -37,14 +38,13 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
     persistentStore = True
 
     def setUp(self):
-        # sqlite via sqlite3/pysql - (default python driver)
+        # sqlite via pysql - (default python driver)
         self.tmpdir = tempfile.mkdtemp(prefix="rhizometest")
         fname = os.path.abspath(os.path.join(self.tmpdir, 'jsonmap_db'))
-        self.sqlaConfiguration = '/'.join(
-            [os.getenv("SQLA_TEST_SQLITE"), fname])
+        self.sqlaConfiguration = '/'.join(["sqlite:///", fname])
 
         # create our sqlite test db and schema 
-        cmd = "sqlite3 {0} < {1}".format(fname, self.sqlSchemaPath)
+        cmd = "sqlite {0} < {1}".format(fname, self.sqlSchemaPath)
         call(cmd, shell=True)
                 
 
@@ -201,10 +201,10 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         checkr = True
 
         tStmts = [
-            Statement(RSRC_URI + 'track/trackid#12',
-                      'title', 'nothing happened part 1', 'en-1', None),
-            Statement(RSRC_URI + 'track/trackid#13',
-                      'title', 'nothing happened part 2', 'en-1', None),
+            Statement(RSRC_URI + 'track/trackid#14',
+                      'title', 'some dumb song p1', 'en-1', None),
+            Statement(RSRC_URI + 'track/trackid#15',
+                      'title', 'some dumb song p2', 'en-1', None),
         ]
         ret = model.addStatements(tStmts)
         if checkr:
@@ -236,19 +236,54 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         rows = model.getStatements(subject=RSRC_URI,
                                    predicate="rdf:type",
                                    object='track')
-        self.assertEqual(52, len(rows))
+        self.assertEqual(60, len(rows))
         # remove all objects of one property type - clear this column
         ret = model.addStatements(tStmts)
         self.assertEqual(2, ret)
         ts = Statement(RSRC_URI + 'track', 
                        'title', None, None, None)
         ret = model.removeStatement(ts)
-        self.assertEqual(13, ret)
+        self.assertEqual(15, ret)
         rows = model.getStatements(subject=RSRC_URI + 'track',
                                    predicate='title', object='')
-        self.assertEqual(13, len(rows))
+        self.assertEqual(15, len(rows))
+        # remove all rows correspnding to reference property
+        ts = Statement(RSRC_URI + 'track/trackid#1', 'artists',
+                       None, None, None)
+        ret = model.removeStatement(ts)
+        self.assertEqual(2, ret)
+        rows = model.getStatements(ts.subject, ts.predicate)
+        self.assertEqual(0, len(rows))
+
+        ts = Statement(RSRC_URI + 'track/trackid#2', 'albums',
+                       None, None, None)
+        ret = model.removeStatement(ts)
+        self.assertEqual(2, ret)
+        rows = model.getStatements(ts.subject, ts.predicate)
+        self.assertEqual(0, len(rows))
+
+        ts = Statement(RSRC_URI + 'album/albumid#3', 'tracks',
+                       None, None, None)
+        ret = model.removeStatement(ts)
+        self.assertEqual(4, ret)
+        rows = model.getStatements(ts.subject, ts.predicate)
+        self.assertEqual(0, len(rows))
+
+        ts = Statement(RSRC_URI + 'album/albumid#1', 'grammyclasses',
+                       None, None, None)
+        ret = model.removeStatement(ts)
+        self.assertEqual(2, ret)
+        rows = model.getStatements(ts.subject, ts.predicate)
+        self.assertEqual(0, len(rows))
+
+        # remove entire contents of a table
+        ts = Statement(RSRC_URI, "rdf:type", 'label', None, None)
+        ret = model.removeStatement(ts)
+        self.assertEqual(3, ret)
+
         # remove 
         model.close()
+
 
 
 if os.getenv("SQLA_TEST_POSTGRESQL"):
@@ -261,7 +296,7 @@ if os.getenv("SQLA_TEST_POSTGRESQL"):
             # create our postgresql test db
             call("createdb -U vesper jsonmap_db", shell=True)
             # then load test schema FROM FILE
-            cmd = "psql -q -U vesper -d jsonmap_db < {0}".format(
+            cmd = "psql -q -U vesper -d jsonmap_db < {0} 2>/dev/null".format(
                 self.sqlSchemaPath)
             call(cmd, shell=True)
 

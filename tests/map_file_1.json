@@ -27,6 +27,7 @@
                 {"tracks": {
                     "references": {
                         "table": "album_tracks",
+			"key": "albumid",
                         "value": {"trackid": {"references": "track"}}}}},
 		{"artists": {
 		    "view": {
