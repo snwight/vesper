@@ -172,7 +172,7 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
              None, None),
             ('track/trackid#11', 'trackname', 'something happened part 2',
              None, None),
-            ('track/trackid#12', 'trackname', 'nothing happened part 1', 
+            ('track/trackid#12', 'trackname', 'nothing happened part 1',
              None, None),
             ('track/trackid#13', 'trackname', 'nothing happened part 2', 
              None, None)]
@@ -250,7 +250,7 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         rows = model.getStatements(subject=RSRC_URI+'artist/artistid#1',
                                    predicate='albumname')
         expected = [
-            ('artist/artistid#1', 'albumname', 'Blended Up in Black', 
+            ('artist/artistid#1', 'albumname', 'Blended Up in Black',
              None, None),
             ('artist/artistid#1', 'albumname', 'Greatest Hits', None, None)]
         self.assertEqual(expected, rows)
@@ -271,19 +271,34 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         tStmts = [
             Statement(RSRC_URI+'track/trackid#14',
                       'title', 'dumb song p1', 'en-1', None),
+            Statement(RSRC_URI+'track/trackid#14',
+                      'tracklength', 129, 'en-1', None),
+            Statement(RSRC_URI+'track/trackid#14',
+                      'date', datetime.date(2011, 07, 30), 'en-1', None),
+
             Statement(RSRC_URI+'track/trackid#15',
                       'title', 'dumb song p2', 'en-1', None),
+            Statement(RSRC_URI+'track/trackid#15',
+                      'tracklength', 345, 'en-1', None),
+            Statement(RSRC_URI+'track/trackid#15',
+                      'date', datetime.date(2011, 07, 21), 'en-1', None),
+
             Statement(RSRC_URI+'track/trackid#16',
                       'title', 'atonica', 'en-1', None),
+            Statement(RSRC_URI+'track/trackid#16',
+                      'tracklength', 423, 'en-1', None),
+            Statement(RSRC_URI+'track/trackid#16',
+                      'date', datetime.date(2011, 06, 12), 'en-1', None),
             ]
         model = self.getModel()
         ret = model.addStatements(tStmts)
-        # confirm search for subject ID finds all related properties and values 
+        # confirm search for subject ID finds all related properties and values
         rows = model.getStatements(subject=tStmts[0].subject)
         expected = [
-            ('track/trackid#14', 'date', None, None, None), 
-            ('track/trackid#14', 'trackid', 14, None, None), 
-            ('track/trackid#14', 'tracklength', 0, None, None), 
+            ('track/trackid#14', 'date', datetime.date(2011, 07, 30),
+             None, None), 
+            ('track/trackid#14', 'trackid', 14, None, None),
+            ('track/trackid#14', 'tracklength', 129, None, None),
             ('track/trackid#14', 'title', 'dumb song p1', None, None)]
         self.assertEqual(expected, rows)
         # remove one subject by ID and confirm that it's gone
@@ -303,7 +318,7 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         self.assertEqual(r1, r2)
         # add list of statements twice without duplicate
         ret = model.addStatements(tStmts)
-        self.assertEqual(3, ret)
+        self.assertEqual(9, ret)
         rows = model.getStatements(subject=RSRC_URI, predicate='rdf:type',
                                    object='track')
         self.assertEqual(64, len(rows))
@@ -311,11 +326,11 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         rows = model.getStatements(subject=RSRC_URI, predicate='rdf:type',
                                    object='track')
         self.assertEqual(64, len(rows))
-        # now remove a list of statements
+        # now remove a list of statements by ID
         rmvStmts = [
             Statement(tStmts[0].subject, None, None, None, None),
-            Statement(tStmts[1].subject, None, None, None, None),
-            Statement(tStmts[2].subject, None, None, None, None)]
+            Statement(tStmts[3].subject, None, None, None, None),
+            Statement(tStmts[6].subject, None, None, None, None)]
         ret = model.removeStatements(rmvStmts)
         self.assertEqual(3, ret)
         rows = model.getStatements(subject=RSRC_URI, predicate='rdf:type',
