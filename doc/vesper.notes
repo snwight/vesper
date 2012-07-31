@@ -20,8 +20,8 @@ http://www.w3.org/TR/r2rml
             of each table. The keys correspond to table names and the values 
             are objects with the following properties:
 
-            "id" : <<primary key colum name>>
-                -- the table column that is the primary key
+            "id" : [ <<primary key1>>... <<primary key N>> ]
+                -- the table column or columns that are the primary key
 
             "jsontype" : <<table1>>
                 -- name of json type (only need if json type name 
@@ -64,13 +64,10 @@ http://www.w3.org/TR/r2rml
                         value is dictionary that can contain the following 
                         properties:
 
-                      "key" : "id" ||
-                      "key" : <<columname>> ||
-                      "key" : [ <<columname1>>, <<columname2>>... ],
+                      "key" : <<columname>> || [ <<columname1>>, <<columname2>>... ],
                         -- the column(s) on this table to use when joining 
-                        with the referenced table. "id" equates to this table's
-			primary key, which is the default assumption, hence 
-			the "key":"id" construct is technically syntactic sugar
+                        with the referenced table. Since the primary key is
+			always the assumed default
 
                       "view" : <<view name>> ||
                       "view" : 
