@@ -75,14 +75,15 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
             Statement(RSRC_URI+'artist/artistid#8', 'name', 'john', 'en', None),
             Statement(RSRC_URI+'artist/artistid#8', 'birthdate', bd, 'en', None),
             Statement(RSRC_URI+'artist/artistid#8', 'gender', 'TX', 'en', None)]
-        model.addStatements(aStmts)
+        ret = model.addStatements(aStmts)
+        self.assertEqual(ret, 3)
         rows = model.getStatements(subject = subj)
         expected = [
-            ('artist/artistid#8', 'name', 'john', None, None),
-            ('artist/artistid#8', 'gender', 'TX', None, None),
+            ('artist/artistid#8', 'artistid', 8, None, None),
             ('artist/artistid#8', 'birthdate', bd, None, None),
-            ('artist/artistid#8', 'artistid', 8, None, None)]
-        self.assertEqual(expected, rows)
+            ('artist/artistid#8', 'gender', 'TX', None, None),
+            ('artist/artistid#8', 'name', 'john', None, None)]
+        self.assertEqual(expected, sorted(rows))
         model.commit()
         model.close()
         if not self.persistentStore:
@@ -91,11 +92,11 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         model = self.getModel()
         rows = model.getStatements(subject=subj)
         expected = [
-            ('artist/artistid#8', 'name', 'john', None, None),
-            ('artist/artistid#8', 'gender', 'TX', None, None),
+            ('artist/artistid#8', 'artistid', 8, None, None),
             ('artist/artistid#8', 'birthdate', bd, None, None),
-            ('artist/artistid#8', 'artistid', 8, None, None)]
-        self.assertEqual(expected, rows)
+            ('artist/artistid#8', 'gender', 'TX', None, None),
+            ('artist/artistid#8', 'name', 'john', None, None)]
+        self.assertEqual(expected, sorted(rows))
         model.close()
 
 
