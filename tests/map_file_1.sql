@@ -1,4 +1,5 @@
 --
+-- SQL 2000 compliant "generic SQL" version of test schema
 -- essential data relvars
 --
 -- "for each known artist there is a unique ID, name, birthdate, and gender"
