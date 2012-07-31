@@ -25,7 +25,9 @@ RSRC_URI = "http://souzis.com/"
 
 class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
     # initialize our json-to-sql mapping engine SQL and JSON scripts
-    sqlSchemaPath = os.path.join(os.getcwd(), 'map_file_1.sql')
+    genericSchemaPath = os.path.join(os.getcwd(), 'map_file_1.generic.sql')
+    mysqlSchemaPath = os.path.join(os.getcwd(), 'map_file_1.mysql.sql')
+    postgresSchemaPath = os.path.join(os.getcwd(), 'map_file_1.postgresql.sql')
     sqlLoadPath = os.path.join(os.getcwd(), 'map_file_1.load.sql')
     jsonMapPath = os.path.join(os.getcwd(), 'map_file_1.json')
     mFile = open(jsonMapPath)
@@ -43,7 +45,7 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         fname = os.path.abspath(os.path.join(self.tmpdir, 'jsonmap_db'))
         self.sqlaConfiguration = '/'.join(["sqlite:///", fname])
         # create our sqlite db schema 
-        cmd = "sqlite3 {0} < {1}".format(fname, self.sqlSchemaPath)
+        cmd = "sqlite3 {0} < {1}".format(fname, self.genericSchemaPath)
         call(cmd, shell=True)
         # load our test data
         cmd = "sqlite3 {0} < {1}".format(fname, self.sqlLoadPath)
@@ -295,7 +297,27 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
             ]
         model = self.getModel()
         ret = model.addStatements(tStmts)
-        # confirm search for subject ID finds all related properties and values
+        # confirm we just added rows to table
+        rows = model.getStatements(subject=RSRC_URI+'track', predicate='title')
+        expected = [
+            (u'track/trackid#1', 'trackname', u'love song one', None, None),
+            (u'track/trackid#2', 'trackname', u'love song two', None, None),
+            (u'track/trackid#3', 'trackname', u'love song three', None, None),
+            (u'track/trackid#4', 'trackname', u'love song four', None, None),
+            (u'track/trackid#5', 'trackname', u'love song five', None, None),
+            (u'track/trackid#6', 'trackname', u'hate song one', None, None),
+            (u'track/trackid#7', 'trackname', u'hate song two', None, None),
+            (u'track/trackid#8', 'trackname', u'hate song three', None, None),
+            (u'track/trackid#9', 'trackname', u'hate song four', None, None),
+            (u'track/trackid#10', 'trackname', u'something happened part 1', None, None),
+            (u'track/trackid#11', 'trackname', u'something happened part 2', None, None),
+            (u'track/trackid#12', 'trackname', u'nothing happened part 1', None, None),
+            (u'track/trackid#13', 'trackname', u'nothing happened part 2', None, None),
+            (u'track/trackid#14', 'trackname', u'dumb song p1', None, None),
+            (u'track/trackid#15', 'trackname', u'dumb song p2', None, None),
+            (u'track/trackid#16', 'trackname', u'atonica', None, None)]
+        self.assertEqual(expected, rows)
+        # confirm search for a fresh subject ID finds all related properties and values
         rows = model.getStatements(subject=tStmts[0].subject)
         expected = [
             ('track/trackid#14', 'date', datetime.date(2011, 07, 30), None, None), 
@@ -454,7 +476,7 @@ if os.getenv("SQLA_TEST_POSTGRESQL"):
             call("createdb -U vesper jsonmap_db", shell=True)
             # then load test schema FROM FILE
             cmd = "psql -q -U vesper -d jsonmap_db < {0} 2>/dev/null".format(
-                self.sqlSchemaPath)
+                self.postgresSchemaPath)
             call(cmd, shell=True)
             # load test data
             cmd = "psql -q -U vesper -d jsonmap_db < {0} 2>/dev/null".format(
@@ -487,7 +509,7 @@ if os.getenv("SQLA_TEST_MYSQL"):
                  shell=True)
             # then load test schema FROM FILE
             cmd = "mysql -p've$per' -u vesper jsonmap_db < {0}".format(
-                self.sqlSchemaPath)
+                self.mysqlSchemaPath)
             call(cmd, shell=True)
             # load test data
             cmd = "mysql -p've$per' -u vesper jsonmap_db < {0}".format(
