@@ -1,39 +1,39 @@
 --
--- SQL 2000 compliant "generic SQL" version of test schema
+-- postgresql 9.14 version
 -- essential data relvars
 --
 -- "for each known artist there is a unique ID, name, birthdate, and gender"
 CREATE TABLE artist(
   artistid	INTEGER PRIMARY KEY,
-  artistname  	VARCHAR(255) NOT NULL DEFAULT 'none',
-  artistgender	VARCHAR(6) NOT NULL DEFAULT 'none'
+  artistname  	TEXT NOT NULL DEFAULT 'unknown',
+  artistgender	TEXT NOT NULL DEFAULT 'none'
   CHECK (artistgender IN ('none', 'M', 'F', 'TX')),
   artistbday	DATE
 );
 -- "for each track there is a unique ID, name, date, length"
 CREATE TABLE track(
   trackid	INTEGER PRIMARY KEY,
-  trackname   	VARCHAR(255) NOT NULL DEFAULT 'none',
+  trackname   	TEXT NOT NULL DEFAULT 'unknown',
   tracklength	INTEGER NOT NULL DEFAULT 0,
   trackdate	DATE
 );
 -- "for each album there is a unique ID, name, date"
 CREATE TABLE album(
   albumid	INTEGER PRIMARY KEY,
-  albumname 	VARCHAR(255) NOT NULL DEFAULT 'none',
+  albumname  	TEXT NOT NULL DEFAULT 'unknown',
   albumdate	DATE
 );
 -- "for each label there is a unique ID, name, city"
 CREATE TABLE label(
   labelid	INTEGER PRIMARY KEY,
-  labelname	VARCHAR(255) NOT NULL DEFAULT 'none',
-  labelcity	VARCHAR(255) NOT NULL DEFAULT 'none'
+  labelname	TEXT NOT NULL DEFAULT 'unknown',
+  labelcity	TEXT NOT NULL DEFAULT 'unknown'
 );
 -- "for each grammy there is a unique ID, winner, class, date"
 CREATE TABLE grammy(
-  grammyid	INTEGER PRIMARY KEY REFERENCES album(albumid),
+  grammyid	INTEGER PRIMARY KEY REFERENCES album,
   grammywinner	INTEGER NOT NULL DEFAULT 0,
-  grammyclass	VARCHAR(16) NOT NULL DEFAULT 'none'
+  grammyclass	TEXT NOT NULL DEFAULT 'none'
   CHECK (grammyclass IN ('none', 'shmaltz', 'metal', 'exotica')),
   grammydate	DATE
 );
