@@ -31,8 +31,8 @@ CREATE TABLE label(
 );
 -- "for each grammy there is a unique ID, winner, class, date"
 CREATE TABLE grammy(
-  grammyid	INTEGER PRIMARY KEY REFERENCES album(albumid),
-  grammywinner	INTEGER NOT NULL DEFAULT 0,
+  grammyid	INTEGER PRIMARY KEY,
+  grammywinner	INTEGER NOT NULL REFERENCES album(albumid),
   grammyclass	VARCHAR(16) NOT NULL DEFAULT 'none'
   CHECK (grammyclass IN ('none', 'shmaltz', 'metal', 'exotica')),
   grammydate	DATE
