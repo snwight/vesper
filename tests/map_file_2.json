@@ -1,0 +1,84 @@
+{
+    "tablesprop" : "type",
+    "idpattern" : "http://souzis.com/",
+    "tables": {
+	"track": {
+            "id": ["trackid"],
+            "properties": [
+		{"title": {
+		    "references": {
+			"table": "ouevre",
+			"value": "trackname"}}},
+		{"date": {
+		    "references": {
+			"table": "ouevre",
+			"value": "trackdate"}}},
+                {"artists": {
+                    "references": {
+                        "table": "ouevre",
+			"value": "artistid"}}},
+                {"albums": {
+                    "references": {
+                        "table": "ouevre",
+                        "value": "albumid"}}}
+            ]
+        },
+        "album": {
+            "id": ["albumid"],
+            "properties": [
+		{"title": {
+		    "references": {
+			"table": "ouevre",
+			"value": "albumname"}}},
+ 		{"label": {
+		    "references": {
+			"table": "ouevre",
+			"value": "albumlabel"}}},
+                {"tracks": {
+                    "references": {
+                        "table": "ouevre",
+			"key": "albumid",
+			"value": "trackid"}}},
+		{"artists": {
+		    "view": {
+			"name": "ouevre",
+			"key": "album_id",
+			"column": "artistname"}}},
+		{"grammyclasses": {
+		    "references": {
+                        "table": "grammy",
+			"key": "grammywinner",
+                        "value": "grammyclass"}}}
+	    ]
+        },
+        "artist": {
+            "id": ["artistid"],
+            "properties": [
+                "*",
+		{"name": "artistname"},
+		{"birthdate": "artistbday"},
+		{"gender": "artistgender"},
+		{"albumname": {"view": "artist_discography"}},
+		{"tracks": {
+                    "references": {
+                        "table": "track_artist",
+                        "value": {"trackid": {"references": "track"}}}}}
+            ]
+        },
+	"label": {
+	    "id": ["labelid"],
+	    "properties": [
+		"*",
+		{"albumsA": {"references": "album_label"}},
+		{"albumsB": {
+		    "references": {
+			"table": "album_label",
+			"value": {"albumid": {"references": "album"}}}}}
+	    ]
+	},
+	"grammy": {
+	    "id": ["grammyid"],
+	    "properties": ["*"]
+	}
+    }
+}

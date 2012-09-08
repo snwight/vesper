@@ -25,14 +25,9 @@ RSRC_URI = "http://souzis.com/"
 
 class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
     # initialize our json-to-sql mapping engine SQL and JSON scripts
-    genericSchemaPath = os.path.join(os.getcwd(), 'map_file_1.generic.sql')
-    mysqlSchemaPath = os.path.join(os.getcwd(), 'map_file_1.mysql.sql')
-    postgresSchemaPath = os.path.join(os.getcwd(), 'map_file_1.postgresql.sql')
-    sqlLoadPath = os.path.join(os.getcwd(), 'map_file_1.load.sql')
+    schemaPath = os.path.join(os.getcwd(), 'map_file_1.sql')
     jsonMapPath = os.path.join(os.getcwd(), 'map_file_1.json')
-    mFile = open(jsonMapPath)
-    mapping = json.loads(mFile.read())
-    mFile.close()
+    mapping = json.loads(open(jsonMapPath).read())
     # XXX TESTING
     # mapping = None
     # XXX
@@ -45,10 +40,7 @@ class SqlMappingModelTestCase(modelTest.BasicModelTestCase):
         fname = os.path.abspath(os.path.join(self.tmpdir, 'jsonmap_db'))
         self.sqlaConfiguration = '/'.join(["sqlite:///", fname])
         # create our sqlite db schema 
-        cmd = "sqlite3 {0} < {1}".format(fname, self.genericSchemaPath)
-        call(cmd, shell=True)
-        # load our test data
-        cmd = "sqlite3 {0} < {1}".format(fname, self.sqlLoadPath)
+        cmd = "sqlite3 {0} < {1}".format(fname, self.schemaPath)
         call(cmd, shell=True)
 
     def tearDown(self):
@@ -476,11 +468,7 @@ if os.getenv("SQLA_TEST_POSTGRESQL"):
             call("createdb -U vesper jsonmap_db", shell=True)
             # then load test schema FROM FILE
             cmd = "psql -q -U vesper -d jsonmap_db < {0} 2>/dev/null".format(
-                self.postgresSchemaPath)
-            call(cmd, shell=True)
-            # load test data
-            cmd = "psql -q -U vesper -d jsonmap_db < {0} 2>/dev/null".format(
-                self.sqlLoadPath)
+                self.schemaPath)
             call(cmd, shell=True)
 
 
@@ -509,11 +497,7 @@ if os.getenv("SQLA_TEST_MYSQL"):
                  shell=True)
             # then load test schema FROM FILE
             cmd = "mysql -p've$per' -u vesper jsonmap_db < {0}".format(
-                self.mysqlSchemaPath)
-            call(cmd, shell=True)
-            # load test data
-            cmd = "mysql -p've$per' -u vesper jsonmap_db < {0}".format(
-                self.sqlLoadPath)
+                self.schemaPath)
             call(cmd, shell=True)
 
             
